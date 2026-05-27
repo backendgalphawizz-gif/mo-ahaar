@@ -16,6 +16,8 @@ class DeliveryAssignment extends Model
 
     public const STATUS_PICKED_UP = 'picked_up';
 
+    public const STATUS_OUT_FOR_DELIVERY = 'out_for_delivery';
+
     public const STATUS_DELIVERED = 'delivered';
 
     public const STATUS_CANCELLED = 'cancelled';
@@ -60,16 +62,33 @@ class DeliveryAssignment extends Model
         return $this->hasMany(DeliveryAssignmentRejection::class, 'assignment_id', 'assignment_id');
     }
 
-    public static function statusLabel(string $status): string
+    public static function statusLabel(string $status, bool $forDriverOrders = false): string
     {
         return match ($status) {
             self::STATUS_NEW => 'New',
-            self::STATUS_ASSIGNED => 'Assigned',
+            self::STATUS_ASSIGNED => $forDriverOrders ? 'Accepted' : 'Assigned',
             self::STATUS_REJECTED_BY_DRIVER => 'Rejected',
-            self::STATUS_PICKED_UP => 'Picked up',
+            self::STATUS_PICKED_UP => 'Picked Up',
+            self::STATUS_OUT_FOR_DELIVERY => 'Out for Delivery',
             self::STATUS_DELIVERED => 'Delivered',
             self::STATUS_CANCELLED => 'Cancelled',
             default => ucwords(str_replace('_', ' ', $status)),
         };
+    }
+
+    /**
+     * API filter keys exposed on the My Orders screen.
+     *
+     * @return array<string, string>
+     */
+    public static function myOrdersFilterMap(): array
+    {
+        return [
+            'accepted' => self::STATUS_ASSIGNED,
+            'picked_up' => self::STATUS_PICKED_UP,
+            'out_for_delivery' => self::STATUS_OUT_FOR_DELIVERY,
+            'delivered' => self::STATUS_DELIVERED,
+            'cancelled' => self::STATUS_CANCELLED,
+        ];
     }
 }

@@ -24,6 +24,7 @@ use App\Http\Controllers\API\DriverApp\AuthController as DriverAuthController;
 use App\Http\Controllers\API\DriverApp\DeliveryController as DriverDeliveryController;
 use App\Http\Controllers\API\DriverApp\HomeController as DriverHomeController;
 use App\Http\Controllers\API\DriverApp\NotificationController as DriverNotificationController;
+use App\Http\Controllers\API\DriverApp\OrderController as DriverOrderController;
 
 Route::prefix('users')->group(function () {
     Route::get('/', [UsersController::class, 'index'])->name('users.index');
@@ -189,6 +190,15 @@ Route::prefix('driver-app')->name('driver-app.')->group(function () {
         Route::prefix('deliveries')->group(function () {
             Route::post('/{assignmentId}/accept', [DriverDeliveryController::class, 'accept'])->name('deliveries.accept');
             Route::post('/{assignmentId}/reject', [DriverDeliveryController::class, 'reject'])->name('deliveries.reject');
+        });
+
+        Route::prefix('orders')->group(function () {
+            Route::get('/', [DriverOrderController::class, 'index'])->name('orders.index');
+            Route::get('/filters', [DriverOrderController::class, 'filters'])->name('orders.filters');
+            Route::get('/{assignmentId}', [DriverOrderController::class, 'show'])->name('orders.show');
+            Route::post('/{assignmentId}/pick-up', [DriverOrderController::class, 'pickUp'])->name('orders.pick-up');
+            Route::post('/{assignmentId}/out-for-delivery', [DriverOrderController::class, 'outForDelivery'])->name('orders.out-for-delivery');
+            Route::post('/{assignmentId}/deliver', [DriverOrderController::class, 'deliver'])->name('orders.deliver');
         });
 
         Route::prefix('notifications')->group(function () {

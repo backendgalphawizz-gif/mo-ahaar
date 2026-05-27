@@ -176,4 +176,104 @@ abstract class DriverAppController extends Controller
             ->when($rejectedIds->isNotEmpty(), fn ($q) => $q->whereNotIn('assignment_id', $rejectedIds))
             ->orderByDesc('assignment_id');
     }
+
+    protected function myOrdersBaseQuery(int $driverId)
+    {
+        return DeliveryAssignment::query()
+            ->with(['order.customer.user', 'order.orderItems'])
+            ->where('driver_id', $driverId)
+            ->whereNotIn('status', [
+                DeliveryAssignment::STATUS_NEW,
+                DeliveryAssignment::STATUS_REJECTED_BY_DRIVER,
+            ]);
+    }
+
+    /**
+     * @return list<array{key: string, label: string, count: int}>
+     */
+    protected function myOrdersFilterCounts(int $driverId): array
+    {
+        $labels = [
+            'accepted' => 'Accepted',
+            'picked_up' => 'Picked Up',
+            'out_for_delivery' => 'Out for Delivery',
+            'delivered' => 'Delivered',
+            'cancelled' => 'Cancelled',
+        ];
+
+        $filters = [];
+        foreach (DeliveryAssignment::myOrdersFilterMap() as $key => $dbStatus) {
+            $count = DeliveryAssignment::query()
+                ->where('driver_id', $driverId)
+                ->where('status', $dbStatus)
+                ->count();
+
+            $filters[] = [
+                'key' => $key,
+                'label' => $labels[$key] ?? ucwords(str_replace('_', ' ', $key)),
+                'count' => $count,
+            ];
+        }
+
+        return $filters;
+    }
+
+    protected function formatMyOrderItem(DeliveryAssignment $assignment): array
+    {
+        $order = $assignment->order;
+        $base = $this->formatAssignmentItem($assignment, $order);
+        $status = $assignment->status;
+
+        $orderNumber = $base['order_number'];
+        $totalAmount = $order ? (float) $order->total_amount : (float) $assignment->payout_amount;
+
+        return array_merge($base, [
+            'display_id' => $orderNumber,
+            'status_label' => DeliveryAssignment::statusLabel($status, true),
+            'status_badge' => $this->statusBadgeFor($status),
+            'total_amount' => $totalAmount,
+            'currency' => 'INR',
+            'amount_formatted' => '₹' . number_format((float) $assignment->payout_amount, 0),
+            'store' => array_merge($base['store'], [
+                'branch' => $assignment->store_location_summary,
+            ]),
+            'can_mark_picked_up' => $status === DeliveryAssignment::STATUS_ASSIGNED,
+            'can_mark_out_for_delivery' => $status === DeliveryAssignment::STATUS_PICKED_UP,
+            'can_mark_delivered' => $status === DeliveryAssignment::STATUS_OUT_FOR_DELIVERY,
+            'can_accept' => false,
+            'can_reject' => in_array($status, [
+                DeliveryAssignment::STATUS_ASSIGNED,
+                DeliveryAssignment::STATUS_PICKED_UP,
+                DeliveryAssignment::STATUS_OUT_FOR_DELIVERY,
+            ], true),
+        ]);
+    }
+
+    /**
+     * @return array{text: string, color: string}
+     */
+    protected function statusBadgeFor(string $status): array
+    {
+        $color = match ($status) {
+            DeliveryAssignment::STATUS_ASSIGNED => 'blue',
+            DeliveryAssignment::STATUS_PICKED_UP => 'purple',
+            DeliveryAssignment::STATUS_OUT_FOR_DELIVERY => 'orange',
+            DeliveryAssignment::STATUS_DELIVERED => 'green',
+            DeliveryAssignment::STATUS_CANCELLED => 'red',
+            default => 'gray',
+        };
+
+        return [
+            'text' => DeliveryAssignment::statusLabel($status, true),
+            'color' => $color,
+        ];
+    }
+
+    protected function findDriverAssignment(int $driverId, int $assignmentId): ?DeliveryAssignment
+    {
+        return DeliveryAssignment::with(['order.customer.user', 'order.orderItems', 'order.trackings'])
+            ->where('assignment_id', $assignmentId)
+            ->where('driver_id', $driverId)
+            ->first();
+    }
 }
