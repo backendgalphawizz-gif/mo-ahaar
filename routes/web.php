@@ -47,6 +47,25 @@ Route::middleware(['AdminAuth'])->prefix('admin')->group(function(){
         Route::get('/search', [DashboardController::class, 'globalSearch'])->name('admin.global-search');
         Route::get('/search/suggestions', [DashboardController::class, 'searchSuggestions'])->name('admin.global-search.suggestions');
 
+        // Run Migrations Route
+        Route::get('/run-migrations', function() {
+            try {
+                \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+                $output = \Illuminate\Support\Facades\Artisan::output();
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Migrations executed successfully',
+                    'output' => $output
+                ]);
+            } catch (\Exception $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Migration failed',
+                    'error' => $e->getMessage()
+                ], 500);
+            }
+        })->name('admin.run-migrations');
+
         // Peoduct Management Routes
         Route::get('/products',[ProductManagementController::class,'products'])->name('admin.products');
         Route::get('/add-product',[ProductManagementController::class,'addProduct'])->name('admin.add-product');

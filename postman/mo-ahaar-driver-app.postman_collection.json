@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "a8c4e2f1-9b3d-4e7a-8f2c-1d5e6a7b8c9d",
     "name": "Mo Aahar - Driver App",
-    "description": "Driver mobile app APIs: email/password login, forgot-password OTP (4-digit), reset password, dashboard, new deliveries, accept/reject, notifications.",
+    "description": "Driver mobile app APIs: auth, home, new deliveries, My Orders (tab filters + status updates), notifications.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -254,6 +254,202 @@
               "raw": "{\n  \"reason\": \"Too far from current location\"\n}"
             },
             "url": "{{base_url}}/driver-app/deliveries/{{assignment_id}}/reject"
+          }
+        }
+      ]
+    },
+    {
+      "name": "My Orders",
+      "item": [
+        {
+          "name": "List Orders - Accepted",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+                  "const j = pm.response.json();",
+                  "const orders = j.data && j.data.orders ? j.data.orders : [];",
+                  "if (orders.length && orders[0].assignment_id) {",
+                  "    pm.collectionVariables.set('assignment_id', String(orders[0].assignment_id));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/driver-app/orders?status=accepted&page=1&per_page=10",
+              "host": ["{{base_url}}"],
+              "path": ["driver-app", "orders"],
+              "query": [
+                { "key": "status", "value": "accepted" },
+                { "key": "page", "value": "1" },
+                { "key": "per_page", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "List Orders - Picked Up",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/driver-app/orders?status=picked_up&page=1&per_page=10",
+              "host": ["{{base_url}}"],
+              "path": ["driver-app", "orders"],
+              "query": [
+                { "key": "status", "value": "picked_up" },
+                { "key": "page", "value": "1" },
+                { "key": "per_page", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "List Orders - Out for Delivery",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/driver-app/orders?status=out_for_delivery&page=1&per_page=10",
+              "host": ["{{base_url}}"],
+              "path": ["driver-app", "orders"],
+              "query": [
+                { "key": "status", "value": "out_for_delivery" },
+                { "key": "page", "value": "1" },
+                { "key": "per_page", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "List Orders - Delivered",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/driver-app/orders?status=delivered&page=1&per_page=10",
+              "host": ["{{base_url}}"],
+              "path": ["driver-app", "orders"],
+              "query": [
+                { "key": "status", "value": "delivered" },
+                { "key": "page", "value": "1" },
+                { "key": "per_page", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "List Orders - Cancelled",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/driver-app/orders?status=cancelled&page=1&per_page=10",
+              "host": ["{{base_url}}"],
+              "path": ["driver-app", "orders"],
+              "query": [
+                { "key": "status", "value": "cancelled" },
+                { "key": "page", "value": "1" },
+                { "key": "per_page", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "List Orders - All",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/driver-app/orders?status=all&page=1&per_page=10",
+              "host": ["{{base_url}}"],
+              "path": ["driver-app", "orders"],
+              "query": [
+                { "key": "status", "value": "all" },
+                { "key": "page", "value": "1" },
+                { "key": "per_page", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Order Filters (tab counts)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/driver-app/orders/filters"
+          }
+        },
+        {
+          "name": "Order Detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/driver-app/orders/{{assignment_id}}"
+          }
+        },
+        {
+          "name": "Mark Picked Up",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/driver-app/orders/{{assignment_id}}/pick-up"
+          }
+        },
+        {
+          "name": "Mark Out for Delivery",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/driver-app/orders/{{assignment_id}}/out-for-delivery"
+          }
+        },
+        {
+          "name": "Mark Delivered",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/driver-app/orders/{{assignment_id}}/deliver"
           }
         }
       ]
