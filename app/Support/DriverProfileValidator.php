@@ -13,9 +13,9 @@ class DriverProfileValidator
 
     public const ACCOUNT_TYPES = ['savings', 'current', 'Savings', 'Current'];
 
-    public static function personalRules(?int $driverUserId = null, bool $requireIdentityDocument = false): array
+    public static function personalRules(?int $driverUserId = null, ?DriverProfile $profile = null, bool $isCreate = false): array
     {
-        return [
+        return array_merge([
             'name' => ['required', 'string', 'max:100'],
             'mobile' => [
                 'required',
@@ -35,12 +35,29 @@ class DriverProfileValidator
             ],
             'profile_image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
             'document_type' => ['required', Rule::in(self::DOCUMENT_TYPES)],
-            'identity_document' => array_filter([
-                $requireIdentityDocument ? 'required' : 'nullable',
-                'file',
-                'mimes:jpg,jpeg,png,webp,pdf',
-                'max:5120',
-            ]),
+        ], self::documentFileRules($profile, $isCreate));
+    }
+
+    public static function documentFileRules(?DriverProfile $profile, bool $isCreate): array
+    {
+        $fileRule = ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:5120'];
+
+        return [
+            'identity_document' => array_merge([
+                Rule::requiredIf(fn () => request('document_type') === 'pan'
+                    && !request()->hasFile('identity_document')
+                    && ($isCreate || empty($profile?->pan_card))),
+            ], $fileRule),
+            'aadhar_card' => array_merge([
+                Rule::requiredIf(fn () => request('document_type') === 'aadhar'
+                    && !request()->hasFile('aadhar_card')
+                    && ($isCreate || empty($profile?->aadhar_card))),
+            ], $fileRule),
+            'aadhar_card_back' => array_merge([
+                Rule::requiredIf(fn () => request('document_type') === 'aadhar'
+                    && !request()->hasFile('aadhar_card_back')
+                    && ($isCreate || empty($profile?->aadhar_card_back))),
+            ], $fileRule),
         ];
     }
 
@@ -81,7 +98,7 @@ class DriverProfileValidator
     public static function adminCreateRules(?int $driverUserId = null): array
     {
         return array_merge(
-            self::personalRules($driverUserId, true),
+            self::personalRules($driverUserId, null, true),
             self::vehicleRules(true),
             self::bankRules(),
             [
@@ -93,15 +110,8 @@ class DriverProfileValidator
 
     public static function adminUpdateRules(?int $driverUserId, ?DriverProfile $profile): array
     {
-        $hasPan = !empty($profile?->pan_card);
-        $hasAadhar = !empty($profile?->aadhar_card);
-        $hasIdentity = ($profile?->document_type === 'pan' && $hasPan)
-            || ($profile?->document_type === 'aadhar' && $hasAadhar)
-            || $hasPan
-            || $hasAadhar;
-
         return array_merge(
-            self::personalRules($driverUserId, !$hasIdentity),
+            self::personalRules($driverUserId, $profile, false),
             self::vehicleRules(false, !empty($profile?->rc_image), !empty($profile?->driving_license)),
             self::bankRules(),
             [
@@ -121,6 +131,24 @@ class DriverProfileValidator
         return $rules;
     }
 
+    public static function hasIdentityDocuments(?DriverProfile $profile): bool
+    {
+        if (!$profile) {
+            return false;
+        }
+
+        if ($profile->document_type === DriverProfile::DOCUMENT_PAN) {
+            return !empty($profile->pan_card);
+        }
+
+        if ($profile->document_type === DriverProfile::DOCUMENT_AADHAR) {
+            return !empty($profile->aadhar_card) && !empty($profile->aadhar_card_back);
+        }
+
+        return !empty($profile->pan_card)
+            || (!empty($profile->aadhar_card) && !empty($profile->aadhar_card_back));
+    }
+
     public static function messages(): array
     {
         return [
@@ -129,8 +157,12 @@ class DriverProfileValidator
             'mobile.digits' => 'Mobile number must be exactly 10 digits.',
             'document_type.required' => 'Document type is required.',
             'document_type.in' => 'Document type must be PAN or Aadhaar.',
-            'identity_document.required' => 'Identity document image is required.',
-            'identity_document.mimes' => 'Identity document must be JPG, PNG, WEBP, or PDF.',
+            'identity_document.required' => 'PAN card image is required.',
+            'identity_document.mimes' => 'PAN card must be JPG, PNG, WEBP, or PDF.',
+            'aadhar_card.required' => 'Aadhaar front image is required.',
+            'aadhar_card.mimes' => 'Aadhaar front must be JPG, PNG, WEBP, or PDF.',
+            'aadhar_card_back.required' => 'Aadhaar back image is required.',
+            'aadhar_card_back.mimes' => 'Aadhaar back must be JPG, PNG, WEBP, or PDF.',
             'account_number.regex' => 'Account number must contain digits only.',
             'ifsc_code.regex' => 'Please enter a valid IFSC code.',
             'vehicle_number.regex' => 'Vehicle number format is invalid.',
@@ -174,22 +206,26 @@ class DriverProfileValidator
         }
 
         $documentType = $profile->document_type;
-        if ($request->hasFile('identity_document')) {
-            if ($documentType === DriverProfile::DOCUMENT_PAN) {
+
+        if ($documentType === DriverProfile::DOCUMENT_PAN) {
+            if ($request->hasFile('identity_document')) {
                 $deleteFile($profile->pan_card);
                 $profile->pan_card = $storeFile($request->file('identity_document'), 'pan_' . $profile->driver_id);
                 $profile->pan_card_uploaded_at = now();
-                $deleteFile($profile->aadhar_card);
-                $profile->aadhar_card = null;
-                $profile->aadhar_card_uploaded_at = null;
-            } else {
-                $deleteFile($profile->aadhar_card);
-                $profile->aadhar_card = $storeFile($request->file('identity_document'), 'aadhar_' . $profile->driver_id);
-                $profile->aadhar_card_uploaded_at = now();
-                $deleteFile($profile->pan_card);
-                $profile->pan_card = null;
-                $profile->pan_card_uploaded_at = null;
             }
+            self::clearAadharDocuments($profile, $deleteFile);
+        } elseif ($documentType === DriverProfile::DOCUMENT_AADHAR) {
+            if ($request->hasFile('aadhar_card')) {
+                $deleteFile($profile->aadhar_card);
+                $profile->aadhar_card = $storeFile($request->file('aadhar_card'), 'aadhar_front_' . $profile->driver_id);
+                $profile->aadhar_card_uploaded_at = now();
+            }
+            if ($request->hasFile('aadhar_card_back')) {
+                $deleteFile($profile->aadhar_card_back);
+                $profile->aadhar_card_back = $storeFile($request->file('aadhar_card_back'), 'aadhar_back_' . $profile->driver_id);
+                $profile->aadhar_card_back_uploaded_at = now();
+            }
+            self::clearPanDocument($profile, $deleteFile);
         }
 
         if ($request->hasFile('rc_image')) {
@@ -213,5 +249,28 @@ class DriverProfileValidator
         $profile->save();
 
         return $profile;
+    }
+
+    private static function clearAadharDocuments(DriverProfile $profile, callable $deleteFile): void
+    {
+        if ($profile->aadhar_card) {
+            $deleteFile($profile->aadhar_card);
+            $profile->aadhar_card = null;
+            $profile->aadhar_card_uploaded_at = null;
+        }
+        if ($profile->aadhar_card_back) {
+            $deleteFile($profile->aadhar_card_back);
+            $profile->aadhar_card_back = null;
+            $profile->aadhar_card_back_uploaded_at = null;
+        }
+    }
+
+    private static function clearPanDocument(DriverProfile $profile, callable $deleteFile): void
+    {
+        if ($profile->pan_card) {
+            $deleteFile($profile->pan_card);
+            $profile->pan_card = null;
+            $profile->pan_card_uploaded_at = null;
+        }
     }
 }

@@ -44,9 +44,8 @@ class ProfileController extends DriverAppController
         }
 
         $profile = $this->getOrCreateDriverProfile((int) $driver->user_id);
-        $hasIdentity = !empty($profile->identityDocumentFile());
 
-        $rules = DriverProfileValidator::personalRules((int) $driver->user_id, !$hasIdentity);
+        $rules = DriverProfileValidator::personalRules((int) $driver->user_id, $profile, false);
         $validated = $request->validate($rules, DriverProfileValidator::messages());
 
         $driver->name = trim($validated['name']);
@@ -63,26 +62,13 @@ class ProfileController extends DriverAppController
 
         $driver->save();
 
-        $profile->document_type = strtolower(trim((string) $validated['document_type']));
-        if ($request->hasFile('identity_document')) {
-            $documentType = $profile->document_type;
-            if ($documentType === DriverProfile::DOCUMENT_PAN) {
-                $this->deleteDriverFile($profile->pan_card);
-                $profile->pan_card = $this->storeDriverFile($request->file('identity_document'), 'pan_' . $driver->user_id);
-                $profile->pan_card_uploaded_at = now();
-                $this->deleteDriverFile($profile->aadhar_card);
-                $profile->aadhar_card = null;
-                $profile->aadhar_card_uploaded_at = null;
-            } else {
-                $this->deleteDriverFile($profile->aadhar_card);
-                $profile->aadhar_card = $this->storeDriverFile($request->file('identity_document'), 'aadhar_' . $driver->user_id);
-                $profile->aadhar_card_uploaded_at = now();
-                $this->deleteDriverFile($profile->pan_card);
-                $profile->pan_card = null;
-                $profile->pan_card_uploaded_at = null;
-            }
-        }
-        $profile->save();
+        DriverProfileValidator::syncProfileFromRequest(
+            $profile,
+            $validated,
+            $request,
+            fn ($file, $prefix) => $this->storeDriverFile($file, $prefix),
+            fn ($fileName) => $this->deleteDriverFile($fileName)
+        );
 
         return response()->json([
             'status' => true,
@@ -181,12 +167,16 @@ class ProfileController extends DriverAppController
         $validated = $request->validate([
             'document_type' => ['nullable', Rule::in(DriverProfileValidator::DOCUMENT_TYPES)],
             'identity_document' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:5120'],
+            'aadhar_card' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:5120'],
+            'aadhar_card_back' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:5120'],
             'driving_license' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:5120'],
             'rc_image' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:5120'],
             'puc_image' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:5120'],
         ], DriverProfileValidator::messages());
 
         if (!$request->hasFile('identity_document')
+            && !$request->hasFile('aadhar_card')
+            && !$request->hasFile('aadhar_card_back')
             && !$request->hasFile('driving_license')
             && !$request->hasFile('rc_image')
             && !$request->hasFile('puc_image')
@@ -201,53 +191,15 @@ class ProfileController extends DriverAppController
             $profile->document_type = strtolower(trim((string) $validated['document_type']));
         }
 
-        if ($request->hasFile('identity_document') && $profile->document_type) {
-            $documentType = $profile->document_type;
-            if ($documentType === DriverProfile::DOCUMENT_PAN) {
-                $this->deleteDriverFile($profile->pan_card);
-                $profile->pan_card = $this->storeDriverFile($request->file('identity_document'), 'pan_' . $driver->user_id);
-                $profile->pan_card_uploaded_at = now();
-                $this->deleteDriverFile($profile->aadhar_card);
-                $profile->aadhar_card = null;
-                $profile->aadhar_card_uploaded_at = null;
-            } else {
-                $this->deleteDriverFile($profile->aadhar_card);
-                $profile->aadhar_card = $this->storeDriverFile($request->file('identity_document'), 'aadhar_' . $driver->user_id);
-                $profile->aadhar_card_uploaded_at = now();
-                $this->deleteDriverFile($profile->pan_card);
-                $profile->pan_card = null;
-                $profile->pan_card_uploaded_at = null;
-            }
-        }
-
-        if ($request->hasFile('driving_license')) {
-            $this->deleteDriverFile($profile->driving_license);
-            $profile->driving_license = $this->storeDriverFile(
-                $request->file('driving_license'),
-                'license_' . $driver->user_id
-            );
-            $profile->driving_license_uploaded_at = now();
-        }
-
-        if ($request->hasFile('rc_image')) {
-            $this->deleteDriverFile($profile->rc_image);
-            $profile->rc_image = $this->storeDriverFile(
-                $request->file('rc_image'),
-                'rc_' . $driver->user_id
-            );
-            $profile->rc_image_uploaded_at = now();
-        }
-
-        if ($request->hasFile('puc_image')) {
-            $this->deleteDriverFile($profile->puc_image);
-            $profile->puc_image = $this->storeDriverFile(
-                $request->file('puc_image'),
-                'puc_' . $driver->user_id
-            );
-            $profile->puc_image_uploaded_at = now();
-        }
-
-        $profile->save();
+        DriverProfileValidator::syncProfileFromRequest(
+            $profile,
+            array_merge($validated, [
+                'document_type' => $profile->document_type ?? DriverProfile::DOCUMENT_AADHAR,
+            ]),
+            $request,
+            fn ($file, $prefix) => $this->storeDriverFile($file, $prefix),
+            fn ($fileName) => $this->deleteDriverFile($fileName)
+        );
 
         return response()->json([
             'status' => true,
@@ -299,9 +251,17 @@ class ProfileController extends DriverAppController
             'profile_photo' => $driver->profile_image,
             'profile_photo_url' => $profileImageUrl,
             'document_type' => $profile?->document_type,
-            'identity_document' => $this->formatDocumentField(
-                $profile?->identityDocumentFile(),
-                $profile?->identityDocumentUploadedAt()
+            'pan_card' => $this->formatDocumentField(
+                $profile?->pan_card,
+                $profile?->pan_card_uploaded_at
+            ),
+            'aadhar_card_front' => $this->formatDocumentField(
+                $profile?->aadhar_card,
+                $profile?->aadhar_card_uploaded_at
+            ),
+            'aadhar_card_back' => $this->formatDocumentField(
+                $profile?->aadhar_card_back,
+                $profile?->aadhar_card_back_uploaded_at
             ),
         ];
     }
@@ -345,9 +305,17 @@ class ProfileController extends DriverAppController
     {
         return [
             'document_type' => $profile?->document_type,
-            'identity_document' => $this->formatDocumentField(
-                $profile?->identityDocumentFile(),
-                $profile?->identityDocumentUploadedAt()
+            'pan_card' => $this->formatDocumentField(
+                $profile?->pan_card,
+                $profile?->pan_card_uploaded_at
+            ),
+            'aadhar_card_front' => $this->formatDocumentField(
+                $profile?->aadhar_card,
+                $profile?->aadhar_card_uploaded_at
+            ),
+            'aadhar_card_back' => $this->formatDocumentField(
+                $profile?->aadhar_card_back,
+                $profile?->aadhar_card_back_uploaded_at
             ),
             'driving_license_image' => $this->formatDocumentField(
                 $profile?->driving_license,
@@ -401,7 +369,7 @@ class ProfileController extends DriverAppController
         }
 
         return !empty($profile->document_type)
-            && !empty($profile->identityDocumentFile())
+            && $profile->hasCompleteIdentityDocuments()
             && !empty($profile->driving_license)
             && !empty($profile->rc_image);
     }

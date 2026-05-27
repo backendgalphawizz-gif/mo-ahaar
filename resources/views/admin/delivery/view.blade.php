@@ -49,15 +49,27 @@
                 <div class="card dashboard-card h-100">
                     <div class="card-body">
                         <h6 class="mb-3">Documents</h6>
-                        @php
-                            $identityFile = $profile?->identityDocumentFile();
-                        @endphp
-                        <p>
-                            <strong>{{ strtoupper($profile->document_type ?? 'ID') }} Document:</strong>
-                            @if($identityFile)
-                                <a href="{{ asset('public/uploads/drivers/' . $identityFile) }}" target="_blank">View File</a>
-                            @else — @endif
-                        </p>
+                        @if(($profile->document_type ?? '') === 'pan')
+                            <p>
+                                <strong>PAN Card:</strong>
+                                @if(!empty($profile?->pan_card))
+                                    <a href="{{ asset('public/uploads/drivers/' . $profile->pan_card) }}" target="_blank">View File</a>
+                                @else — @endif
+                            </p>
+                        @else
+                            <p>
+                                <strong>Aadhaar Front:</strong>
+                                @if(!empty($profile?->aadhar_card))
+                                    <a href="{{ asset('public/uploads/drivers/' . $profile->aadhar_card) }}" target="_blank">View File</a>
+                                @else — @endif
+                            </p>
+                            <p>
+                                <strong>Aadhaar Back:</strong>
+                                @if(!empty($profile?->aadhar_card_back))
+                                    <a href="{{ asset('public/uploads/drivers/' . $profile->aadhar_card_back) }}" target="_blank">View File</a>
+                                @else — @endif
+                            </p>
+                        @endif
                         <p>
                             <strong>RC Image:</strong>
                             @if(!empty($profile?->rc_image))

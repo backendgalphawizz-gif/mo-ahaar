@@ -18,7 +18,7 @@
     <div class="page-body">
         <div class="container-fluid">
 
-            <div class="sw-hero-card">
+            <div class="sw-hero-card d-none">
                 <div class="sw-hero-content">
                     <p class="sw-welcome">Welcome back, Admin 👋</p>
                     <h2>Here’s what’s happening today!</h2>
@@ -110,7 +110,7 @@
                 </div>
             </div>
 
-            <div class="row g-4">
+            <div class="row g-4 d-none">
                 <div class="col-12">
                     <div class="card dashboard-card h-100">
 

@@ -35,6 +35,7 @@ class DriverProfile extends Model
         'address',
         'pan_card',
         'aadhar_card',
+        'aadhar_card_back',
         'driving_license',
         'rc_image',
         'puc_number',
@@ -42,6 +43,7 @@ class DriverProfile extends Model
         'puc_image',
         'pan_card_uploaded_at',
         'aadhar_card_uploaded_at',
+        'aadhar_card_back_uploaded_at',
         'driving_license_uploaded_at',
         'rc_image_uploaded_at',
         'puc_image_uploaded_at',
@@ -52,6 +54,7 @@ class DriverProfile extends Model
         'puc_expiry_date' => 'date',
         'pan_card_uploaded_at' => 'datetime',
         'aadhar_card_uploaded_at' => 'datetime',
+        'aadhar_card_back_uploaded_at' => 'datetime',
         'driving_license_uploaded_at' => 'datetime',
         'rc_image_uploaded_at' => 'datetime',
         'puc_image_uploaded_at' => 'datetime',
@@ -67,6 +70,19 @@ class DriverProfile extends Model
         return $this->document_type === self::DOCUMENT_PAN
             ? $this->pan_card
             : $this->aadhar_card;
+    }
+
+    public function hasCompleteIdentityDocuments(): bool
+    {
+        if ($this->document_type === self::DOCUMENT_PAN) {
+            return !empty($this->pan_card);
+        }
+
+        if ($this->document_type === self::DOCUMENT_AADHAR) {
+            return !empty($this->aadhar_card) && !empty($this->aadhar_card_back);
+        }
+
+        return false;
     }
 
     public function identityDocumentUploadedAt()

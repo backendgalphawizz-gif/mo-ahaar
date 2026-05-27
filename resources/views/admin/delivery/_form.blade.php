@@ -2,7 +2,9 @@
     $isEdit = !empty($driver);
     $formAction = $isEdit ? route('admin.delivery.update', $driver->user_id) : route('admin.delivery.store');
     $documentType = old('document_type', $profile->document_type ?? 'aadhar');
-    $identityFile = $documentType === 'pan' ? ($profile->pan_card ?? null) : ($profile->aadhar_card ?? null);
+    $hasPan = !empty($profile->pan_card ?? null);
+    $hasAadharFront = !empty($profile->aadhar_card ?? null);
+    $hasAadharBack = !empty($profile->aadhar_card_back ?? null);
 @endphp
 
 <div class="page-body">
@@ -58,16 +60,30 @@
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label">Document Type <span class="text-danger">*</span></label>
-                                        <select name="document_type" class="form-select" required>
+                                        <select name="document_type" id="document_type" class="form-select" required>
                                             <option value="aadhar" {{ $documentType === 'aadhar' ? 'selected' : '' }}>Aadhaar</option>
                                             <option value="pan" {{ $documentType === 'pan' ? 'selected' : '' }}>PAN</option>
                                         </select>
                                     </div>
-                                    <div class="col-md-8">
-                                        <label class="form-label">Identity Document Image <span class="text-danger">{{ $isEdit && $identityFile ? '' : '*' }}</span></label>
-                                        <input type="file" name="identity_document" class="form-control" accept=".jpg,.jpeg,.png,.webp,.pdf" {{ !$isEdit || !$identityFile ? 'required' : '' }}>
-                                        @if($isEdit && $identityFile)
-                                            <small><a href="{{ asset('public/uploads/drivers/' . $identityFile) }}" target="_blank">View current document</a></small>
+                                    <div class="col-md-8" id="panDocumentFields" style="{{ $documentType === 'pan' ? '' : 'display:none;' }}">
+                                        <label class="form-label">PAN Card Image <span class="text-danger pan-required">{{ (!$isEdit || !$hasPan) ? '*' : '' }}</span></label>
+                                        <input type="file" name="identity_document" id="identity_document" class="form-control" accept=".jpg,.jpeg,.png,.webp,.pdf" data-has-existing="{{ ($isEdit && $hasPan) ? '1' : '0' }}">
+                                        @if($isEdit && $hasPan)
+                                            <small><a href="{{ asset('public/uploads/drivers/' . $profile->pan_card) }}" target="_blank">View current PAN</a></small>
+                                        @endif
+                                    </div>
+                                    <div class="col-md-4 aadhar-document-fields" style="{{ $documentType === 'aadhar' ? '' : 'display:none;' }}">
+                                        <label class="form-label">Aadhaar Front <span class="text-danger aadhar-required">{{ (!$isEdit || !$hasAadharFront) ? '*' : '' }}</span></label>
+                                        <input type="file" name="aadhar_card" id="aadhar_card" class="form-control" accept=".jpg,.jpeg,.png,.webp,.pdf" data-has-existing="{{ ($isEdit && $hasAadharFront) ? '1' : '0' }}">
+                                        @if($isEdit && $hasAadharFront)
+                                            <small><a href="{{ asset('public/uploads/drivers/' . $profile->aadhar_card) }}" target="_blank">View front</a></small>
+                                        @endif
+                                    </div>
+                                    <div class="col-md-4 aadhar-document-fields" style="{{ $documentType === 'aadhar' ? '' : 'display:none;' }}">
+                                        <label class="form-label">Aadhaar Back <span class="text-danger aadhar-required">{{ (!$isEdit || !$hasAadharBack) ? '*' : '' }}</span></label>
+                                        <input type="file" name="aadhar_card_back" id="aadhar_card_back" class="form-control" accept=".jpg,.jpeg,.png,.webp,.pdf" data-has-existing="{{ ($isEdit && $hasAadharBack) ? '1' : '0' }}">
+                                        @if($isEdit && $hasAadharBack)
+                                            <small><a href="{{ asset('public/uploads/drivers/' . $profile->aadhar_card_back) }}" target="_blank">View back</a></small>
                                         @endif
                                     </div>
                                     @if(!$isEdit)
@@ -192,16 +208,42 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    var documentType = document.getElementById('document_type');
+    var panFields = document.getElementById('panDocumentFields');
+    var aadharFields = document.querySelectorAll('.aadhar-document-fields');
+    var identityDocument = document.getElementById('identity_document');
+    var aadharFront = document.getElementById('aadhar_card');
+    var aadharBack = document.getElementById('aadhar_card_back');
     var pucNumber = document.getElementById('puc_number');
     var pucExpiry = document.getElementById('puc_expiry_date');
     var pucImage = document.getElementById('puc_image');
 
+    function syncDocumentRequirements() {
+        var isPan = documentType && documentType.value === 'pan';
+        if (panFields) panFields.style.display = isPan ? '' : 'none';
+        aadharFields.forEach(function (el) { el.style.display = isPan ? 'none' : ''; });
+
+        if (identityDocument) {
+            identityDocument.required = isPan && identityDocument.dataset.hasExisting !== '1';
+        }
+        if (aadharFront) {
+            aadharFront.required = !isPan && aadharFront.dataset.hasExisting !== '1';
+        }
+        if (aadharBack) {
+            aadharBack.required = !isPan && aadharBack.dataset.hasExisting !== '1';
+        }
+    }
+
     function syncPucRequirements() {
         var hasPuc = pucNumber && pucNumber.value.trim() !== '';
         if (pucExpiry) pucExpiry.required = hasPuc;
-        if (pucImage) pucImage.required = hasPuc && !pucImage.dataset.hasExisting;
+        if (pucImage) pucImage.required = hasPuc && pucImage.dataset.hasExisting !== '1';
     }
 
+    if (documentType) {
+        documentType.addEventListener('change', syncDocumentRequirements);
+        syncDocumentRequirements();
+    }
     if (pucNumber) {
         pucNumber.addEventListener('input', syncPucRequirements);
         syncPucRequirements();
