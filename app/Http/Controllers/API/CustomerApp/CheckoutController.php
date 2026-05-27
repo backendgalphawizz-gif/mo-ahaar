@@ -316,11 +316,10 @@ class CheckoutController extends Controller
 
         $validated = $request->validate([
             // 'order_id' => ['required', 'integer'],
-            'payment_method' => ['nullable', 'string', 'in:online,upi,card,net_banking,cod,cash,razorpay'],
             'customer_address_id' => ['nullable', 'integer'],
-            'razorpay_order_id' => ['required_if:payment_method,online,upi,card,net_banking,razorpay', 'nullable', 'string'],
-            'razorpay_payment_id' => ['required_if:payment_method,online,upi,card,net_banking,razorpay', 'nullable', 'string'],
-            'razorpay_signature' => ['required_if:payment_method,online,upi,card,net_banking,razorpay', 'nullable', 'string'],
+            'razorpay_order_id' => ['required', 'string'],
+            'razorpay_payment_id' => ['required', 'string'],
+            'razorpay_signature' => ['required', 'string'],
         ]);
 
         // $customer = Customers::where('user_id', $user->user_id)->first();

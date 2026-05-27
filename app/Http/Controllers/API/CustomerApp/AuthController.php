@@ -104,66 +104,66 @@ class AuthController extends Controller
         $this->prepareCustomerSignupPayload($request);
 
         $validated = $request->validate([
-            'user_role' => ['required', 'string', Rule::in(self::CUSTOMER_TYPES)],
+            // 'user_role' => ['required', 'string', Rule::in(self::CUSTOMER_TYPES)],
             'name' => ['required', 'string', 'max:100'],
             'mobile' => [
                 'required',
                 'digits:10',
                 'regex:/^[6-9][0-9]{9}$/',
-                Rule::unique('users', 'mobile')->where(fn ($query) => $query->where('role_type', self::CUSTOMER_ROLE_TYPE)),
+                // Rule::unique('users', 'mobile')->where(fn ($query) => $query->where('role_type', self::CUSTOMER_ROLE_TYPE)),
             ],
             'email' => [
                 'nullable',
                 'email',
                 'max:150',
-                Rule::unique('users', 'email')->where(fn ($query) => $query->where('role_type', self::CUSTOMER_ROLE_TYPE))->whereNotNull('email'),
+                // Rule::unique('users', 'email')->where(fn ($query) => $query->where('role_type', self::CUSTOMER_ROLE_TYPE))->whereNotNull('email'),
             ],
-            'address' => ['required', 'string', 'max:65535'],
-            'gst_number' => [
-                'nullable',
-                'string',
-                'max:30',
-                Rule::requiredIf(fn () => $request->input('user_role') === 'wholesaler'),
-            ],
-            'company_name' => [
-                'nullable',
-                'string',
-                'max:255',
-                Rule::requiredIf(fn () => $request->input('user_role') === 'wholesaler'
-                    && Schema::hasColumn('users', 'company_name')),
-            ],
+            'address' => ['nullable', 'string', 'max:65535'],
+            // 'gst_number' => [
+            //     'nullable',
+            //     'string',
+            //     'max:30',
+            //     Rule::requiredIf(fn () => $request->input('user_role') === 'wholesaler'),
+            // ],
+            // 'company_name' => [
+            //     'nullable',
+            //     'string',
+            //     'max:255',
+            //     Rule::requiredIf(fn () => $request->input('user_role') === 'wholesaler'
+            //         && Schema::hasColumn('users', 'company_name')),
+            // ],
             'gender' => ['nullable', Rule::in(['Male', 'Female', 'Other'])],
-            'accept_terms' => ['required', 'accepted'],
+            // 'accept_terms' => ['required', 'accepted'],
             'fcm_id' => ['nullable', 'string', 'max:255'],
         ], [
             'mobile.regex' => 'Enter a valid 10-digit mobile number starting with 6-9.',
-            'user_role.required' => 'User role is required (retailer or wholesaler).',
-            'user_role.in' => 'User role must be retailer or wholesaler.',
-            'gst_number.required' => 'GST number is mandatory for wholesaler accounts.',
-            'company_name.required' => 'Company name is mandatory for wholesaler accounts.',
-            'accept_terms.required' => 'You must accept the terms and conditions.',
-            'accept_terms.accepted' => 'You must accept the terms and conditions.',
+            // 'user_role.required' => 'User role is required (retailer or wholesaler).',
+            // 'user_role.in' => 'User role must be retailer or wholesaler.',
+            // 'gst_number.required' => 'GST number is mandatory for wholesaler accounts.',
+            // 'company_name.required' => 'Company name is mandatory for wholesaler accounts.',
+            // 'accept_terms.required' => 'You must accept the terms and conditions.',
+            // 'accept_terms.accepted' => 'You must accept the terms and conditions.',
         ]);
 
-        $userType = self::USER_TYPE_BY_ROLE[$validated['user_role']] ?? null;
-        if (!$userType || !Schema::hasColumn('users', 'user_type')) {
-            return response()->json([
-                'status' => false,
-                'message' => 'User account schema is missing user_type. Run migrations or update the database.',
-            ], 500);
-        }
+        // $userType = self::USER_TYPE_BY_ROLE[$validated['user_role']] ?? null;
+        // if (!$userType || !Schema::hasColumn('users', 'user_type')) {
+        //     return response()->json([
+        //         'status' => false,
+        //         'message' => 'User account schema is missing user_type. Run migrations or update the database.',
+        //     ], 500);
+        // }
 
         try {
             DB::beginTransaction();
 
-            $gstNormalized = null;
-            if (!empty($validated['gst_number']) && is_string($validated['gst_number'])) {
-                $t = trim($validated['gst_number']);
-                $gstNormalized = $t !== '' ? strtoupper($t) : null;
-            }
+            // $gstNormalized = null;
+            // if (!empty($validated['gst_number']) && is_string($validated['gst_number'])) {
+            //     $t = trim($validated['gst_number']);
+            //     $gstNormalized = $t !== '' ? strtoupper($t) : null;
+            // }
 
             // Retailers are auto-approved; wholesalers require admin approval.
-            $isRetailer = $validated['user_role'] === 'retailer';
+            // $isRetailer = $validated['user_role'] === 'retailer';
 
             $userData = [
                 'name' => $validated['name'],
@@ -171,30 +171,30 @@ class AuthController extends Controller
                 'mobile' => $validated['mobile'],
                 'password' => Hash::make(Str::random(16)),
                 // System role (customer app); do not use this field for Retailer vs Wholesaler.
-                'role_type' => self::CUSTOMER_ROLE_TYPE,
+                // 'role_type' => self::CUSTOMER_ROLE_TYPE,
                 // Segment: Retailer | Wholesaler — separate from role_type.
-                'user_type' => $userType,
+                // 'user_type' => $userType,
                 // Retailers are active immediately; wholesalers remain inactive until admin approves.
-                'status' => $isRetailer ? 1 : 0,
+                'status' => 1,
             ];
 
-            if (Schema::hasColumn('users', 'approval_status')) {
-                $userData['approval_status'] = $isRetailer ? 'approved' : 'pending';
-            }
+            // if (Schema::hasColumn('users', 'approval_status')) {
+            //     $userData['approval_status'] = $isRetailer ? 'approved' : 'pending';
+            // }
 
-            if (Schema::hasColumn('users', 'accept_terms')) {
-                $userData['accept_terms'] = true;
-                $userData['terms_accepted_at'] = now();
-            }
+            // if (Schema::hasColumn('users', 'accept_terms')) {
+            //     $userData['accept_terms'] = true;
+            //     $userData['terms_accepted_at'] = now();
+            // }
 
-            if (Schema::hasColumn('users', 'gst_number')) {
-                $userData['gst_number'] = $gstNormalized;
-            }
+            // if (Schema::hasColumn('users', 'gst_number')) {
+            //     $userData['gst_number'] = $gstNormalized;
+            // }
 
-            if (Schema::hasColumn('users', 'company_name')) {
-                $cn = $validated['company_name'] ?? null;
-                $userData['company_name'] = is_string($cn) && trim($cn) !== '' ? trim($cn) : null;
-            }
+            // if (Schema::hasColumn('users', 'company_name')) {
+            //     $cn = $validated['company_name'] ?? null;
+            //     $userData['company_name'] = is_string($cn) && trim($cn) !== '' ? trim($cn) : null;
+            // }
 
             if (Schema::hasColumn('users', 'fcm_id') && !empty($validated['fcm_id'])) {
                 $userData['fcm_id'] = $validated['fcm_id'];
@@ -223,15 +223,16 @@ class AuthController extends Controller
 
             $token = $user->createToken('customer-app-token')->plainTextToken;
 
-            $gstStored = Schema::hasColumn('users', 'gst_number')
-                ? $user->gst_number
-                : $gstNormalized;
+            // $gstStored = Schema::hasColumn('users', 'gst_number')
+            //     ? $user->gst_number
+            //     : $gstNormalized;
 
             return response()->json([
                 'status' => true,
-                'message' => $isRetailer
-                    ? 'Registration successful. Your account is active.'
-                    : 'Registration submitted. Your account is pending admin approval.',
+                'message' => 'Registration successful. Please log in to continue.',
+                // 'message' => $isRetailer
+                //     ? 'Registration successful. Your account is active.'
+                //     : 'Registration submitted. Your account is pending admin approval.',
                 'token' => $token,
                 'token_type' => 'Bearer',
                 'user' => [
@@ -241,18 +242,18 @@ class AuthController extends Controller
                     'mobile' => $user->mobile,
                     'email' => $user->email ?? null,
                     // user_type = DB enum (Retailer/Wholesaler); role_type = customer app role constant.
-                    'user_type' => $user->user_type,
-                    'user_role' => $validated['user_role'],
-                    'role_type' => $user->role_type,
+                    // 'user_type' => $user->user_type,
+                    // 'user_role' => $validated['user_role'],
+                    // 'role_type' => $user->role_type,
                     'account_status' => $user->customerAccountApprovalLabel(),
                     'can_place_orders' => $user->canPlaceOrdersAsCustomer(),
                     'gender' => $customer->gender,
                     'address' => $customer->customer_address,
                     'default_shipping_address' => $this->transformAddress($customer->defaultAddress()->first()),
-                    'gst_number' => $gstStored,
-                    'company_name' => Schema::hasColumn('users', 'company_name')
-                        ? $user->company_name
-                        : null,
+                    // 'gst_number' => $gstStored,
+                    // 'company_name' => Schema::hasColumn('users', 'company_name')
+                    //     ? $user->company_name
+                    //     : null,
                     'accept_terms' => (bool) $user->accept_terms,
                     'terms_accepted_at' => $user->terms_accepted_at?->toISOString(),
                 ],
