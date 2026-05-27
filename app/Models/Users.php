@@ -19,6 +19,8 @@ class Users extends Authenticatable
      */
     public const CUSTOMER_APP_ROLE_TYPE = 2;
 
+    public const DRIVER_APP_ROLE_TYPE = 4;
+
     protected $table = 'users';
     protected $primaryKey = 'user_id';
     public $timestamps = true;
@@ -63,6 +65,11 @@ class Users extends Authenticatable
     public function isCustomerAppUser(): bool
     {
         return (int) $this->role_type === self::CUSTOMER_APP_ROLE_TYPE;
+    }
+
+    public function isDriverAppUser(): bool
+    {
+        return (int) $this->role_type === self::DRIVER_APP_ROLE_TYPE;
     }
 
     /**

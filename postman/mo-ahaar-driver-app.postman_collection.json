@@ -1,0 +1,309 @@
+{
+  "info": {
+    "_postman_id": "a8c4e2f1-9b3d-4e7a-8f2c-1d5e6a7b8c9d",
+    "name": "Mo Aahar - Driver App",
+    "description": "Driver mobile app APIs: email/password login, forgot-password OTP (4-digit), reset password, dashboard, new deliveries, accept/reject, notifications.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost/mo-ahaar/public/api" },
+    { "key": "email", "value": "driver@example.com" },
+    { "key": "password", "value": "Driver@123" },
+    { "key": "mobile", "value": "9876543210" },
+    { "key": "otp", "value": "" },
+    { "key": "reset_token", "value": "" },
+    { "key": "token", "value": "" },
+    { "key": "assignment_id", "value": "1" },
+    { "key": "notification_id", "value": "1" }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const json = pm.response.json();",
+                  "if (json && json.token) {",
+                  "    pm.collectionVariables.set('token', String(json.token));",
+                  "}",
+                  "pm.test('Token exists', function () {",
+                  "    pm.expect(json).to.have.property('token');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\",\n  \"fcm_id\": \"optional-fcm-token\"\n}"
+            },
+            "url": "{{base_url}}/driver-app/auth/login"
+          }
+        },
+        {
+          "name": "Forgot Password - Request OTP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.otp) {",
+                  "    pm.collectionVariables.set('otp', String(json.data.otp));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"country_code\": \"+91\",\n  \"mobile\": \"{{mobile}}\"\n}"
+            },
+            "url": "{{base_url}}/driver-app/auth/forgot-password/request-otp"
+          }
+        },
+        {
+          "name": "Forgot Password - Verify OTP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.reset_token) {",
+                  "    pm.collectionVariables.set('reset_token', String(json.data.reset_token));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mobile\": \"{{mobile}}\",\n  \"otp\": \"{{otp}}\"\n}"
+            },
+            "url": "{{base_url}}/driver-app/auth/forgot-password/verify-otp"
+          }
+        },
+        {
+          "name": "Forgot Password - Resend OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mobile\": \"{{mobile}}\"\n}"
+            },
+            "url": "{{base_url}}/driver-app/auth/forgot-password/resend-otp"
+          }
+        },
+        {
+          "name": "Forgot Password - Reset (Create Password)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.token) {",
+                  "    pm.collectionVariables.set('token', String(json.token));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reset_token\": \"{{reset_token}}\",\n  \"password\": \"Driver@123\",\n  \"password_confirmation\": \"Driver@123\"\n}"
+            },
+            "url": "{{base_url}}/driver-app/auth/forgot-password/reset"
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"revoke_all\": false\n}"
+            },
+            "url": "{{base_url}}/driver-app/auth/logout"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Home",
+      "item": [
+        {
+          "name": "Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/driver-app/home/dashboard"
+          }
+        },
+        {
+          "name": "New Deliveries",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const list = json.data && json.data.deliveries ? json.data.deliveries : [];",
+                  "if (list.length && list[0].assignment_id) {",
+                  "    pm.collectionVariables.set('assignment_id', String(list[0].assignment_id));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/driver-app/home/new-deliveries?page=1&per_page=10",
+              "host": ["{{base_url}}"],
+              "path": ["driver-app", "home", "new-deliveries"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "per_page", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Accept Delivery",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/driver-app/deliveries/{{assignment_id}}/accept"
+          }
+        },
+        {
+          "name": "Reject Delivery",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Too far from current location\"\n}"
+            },
+            "url": "{{base_url}}/driver-app/deliveries/{{assignment_id}}/reject"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "List Notifications",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const list = json.data && json.data.notifications ? json.data.notifications : [];",
+                  "if (list.length && list[0].notification_id) {",
+                  "    pm.collectionVariables.set('notification_id', String(list[0].notification_id));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/driver-app/notifications?unread_only=1",
+              "host": ["{{base_url}}"],
+              "path": ["driver-app", "notifications"],
+              "query": [{ "key": "unread_only", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "Mark Notification Read",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/driver-app/notifications/{{notification_id}}/read"
+          }
+        }
+      ]
+    }
+  ]
+}

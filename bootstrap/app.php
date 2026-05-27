@@ -16,6 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'AdminAuth' => \App\Http\Middleware\AdminAuth::class,
             'inject.bearer' => \App\Http\Middleware\InjectBearerTokenFromInput::class,
             'set.customer.locale' => \App\Http\Middleware\SetCustomerLocale::class,
+            'driver' => \App\Http\Middleware\EnsureDriverUser::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
