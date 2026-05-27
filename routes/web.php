@@ -1,0 +1,167 @@
+<?php
+
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Auth\PasswordResetController;
+use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\ProductManagementController;
+use App\Http\Controllers\Admin\OrderManagementController;
+use App\Http\Controllers\Admin\CustomerManagementController;
+use App\Http\Controllers\Admin\VenueBookingManagementController;
+use App\Http\Controllers\Admin\BookingManagementController;
+use App\Http\Controllers\Admin\RechargeManagementController;
+use App\Http\Controllers\Admin\PaymentEarningController;
+use App\Http\Controllers\Admin\ReportsAnalyticsController;
+use App\Http\Controllers\Admin\StaticPageController as AdminStaticPageController;
+use App\Http\Controllers\Admin\BannerController;
+use App\Http\Controllers\Admin\NotificationManagementController;
+use App\Http\Controllers\Admin\AdminProfileController;
+use App\Http\Controllers\Admin\StoreSettingController;
+use App\Http\Controllers\Admin\PaymentGatewayController;
+use App\Http\Controllers\Admin\TicketManagementController;
+use App\Http\Controllers\Admin\ProductReviewController;
+use App\Http\Controllers\Admin\GstTaxController;
+use App\Http\Controllers\Admin\DiscountOfferController;
+use App\Http\Controllers\CommonController;
+
+Route::any('/',       [LoginController::class,'index']);
+Route::post("/checkLogin" ,   [LoginController::class, 'checkLogin'])->name('admin.login.submit');
+Route::any("/logout" ,     [LoginController::class, 'logout'])->name('logout');
+
+// Password Reset Routes
+Route::get('/forgot-password', [PasswordResetController::class, 'showForgotPasswordForm'])->name('forgot.password');
+Route::post('/send-otp', [PasswordResetController::class, 'sendOtp'])->name('send.otp');
+Route::get('/verify-otp', [PasswordResetController::class, 'showVerifyOtpForm'])->name('verify.otp');
+Route::post('/verify-otp', [PasswordResetController::class, 'verifyOtp'])->name('verify.otp');
+Route::post('/resend-otp', [PasswordResetController::class, 'resendOtp'])->name('resend.otp');
+Route::get('/reset-password', [PasswordResetController::class, 'showResetPasswordForm'])->name('reset.password.form');
+Route::post('/reset-password', [PasswordResetController::class, 'resetPassword'])->name('reset.password');
+
+
+Route::get('/get-states/{country_id}', [CommonController::class, 'getStateList'])->name('get-states');
+Route::get('/get-cities/{state_id}', [CommonController::class, 'getCityList'])->name('get-cities');
+Route::get('/get-sub-categories/{category_id}', [CommonController::class, 'getSubCategory'])->name('get-sub-categories');
+
+Route::middleware(['AdminAuth'])->prefix('admin')->group(function(){
+        Route::get('/dashboard',[DashboardController::class,'index'])->name('admin.dashboard');
+        Route::get('/search', [DashboardController::class, 'globalSearch'])->name('admin.global-search');
+        Route::get('/search/suggestions', [DashboardController::class, 'searchSuggestions'])->name('admin.global-search.suggestions');
+
+        // Peoduct Management Routes
+        Route::get('/products',[ProductManagementController::class,'products'])->name('admin.products');
+        Route::get('/add-product',[ProductManagementController::class,'addProduct'])->name('admin.add-product');
+        Route::post('/store-product',[ProductManagementController::class,'storeProduct'])->name('admin.store-product');
+        Route::get('/view-product/{id}',[ProductManagementController::class,'viewProduct'])->name('admin.view-product');
+        Route::get('/edit-product/{id}',[ProductManagementController::class,'editProduct'])->name('admin.edit-product');
+        Route::post('/update-product',[ProductManagementController::class,'updateProduct'])->name('admin.update-product');
+        Route::get('/delete-product/{id}',[ProductManagementController::class,'deleteProduct'])->name('admin.delete-product');
+        Route::post('/products/{id}/approval-status',[ProductManagementController::class,'updateApprovalStatus'])->name('admin.products.update-approval-status');
+        Route::post('/toggle-product-status/{id}',[ProductManagementController::class,'toggleStatus'])->name('admin.products.toggle-status');
+        Route::get('/products/export-excel', [ProductManagementController::class, 'exportProductsExcel'])->name('admin.products.export-excel');
+        Route::get('/products/export-pdf', [ProductManagementController::class, 'exportProductsPdf'])->name('admin.products.export-pdf');
+
+        // AJAX: Change product category
+        Route::post('/products/change-category', [ProductManagementController::class, 'changeProductCategory'])->name('admin.products.change-category');
+
+        // Product Review Management Routes
+        Route::get('/product-reviews', [ProductReviewController::class, 'index'])->name('admin.product-reviews');
+        Route::post('/product-reviews/{id}/status', [ProductReviewController::class, 'updateStatus'])->name('admin.product-reviews.update-status');
+        Route::any('/product-reviews/{id}/delete', [ProductReviewController::class, 'destroy'])->name('admin.product-reviews.delete');
+
+        // Category Management Routes
+        Route::get('/categories',[ProductManagementController::class,'categories'])->name('admin.categories');
+        Route::get('/add-category',[ProductManagementController::class,'addNewCategory'])->name('admin.add-category');
+        Route::post('/store-category',[ProductManagementController::class,'storeCategory'])->name('admin.store-category');
+        Route::get('/edit-category/{id}',[ProductManagementController::class,'editCategory'])->name('admin.edit-category');
+        Route::post('/update-category',[ProductManagementController::class,'updateCategory'])->name('admin.update-category');
+        Route::any('/deleteCategory/{id}', [ProductManagementController::class, 'deleteCategory'])->name('admin.deleteCategory');
+        Route::get('/sub-category',[ProductManagementController::class,'subCategories'])->name('admin.sub-category');
+        Route::get('/add-sub-category',[ProductManagementController::class,'addSubCategory'])->name('admin.add-sub-category');
+        Route::post('/store-sub-category',[ProductManagementController::class,'storeSubCategory'])->name('admin.store-sub-category');
+        Route::get('/edit-sub-category/{id}',[ProductManagementController::class,'editSubCategory'])->name('admin.edit-sub-category');
+        Route::post('/update-sub-category',[ProductManagementController::class,'updateSubCategory'])->name('admin.update-sub-category');
+        Route::any('/deleteSubCategory/{id}', [ProductManagementController::class, 'deleteSubCategory'])->name('admin.deleteSubCategory');
+
+        // Order Management Routes
+        Route::get('/orders',[OrderManagementController::class,'orders'])->name('admin.orders');
+        Route::get('/add-order',[OrderManagementController::class,'addOrder'])->name('admin.add-order');
+        Route::post('/store-order',[OrderManagementController::class,'storeOrder'])->name('admin.store-order');
+        Route::get('/edit-order/{id}',[OrderManagementController::class,'editOrder'])->name('admin.edit-order');
+        Route::post('/update-order/{id}',[OrderManagementController::class,'updateOrder'])->name('admin.update-order');
+        Route::any('/delete-order/{id}',[OrderManagementController::class,'deleteOrder'])->name('admin.delete-order');
+        Route::get('/order-details/{id}',[OrderManagementController::class,'orderDetails'])->name('admin.order-details');
+        Route::get('/order-tracking/{id}',[OrderManagementController::class,'orderTracking'])->name('admin.order-tracking');
+        Route::get('/order-invoice-pdf/{id}',[OrderManagementController::class,'downloadOrderInvoicePdf'])->name('admin.order-invoice-pdf');
+        Route::post('/update-order-status/{id}',[OrderManagementController::class,'updateOrderStatus'])->name('admin.update-order-status');
+        Route::post('/add-order-tracking/{id}',[OrderManagementController::class,'addOrderTracking'])->name('admin.add-order-tracking');
+        Route::post('/update-delivery-status/{id}',[OrderManagementController::class,'updateDeliveryStatus'])->name('admin.update-delivery-status');
+        Route::get('/orders/export-excel', [OrderManagementController::class, 'exportOrdersExcel'])->name('admin.orders.export-excel');
+        Route::get('/orders/export-pdf', [OrderManagementController::class, 'exportOrdersPdf'])->name('admin.orders.export-pdf');
+
+        // Customer Management Routes
+        Route::get('/customers',[CustomerManagementController::class,'allCustomers'])->name('admin.customers');
+        Route::get('/add-customer',[CustomerManagementController::class,'addCustomer'])->name('admin.add-customer');
+        Route::post('/store-customer',[CustomerManagementController::class,'storeCustomer'])->name('admin.store-customer');
+        Route::get('/view-customer/{id}',[CustomerManagementController::class,'viewCustomer'])->name('admin.view-customer');
+        Route::get('/edit-customer/{id}',[CustomerManagementController::class,'editCustomer'])->name('admin.edit-customer');
+        Route::post('/update-customer',[CustomerManagementController::class,'updateCustomer'])->name('admin.update-customer');
+        Route::any('/delete-customer/{id}',[CustomerManagementController::class,'deleteCustomer'])->name('admin.delete-customer');
+        Route::post('/toggle-customer-status/{id}',[CustomerManagementController::class,'toggleStatus'])->name('admin.customers.toggle-status');
+        Route::post('/customers/{id}/approve-registration',[CustomerManagementController::class,'approveRegistration'])->name('admin.customers.approve-registration');
+        Route::post('/customers/{id}/reject-registration',[CustomerManagementController::class,'rejectRegistration'])->name('admin.customers.reject-registration');
+        Route::post('/customers/{id}/verify-gst',[CustomerManagementController::class,'verifyGst'])->name('admin.customers.verify-gst');
+        Route::get('/customers/export-excel', [CustomerManagementController::class, 'exportCustomersExcel'])->name('admin.customers.export-excel');
+        Route::get('/customers/export-pdf', [CustomerManagementController::class, 'exportCustomersPdf'])->name('admin.customers.export-pdf');
+
+       
+        Route::get('/reports/orders', [ReportsAnalyticsController::class, 'orderReports'])->name('admin.reports.orders');
+        Route::get('/reports/orders/export-excel', [ReportsAnalyticsController::class, 'exportOrderReportExcel'])->name('admin.reports.orders.export-excel');
+        Route::get('/reports/orders/export-pdf', [ReportsAnalyticsController::class, 'exportOrderReportPdf'])->name('admin.reports.orders.export-pdf');
+
+        // Static Pages Management
+        Route::get('/static-pages', [AdminStaticPageController::class, 'index'])->name('admin.static-pages.index');
+        Route::get('/static-pages/edit/{id}', [AdminStaticPageController::class, 'edit'])->name('admin.static-pages.edit');
+        Route::post('/static-pages/update/{id}', [AdminStaticPageController::class, 'update'])->name('admin.static-pages.update');
+
+        // Notification Management
+        Route::get('/notifications', [NotificationManagementController::class, 'index'])->name('admin.notifications.index');
+        Route::get('/notifications/recipients', [NotificationManagementController::class, 'recipients'])->name('admin.notifications.recipients');
+        Route::post('/notifications/send', [NotificationManagementController::class, 'store'])->name('admin.notifications.store');
+
+        // Ticket Management
+        Route::get('/tickets', [TicketManagementController::class, 'index'])->name('admin.tickets.index');
+        Route::get('/tickets/{id}', [TicketManagementController::class, 'show'])->name('admin.tickets.show');
+        Route::post('/tickets/{id}/reply', [TicketManagementController::class, 'reply'])->name('admin.tickets.reply');
+        Route::post('/tickets/{id}/update', [TicketManagementController::class, 'update'])->name('admin.tickets.update');
+        Route::post('/tickets/{id}/internal-note', [TicketManagementController::class, 'internalNote'])->name('admin.tickets.internal-note');
+
+        // Store Settings Management
+        Route::get('/settings/profile', [AdminProfileController::class, 'edit'])->name('admin.profile.edit');
+        Route::post('/settings/profile', [AdminProfileController::class, 'update'])->name('admin.profile.update');
+        Route::get('/settings/store', [StoreSettingController::class, 'edit'])->name('admin.settings.store.edit');
+        Route::post('/settings/store', [StoreSettingController::class, 'update'])->name('admin.settings.store.update');
+        Route::get('/settings/payment-methods', [PaymentGatewayController::class, 'index'])->name('admin.settings.payment-methods');
+        Route::post('/settings/payment-methods', [PaymentGatewayController::class, 'update'])->name('admin.settings.payment-methods.update');
+
+        // Banner & Content Management
+        Route::get('/banners', [BannerController::class, 'index'])->name('admin.banners.index');
+        Route::get('/banners/create', [BannerController::class, 'create'])->name('admin.banners.create');
+        Route::post('/banners/store', [BannerController::class, 'store'])->name('admin.banners.store');
+        Route::get('/banners/edit/{id}', [BannerController::class, 'edit'])->name('admin.banners.edit');
+        Route::post('/banners/update/{id}', [BannerController::class, 'update'])->name('admin.banners.update');
+        Route::post('/banners/delete/{id}', [BannerController::class, 'delete'])->name('admin.banners.delete');
+
+        // GST Tax Management
+        Route::resource('gst-taxes', GstTaxController::class)->names('admin.gst-taxes');
+        Route::post('/gst-taxes/{gst_tax}/toggle-status', [GstTaxController::class, 'toggleStatus'])->name('admin.gst-taxes.toggle-status');
+
+        // Discount Offer Management
+        Route::resource('discount-offers', DiscountOfferController::class)->names('admin.discount-offers');
+        Route::post('/discount-offers/{discountOffer}/toggle-status', [DiscountOfferController::class, 'toggleStatus'])->name('admin.discount-offers.toggle-status');
+
+    });
+
+
+
+
+

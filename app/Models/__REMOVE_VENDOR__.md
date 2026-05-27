@@ -1,0 +1,1 @@
+Vendor model and all vendor-related models should be deleted as part of vendor removal.
