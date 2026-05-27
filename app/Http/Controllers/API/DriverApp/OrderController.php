@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\API\DriverApp;
 
 use App\Models\DeliveryAssignment;
-use App\Models\DriverNotification;
 use App\Models\OrderTracking;
 use App\Models\Orders;
+use App\Services\DriverWalletService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -13,6 +13,9 @@ use Illuminate\Validation\Rule;
 
 class OrderController extends DriverAppController
 {
+    public function __construct(
+        private readonly DriverWalletService $walletService
+    ) {}
     public function index(Request $request)
     {
         $driver = $this->resolveDriver($request);
@@ -238,12 +241,19 @@ class OrderController extends DriverAppController
 
             $this->syncMainOrderStatus($assignment->order_id, $orderStatus);
             $this->recordOrderTracking($assignment->order_id, $orderStatus);
-            $this->notifyDriver(
-                (int) $driver->user_id,
-                'Order status updated',
-                'Order ' . ($assignment->order?->order_number ?? $assignment->order_id) . ' is now ' . DeliveryAssignment::statusLabel($newStatus, true) . '.',
-                $assignment
-            );
+
+            if ($setCompletedAt) {
+                $assignment->loadMissing(['order.customer.user']);
+                $customerName = $assignment->order?->customer?->user?->name ?? 'customer';
+                $this->walletService->creditForDelivery((int) $driver->user_id, $assignment);
+                NotificationController::notify(
+                    (int) $driver->user_id,
+                    'Order Delivered',
+                    'Delivered to ' . $customerName,
+                    'order_delivered',
+                    $assignment
+                );
+            }
         });
 
         $assignment->refresh()->load(['order.customer.user', 'order.orderItems']);
@@ -280,19 +290,4 @@ class OrderController extends DriverAppController
         ]);
     }
 
-    private function notifyDriver(int $driverId, string $title, string $message, DeliveryAssignment $assignment): void
-    {
-        if (!Schema::hasTable('driver_notifications')) {
-            return;
-        }
-
-        DriverNotification::create([
-            'driver_id' => $driverId,
-            'title' => $title,
-            'message' => $message,
-            'type' => 'delivery_update',
-            'assignment_id' => $assignment->assignment_id,
-            'order_id' => $assignment->order_id,
-        ]);
-    }
 }

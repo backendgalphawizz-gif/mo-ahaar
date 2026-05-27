@@ -25,6 +25,7 @@ use App\Http\Controllers\API\DriverApp\DeliveryController as DriverDeliveryContr
 use App\Http\Controllers\API\DriverApp\HomeController as DriverHomeController;
 use App\Http\Controllers\API\DriverApp\NotificationController as DriverNotificationController;
 use App\Http\Controllers\API\DriverApp\OrderController as DriverOrderController;
+use App\Http\Controllers\API\DriverApp\PaymentController as DriverPaymentController;
 
 Route::prefix('users')->group(function () {
     Route::get('/', [UsersController::class, 'index'])->name('users.index');
@@ -203,7 +204,17 @@ Route::prefix('driver-app')->name('driver-app.')->group(function () {
 
         Route::prefix('notifications')->group(function () {
             Route::get('/', [DriverNotificationController::class, 'index'])->name('notifications.index');
+            Route::post('/read-all', [DriverNotificationController::class, 'markAllRead'])->name('notifications.read-all');
+            Route::delete('/', [DriverNotificationController::class, 'destroyAll'])->name('notifications.destroy-all');
             Route::post('/{notificationId}/read', [DriverNotificationController::class, 'markRead'])->name('notifications.mark-read');
+            Route::delete('/{notificationId}', [DriverNotificationController::class, 'destroy'])->name('notifications.destroy');
+        });
+
+        Route::prefix('payment')->group(function () {
+            Route::get('/wallet', [DriverPaymentController::class, 'wallet'])->name('payment.wallet');
+            Route::get('/transactions', [DriverPaymentController::class, 'transactions'])->name('payment.transactions');
+            Route::get('/transactions/{transactionId}', [DriverPaymentController::class, 'showTransaction'])->name('payment.transactions.show');
+            Route::post('/withdraw', [DriverPaymentController::class, 'withdraw'])->name('payment.withdraw');
         });
     });
 });

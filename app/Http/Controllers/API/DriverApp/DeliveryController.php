@@ -53,10 +53,11 @@ class DeliveryController extends DriverAppController
             $assignment->assigned_at = now();
             $assignment->save();
 
-            $this->notifyDriver(
+            NotificationController::notify(
                 (int) $driver->user_id,
-                'Delivery accepted',
+                'New Delivery Assigned',
                 'You accepted order ' . ($assignment->order?->order_number ?? $assignment->order_id) . '.',
+                'new_delivery_assigned',
                 $assignment
             );
         });
@@ -137,19 +138,4 @@ class DeliveryController extends DriverAppController
         ], 422);
     }
 
-    private function notifyDriver(int $driverId, string $title, string $message, DeliveryAssignment $assignment): void
-    {
-        if (!Schema::hasTable('driver_notifications')) {
-            return;
-        }
-
-        DriverNotification::create([
-            'driver_id' => $driverId,
-            'title' => $title,
-            'message' => $message,
-            'type' => 'delivery_update',
-            'assignment_id' => $assignment->assignment_id,
-            'order_id' => $assignment->order_id,
-        ]);
-    }
 }
