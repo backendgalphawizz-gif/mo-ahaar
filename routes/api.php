@@ -26,6 +26,7 @@ use App\Http\Controllers\API\DriverApp\HomeController as DriverHomeController;
 use App\Http\Controllers\API\DriverApp\NotificationController as DriverNotificationController;
 use App\Http\Controllers\API\DriverApp\OrderController as DriverOrderController;
 use App\Http\Controllers\API\DriverApp\PaymentController as DriverPaymentController;
+use App\Http\Controllers\API\DriverApp\ProfileController as DriverProfileController;
 
 Route::prefix('users')->group(function () {
     Route::get('/', [UsersController::class, 'index'])->name('users.index');
@@ -215,6 +216,12 @@ Route::prefix('driver-app')->name('driver-app.')->group(function () {
             Route::get('/transactions', [DriverPaymentController::class, 'transactions'])->name('payment.transactions');
             Route::get('/transactions/{transactionId}', [DriverPaymentController::class, 'showTransaction'])->name('payment.transactions.show');
             Route::post('/withdraw', [DriverPaymentController::class, 'withdraw'])->name('payment.withdraw');
+        });
+
+        Route::prefix('profile')->group(function () {
+            Route::get('/', [DriverProfileController::class, 'show'])->name('profile.show');
+            Route::post('/personal-information', [DriverProfileController::class, 'updatePersonalInformation'])->name('profile.personal-information');
+            Route::post('/documents', [DriverProfileController::class, 'updateDocuments'])->name('profile.documents');
         });
     });
 });

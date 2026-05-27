@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "a8c4e2f1-9b3d-4e7a-8f2c-1d5e6a7b8c9d",
     "name": "Mo Aahar - Driver App",
-    "description": "Driver mobile app APIs: auth, home, deliveries, My Orders, notifications (grouped/read/delete), wallet/transactions/withdraw.",
+    "description": "Driver mobile app APIs: auth, profile, documents, home, deliveries, My Orders, notifications, wallet.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -179,6 +179,77 @@
               "raw": "{\n  \"revoke_all\": false\n}"
             },
             "url": "{{base_url}}/driver-app/auth/logout"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Profile",
+      "item": [
+        {
+          "name": "Get Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/driver-app/profile"
+          }
+        },
+        {
+          "name": "Update Personal Information",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "full_name", "value": "Shreya Shah", "type": "text" },
+                { "key": "mobile", "value": "9517530286", "type": "text" },
+                { "key": "country_code", "value": "+91", "type": "text" },
+                { "key": "email", "value": "shreyashah@example.com", "type": "text" },
+                { "key": "vehicle_number", "value": "MP 09 AB 0000", "type": "text" },
+                {
+                  "key": "profile_image",
+                  "type": "file",
+                  "src": [],
+                  "description": "Optional profile photo (jpg, png, webp)"
+                }
+              ]
+            },
+            "url": "{{base_url}}/driver-app/profile/personal-information"
+          }
+        },
+        {
+          "name": "Update Documents",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "driving_license",
+                  "type": "file",
+                  "src": [],
+                  "description": "Driving license image or PDF"
+                },
+                {
+                  "key": "aadhar_card",
+                  "type": "file",
+                  "src": [],
+                  "description": "Aadhar card image or PDF"
+                }
+              ]
+            },
+            "url": "{{base_url}}/driver-app/profile/documents"
           }
         }
       ]

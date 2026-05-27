@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Http\Controllers\API\DriverApp\DriverAppController;
 use App\Models\DeliveryAssignment;
 use App\Models\DriverNotification;
+use App\Models\DriverProfile;
 use App\Models\DriverWallet;
 use App\Models\Orders;
 use App\Models\Users;
@@ -48,6 +49,13 @@ class DriverAppSeeder extends Seeder
             ->each(function (Orders $order) {
                 DriverAppController::syncAssignmentFromOrder($order, 700);
             });
+
+        if (Schema::hasTable('driver_profiles')) {
+            DriverProfile::updateOrCreate(
+                ['driver_id' => $driver->user_id],
+                ['vehicle_number' => 'MP 09 AB 0000']
+            );
+        }
 
         if (Schema::hasTable('driver_wallets')) {
             DriverWallet::updateOrCreate(
