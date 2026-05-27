@@ -1,0 +1,1 @@
+Remove all vendor references from these venue admin views as part of vendor removal.

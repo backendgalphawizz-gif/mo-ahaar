@@ -1,0 +1,385 @@
+{
+  "info": {
+    "_postman_id": "f7f3a59d-8f52-4a9f-a0be-5d9b9dd7f910",
+    "name": "User App Mobile Auth",
+    "description": "Auto OTP login flow for user app. Request OTP saves otp to variable, verify OTP uses it and saves token.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. User Login - Request OTP",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"mobile\": \"{{mobile}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/user-app/login",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "user-app",
+            "login"
+          ]
+        },
+        "description": "Requests OTP for the given mobile number. Stores otp and otp_expires_at automatically for next request."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "const json = pm.response.json();",
+              "if (json && json.otp) {",
+              "    pm.collectionVariables.set('otp', String(json.otp));",
+              "}",
+              "if (json && json.otp_expires_at) {",
+              "    pm.collectionVariables.set('otp_expires_at', String(json.otp_expires_at));",
+              "}",
+              "pm.test('OTP exists in response', function () {",
+              "    pm.expect(json).to.have.property('otp');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. User Login - Verify OTP",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"mobile\": \"{{mobile}}\",\n  \"otp\": \"{{otp}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/user-app/verify-otp",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "user-app",
+            "verify-otp"
+          ]
+        },
+        "description": "Verifies OTP and returns token. Stores token and token_type automatically."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "const json = pm.response.json();",
+              "if (json && json.token) {",
+              "    pm.collectionVariables.set('token', String(json.token));",
+              "}",
+              "if (json && json.token_type) {",
+              "    pm.collectionVariables.set('token_type', String(json.token_type));",
+              "}",
+              "pm.test('Token exists in response', function () {",
+              "    pm.expect(json).to.have.property('token');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Customer Cart & Order Management",
+      "item": [
+        {
+          "name": "Add Product To Cart",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_id\": {{product_id}},\n  \"quantity\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/customer-app/cart/add",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "customer-app",
+                "cart",
+                "add"
+              ]
+            },
+            "description": "Adds a product into the authenticated customer's cart and stores the returned cart_item_id."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const json = pm.response.json();",
+                  "if (json?.data?.item?.cart_item_id) {",
+                  "    pm.collectionVariables.set('cart_item_id', String(json.data.item.cart_item_id));",
+                  "}",
+                  "pm.test('Cart item id is returned', function () {",
+                  "    pm.expect(json?.data?.item?.cart_item_id).to.exist;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Cart Quantity",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cart_item_id\": {{cart_item_id}},\n  \"quantity\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/customer-app/cart/update",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "customer-app",
+                "cart",
+                "update"
+              ]
+            },
+            "description": "Updates a cart line by cart_item_id and returns the refreshed cart."
+          }
+        },
+        {
+          "name": "Remove Cart Item",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cart_item_id\": {{cart_item_id}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/customer-app/cart/remove",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "customer-app",
+                "cart",
+                "remove"
+              ]
+            },
+            "description": "Removes a single cart line by cart_item_id and returns the refreshed cart."
+          }
+        },
+        {
+          "name": "Place Order (COD)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shipping_address\": \"{{shipping_address}}\",\n  \"payment_method\": \"cod\",\n  \"notes\": \"Deliver during business hours\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/customer-app/checkout/place-order",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "customer-app",
+                "checkout",
+                "place-order"
+              ]
+            },
+            "description": "Places a COD order from the current authenticated customer's cart and stores the returned order_id."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "const json = pm.response.json();",
+                  "if (json?.data?.order_id) {",
+                  "    pm.collectionVariables.set('order_id', String(json.data.order_id));",
+                  "}",
+                  "pm.test('Order id is returned', function () {",
+                  "    pm.expect(json?.data?.order_id).to.exist;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost/e-commerce/api"
+    },
+    {
+      "key": "mobile",
+      "value": "9876543210"
+    },
+    {
+      "key": "otp",
+      "value": ""
+    },
+    {
+      "key": "otp_expires_at",
+      "value": ""
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "token_type",
+      "value": "Bearer"
+    },
+    {
+      "key": "product_id",
+      "value": "1"
+    },
+    {
+      "key": "second_product_id",
+      "value": "2"
+    },
+    {
+      "key": "cart_item_id",
+      "value": ""
+    },
+    {
+      "key": "order_id",
+      "value": ""
+    },
+    {
+      "key": "shipping_address",
+      "value": "Shop No. 12, Main Market, Ahmedabad"
+    }
+  ]
+}
