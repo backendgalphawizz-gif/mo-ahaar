@@ -4,6 +4,7 @@ namespace App\Http\Controllers\API\DriverApp;
 
 use App\Models\DriverProfile;
 use App\Models\Users;
+use App\Support\DriverProfileValidator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
@@ -42,35 +43,15 @@ class ProfileController extends DriverAppController
             $request->merge(['name' => $request->input('full_name')]);
         }
 
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:100'],
-            'full_name' => ['sometimes', 'string', 'max:100'],
-            'mobile' => [
-                'required',
-                'digits:10',
-                'regex:/^[6-9][0-9]{9}$/',
-                Rule::unique('users', 'mobile')
-                    ->where(fn ($query) => $query->where('role_type', self::DRIVER_ROLE_TYPE))
-                    ->ignore($driver->user_id, 'user_id'),
-            ],
-            'country_code' => ['nullable', 'regex:/^\+\d{1,4}$/'],
-            'email' => [
-                'nullable',
-                'email',
-                'max:150',
-                Rule::unique('users', 'email')
-                    ->where(fn ($query) => $query->where('role_type', self::DRIVER_ROLE_TYPE))
-                    ->ignore($driver->user_id, 'user_id'),
-            ],
-            'profile_image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
-        ], [
-            'name.required' => 'Full name is required.',
-            'mobile.regex' => 'Please enter a valid 10-digit Indian mobile number.',
-        ]);
+        $profile = $this->getOrCreateDriverProfile((int) $driver->user_id);
+        $hasIdentity = !empty($profile->identityDocumentFile());
+
+        $rules = DriverProfileValidator::personalRules((int) $driver->user_id, !$hasIdentity);
+        $validated = $request->validate($rules, DriverProfileValidator::messages());
 
         $driver->name = trim($validated['name']);
         $driver->mobile = $validated['mobile'];
-        $driver->email = $validated['email'] ?? null;
+        $driver->email = $validated['email'];
 
         if ($request->hasFile('profile_image')) {
             $this->deleteDriverFile($driver->profile_image);
@@ -82,11 +63,32 @@ class ProfileController extends DriverAppController
 
         $driver->save();
 
+        $profile->document_type = strtolower(trim((string) $validated['document_type']));
+        if ($request->hasFile('identity_document')) {
+            $documentType = $profile->document_type;
+            if ($documentType === DriverProfile::DOCUMENT_PAN) {
+                $this->deleteDriverFile($profile->pan_card);
+                $profile->pan_card = $this->storeDriverFile($request->file('identity_document'), 'pan_' . $driver->user_id);
+                $profile->pan_card_uploaded_at = now();
+                $this->deleteDriverFile($profile->aadhar_card);
+                $profile->aadhar_card = null;
+                $profile->aadhar_card_uploaded_at = null;
+            } else {
+                $this->deleteDriverFile($profile->aadhar_card);
+                $profile->aadhar_card = $this->storeDriverFile($request->file('identity_document'), 'aadhar_' . $driver->user_id);
+                $profile->aadhar_card_uploaded_at = now();
+                $this->deleteDriverFile($profile->pan_card);
+                $profile->pan_card = null;
+                $profile->pan_card_uploaded_at = null;
+            }
+        }
+        $profile->save();
+
         return response()->json([
             'status' => true,
             'message' => 'Personal information updated successfully',
             'data' => [
-                'personal_information' => $this->formatPersonalInformation($driver->fresh(), $this->getOrCreateDriverProfile((int) $driver->user_id)),
+                'personal_information' => $this->formatPersonalInformation($driver->fresh(), $profile->fresh()),
             ],
         ], 200);
     }
@@ -101,23 +103,15 @@ class ProfileController extends DriverAppController
             ], 403);
         }
 
-        $validated = $request->validate([
-            'account_holder_name' => ['required', 'string', 'max:150'],
-            'bank_name' => ['required', 'string', 'max:150'],
-            'branch_name' => ['nullable', 'string', 'max:150'],
-            'account_number' => ['required', 'string', 'max:30', 'regex:/^[0-9]+$/'],
-            'ifsc_code' => ['required', 'string', 'max:20', 'regex:/^[A-Za-z]{4}0[A-Za-z0-9]{6}$/'],
-            'account_type' => ['required', 'string', Rule::in(['savings', 'current', 'Savings', 'Current'])],
-        ], [
-            'account_number.regex' => 'Account number must contain digits only.',
-            'ifsc_code.regex' => 'Please enter a valid IFSC code.',
-        ]);
+        $validated = $request->validate(
+            DriverProfileValidator::bankRules(),
+            DriverProfileValidator::messages()
+        );
 
         $profile = $this->getOrCreateDriverProfile((int) $driver->user_id);
         $profile->fill([
             'account_holder_name' => trim($validated['account_holder_name']),
             'bank_name' => trim($validated['bank_name']),
-            'branch_name' => isset($validated['branch_name']) ? trim($validated['branch_name']) : null,
             'account_number' => trim($validated['account_number']),
             'ifsc_code' => strtoupper(trim($validated['ifsc_code'])),
             'account_type' => strtolower(trim($validated['account_type'])),
@@ -143,23 +137,25 @@ class ProfileController extends DriverAppController
             ], 403);
         }
 
-        $validated = $request->validate([
-            'vehicle_number' => ['required', 'string', 'max:20', 'regex:/^[A-Za-z0-9\s\-]+$/'],
-            'vehicle_type' => ['required', 'string', 'max:50', Rule::in(['bike', 'scooter', 'car', 'van', 'truck', 'other', 'Bike', 'Scooter', 'Car', 'Van', 'Truck', 'Other'])],
-            'vehicle_model' => ['nullable', 'string', 'max:100'],
-            'vehicle_color' => ['nullable', 'string', 'max:50'],
-            'registration_year' => ['nullable', 'integer', 'min:1990', 'max:' . (date('Y') + 1)],
-        ], [
-            'vehicle_number.regex' => 'Vehicle number format is invalid.',
-        ]);
-
         $profile = $this->getOrCreateDriverProfile((int) $driver->user_id);
-        $profile->vehicle_number = strtoupper(preg_replace('/\s+/', ' ', trim($validated['vehicle_number'])));
-        $profile->vehicle_type = ucfirst(strtolower(trim($validated['vehicle_type'])));
-        $profile->vehicle_model = isset($validated['vehicle_model']) ? trim($validated['vehicle_model']) : null;
-        $profile->vehicle_color = isset($validated['vehicle_color']) ? trim($validated['vehicle_color']) : null;
-        $profile->registration_year = $validated['registration_year'] ?? null;
-        $profile->save();
+        $rules = DriverProfileValidator::vehicleRules(
+            false,
+            !empty($profile->rc_image),
+            !empty($profile->driving_license)
+        );
+        $rules = DriverProfileValidator::applyPucImageRule($rules, $profile);
+
+        $validated = $request->validate($rules, DriverProfileValidator::messages());
+
+        DriverProfileValidator::syncProfileFromRequest(
+            $profile,
+            array_merge($validated, [
+                'document_type' => $profile->document_type ?? DriverProfile::DOCUMENT_AADHAR,
+            ]),
+            $request,
+            fn ($file, $prefix) => $this->storeDriverFile($file, $prefix),
+            fn ($fileName) => $this->deleteDriverFile($fileName)
+        );
 
         return response()->json([
             'status' => true,
@@ -180,25 +176,49 @@ class ProfileController extends DriverAppController
             ], 403);
         }
 
-        $request->validate([
-            'driving_license' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:5120'],
-            'aadhar_card' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:5120'],
-        ], [
-            'driving_license.mimes' => 'Driving license must be JPG, PNG, WEBP, or PDF.',
-            'aadhar_card.mimes' => 'Aadhar card must be JPG, PNG, WEBP, or PDF.',
-        ]);
+        $profile = $this->getOrCreateDriverProfile((int) $driver->user_id);
 
-        if (!$request->hasFile('driving_license') && !$request->hasFile('aadhar_card')) {
+        $validated = $request->validate([
+            'document_type' => ['nullable', Rule::in(DriverProfileValidator::DOCUMENT_TYPES)],
+            'identity_document' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:5120'],
+            'driving_license' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:5120'],
+            'rc_image' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:5120'],
+            'puc_image' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:5120'],
+        ], DriverProfileValidator::messages());
+
+        if (!$request->hasFile('identity_document')
+            && !$request->hasFile('driving_license')
+            && !$request->hasFile('rc_image')
+            && !$request->hasFile('puc_image')
+            && empty($validated['document_type'])) {
             return response()->json([
                 'status' => false,
-                'message' => 'At least one document file is required.',
-                'errors' => [
-                    'driving_license' => ['Upload driving license or Aadhar card.'],
-                ],
+                'message' => 'At least one document update is required.',
             ], 422);
         }
 
-        $profile = $this->getOrCreateDriverProfile((int) $driver->user_id);
+        if (!empty($validated['document_type'])) {
+            $profile->document_type = strtolower(trim((string) $validated['document_type']));
+        }
+
+        if ($request->hasFile('identity_document') && $profile->document_type) {
+            $documentType = $profile->document_type;
+            if ($documentType === DriverProfile::DOCUMENT_PAN) {
+                $this->deleteDriverFile($profile->pan_card);
+                $profile->pan_card = $this->storeDriverFile($request->file('identity_document'), 'pan_' . $driver->user_id);
+                $profile->pan_card_uploaded_at = now();
+                $this->deleteDriverFile($profile->aadhar_card);
+                $profile->aadhar_card = null;
+                $profile->aadhar_card_uploaded_at = null;
+            } else {
+                $this->deleteDriverFile($profile->aadhar_card);
+                $profile->aadhar_card = $this->storeDriverFile($request->file('identity_document'), 'aadhar_' . $driver->user_id);
+                $profile->aadhar_card_uploaded_at = now();
+                $this->deleteDriverFile($profile->pan_card);
+                $profile->pan_card = null;
+                $profile->pan_card_uploaded_at = null;
+            }
+        }
 
         if ($request->hasFile('driving_license')) {
             $this->deleteDriverFile($profile->driving_license);
@@ -209,13 +229,22 @@ class ProfileController extends DriverAppController
             $profile->driving_license_uploaded_at = now();
         }
 
-        if ($request->hasFile('aadhar_card')) {
-            $this->deleteDriverFile($profile->aadhar_card);
-            $profile->aadhar_card = $this->storeDriverFile(
-                $request->file('aadhar_card'),
-                'aadhar_' . $driver->user_id
+        if ($request->hasFile('rc_image')) {
+            $this->deleteDriverFile($profile->rc_image);
+            $profile->rc_image = $this->storeDriverFile(
+                $request->file('rc_image'),
+                'rc_' . $driver->user_id
             );
-            $profile->aadhar_card_uploaded_at = now();
+            $profile->rc_image_uploaded_at = now();
+        }
+
+        if ($request->hasFile('puc_image')) {
+            $this->deleteDriverFile($profile->puc_image);
+            $profile->puc_image = $this->storeDriverFile(
+                $request->file('puc_image'),
+                'puc_' . $driver->user_id
+            );
+            $profile->puc_image_uploaded_at = now();
         }
 
         $profile->save();
@@ -224,6 +253,8 @@ class ProfileController extends DriverAppController
             'status' => true,
             'message' => 'Documents updated successfully',
             'data' => [
+                'personal_information' => $this->formatPersonalInformation($driver, $profile->fresh()),
+                'vehicle_information' => $this->formatVehicleInformation($profile->fresh()),
                 'documents' => $this->formatDocuments($profile->fresh()),
             ],
         ], 200);
@@ -254,10 +285,9 @@ class ProfileController extends DriverAppController
 
     private function formatPersonalInformation(Users $driver, ?DriverProfile $profile): array
     {
-        $profileImageUrl = null;
-        if (!empty($driver->profile_image)) {
-            $profileImageUrl = url('public/uploads/drivers/' . $driver->profile_image);
-        }
+        $profileImageUrl = !empty($driver->profile_image)
+            ? url('public/uploads/drivers/' . $driver->profile_image)
+            : null;
 
         return [
             'user_id' => $driver->user_id,
@@ -268,6 +298,11 @@ class ProfileController extends DriverAppController
             'email' => $driver->email,
             'profile_photo' => $driver->profile_image,
             'profile_photo_url' => $profileImageUrl,
+            'document_type' => $profile?->document_type,
+            'identity_document' => $this->formatDocumentField(
+                $profile?->identityDocumentFile(),
+                $profile?->identityDocumentUploadedAt()
+            ),
         ];
     }
 
@@ -276,7 +311,6 @@ class ProfileController extends DriverAppController
         return [
             'account_holder_name' => $profile?->account_holder_name,
             'bank_name' => $profile?->bank_name,
-            'branch_name' => $profile?->branch_name,
             'account_number' => $profile?->account_number,
             'ifsc_code' => $profile?->ifsc_code,
             'account_type' => $profile?->account_type,
@@ -288,10 +322,21 @@ class ProfileController extends DriverAppController
     {
         return [
             'vehicle_number' => $profile?->vehicle_number,
-            'vehicle_type' => $profile?->vehicle_type,
-            'vehicle_model' => $profile?->vehicle_model,
-            'vehicle_color' => $profile?->vehicle_color,
-            'registration_year' => $profile?->registration_year,
+            'rc_image' => $this->formatDocumentField(
+                $profile?->rc_image,
+                $profile?->rc_image_uploaded_at
+            ),
+            'driving_license_number' => $profile?->driving_license_number,
+            'driving_license_image' => $this->formatDocumentField(
+                $profile?->driving_license,
+                $profile?->driving_license_uploaded_at
+            ),
+            'puc_number' => $profile?->puc_number,
+            'puc_expiry_date' => $profile?->puc_expiry_date?->format('Y-m-d'),
+            'puc_image' => $this->formatDocumentField(
+                $profile?->puc_image,
+                $profile?->puc_image_uploaded_at
+            ),
             'is_complete' => $this->isVehicleInformationComplete($profile),
         ];
     }
@@ -299,15 +344,24 @@ class ProfileController extends DriverAppController
     private function formatDocuments(?DriverProfile $profile): array
     {
         return [
-            'driving_license' => $this->formatDocumentField(
+            'document_type' => $profile?->document_type,
+            'identity_document' => $this->formatDocumentField(
+                $profile?->identityDocumentFile(),
+                $profile?->identityDocumentUploadedAt()
+            ),
+            'driving_license_image' => $this->formatDocumentField(
                 $profile?->driving_license,
                 $profile?->driving_license_uploaded_at
             ),
-            'aadhar_card' => $this->formatDocumentField(
-                $profile?->aadhar_card,
-                $profile?->aadhar_card_uploaded_at
+            'rc_image' => $this->formatDocumentField(
+                $profile?->rc_image,
+                $profile?->rc_image_uploaded_at
             ),
-            'is_complete' => !empty($profile?->driving_license) && !empty($profile?->aadhar_card),
+            'puc_image' => $this->formatDocumentField(
+                $profile?->puc_image,
+                $profile?->puc_image_uploaded_at
+            ),
+            'is_complete' => $this->isDocumentsComplete($profile),
         ];
     }
 
@@ -330,12 +384,28 @@ class ProfileController extends DriverAppController
             return false;
         }
 
-        return !empty($profile->vehicle_number) && !empty($profile->vehicle_type);
+        $pucOk = empty($profile->puc_number)
+            || (!empty($profile->puc_expiry_date) && !empty($profile->puc_image));
+
+        return !empty($profile->vehicle_number)
+            && !empty($profile->rc_image)
+            && !empty($profile->driving_license_number)
+            && !empty($profile->driving_license)
+            && $pucOk;
     }
 
-    /**
-     * @return array{status: string, status_label: string, file_name: string|null, file_url: string|null, thumbnail_url: string|null, uploaded_at: string|null}
-     */
+    private function isDocumentsComplete(?DriverProfile $profile): bool
+    {
+        if (!$profile) {
+            return false;
+        }
+
+        return !empty($profile->document_type)
+            && !empty($profile->identityDocumentFile())
+            && !empty($profile->driving_license)
+            && !empty($profile->rc_image);
+    }
+
     private function formatDocumentField(?string $fileName, $uploadedAt): array
     {
         $uploaded = !empty($fileName);

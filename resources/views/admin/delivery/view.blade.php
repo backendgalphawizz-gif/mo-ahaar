@@ -25,10 +25,10 @@
                         <p><strong>Full Name:</strong> {{ $driver->name }}</p>
                         <p><strong>Mobile No.:</strong> +91 {{ $driver->mobile }}</p>
                         <p><strong>Email:</strong> {{ $driver->email }}</p>
-                        <p><strong>City:</strong> {{ $profile->city ?? '—' }}</p>
-                        <p><strong>Address:</strong> {{ $profile->address ?? '—' }}</p>
+                        <p><strong>Document Type:</strong> {{ strtoupper($profile->document_type ?? '—') }}</p>
                         <p><strong>Vehicle No.:</strong> {{ $profile->vehicle_number ?? '—' }}</p>
-                        <p><strong>Driving License:</strong> {{ $profile->driving_license_number ?? '—' }}</p>
+                        <p><strong>Driving License No.:</strong> {{ $profile->driving_license_number ?? '—' }}</p>
+                        <p><strong>PUC No.:</strong> {{ $profile->puc_number ?? '—' }}{{ !empty($profile?->puc_expiry_date) ? ' (Exp: ' . $profile->puc_expiry_date->format('d-m-Y') . ')' : '' }}</p>
                         <p><strong>Wallet Balance:</strong> ₹{{ number_format((float) ($wallet->balance ?? 0), 0) }}</p>
                         <p class="mb-0"><strong>Status:</strong> <span class="badge badge-soft-warning">{{ ucfirst($driver->approval_status ?? 'pending') }}</span></p>
                     </div>
@@ -39,8 +39,8 @@
                     <div class="card-body">
                         <h6 class="mb-3">Bank Details</h6>
                         <p><strong>Account Name:</strong> {{ $profile->account_holder_name ?? '—' }}</p>
+                        <p><strong>Bank Name:</strong> {{ $profile->bank_name ?? '—' }}</p>
                         <p><strong>Account No.:</strong> {{ $profile->account_number ?? '—' }}</p>
-                        <p><strong>Bank & Branch:</strong> {{ $profile->bank_name ?? '—' }}{{ !empty($profile?->branch_name) ? ', ' . $profile->branch_name : '' }}</p>
                         <p class="mb-0"><strong>IFSC Code:</strong> {{ $profile->ifsc_code ?? '—' }} ({{ ucfirst($profile->account_type ?? '') }})</p>
                     </div>
                 </div>
@@ -49,16 +49,31 @@
                 <div class="card dashboard-card h-100">
                     <div class="card-body">
                         <h6 class="mb-3">Documents</h6>
+                        @php
+                            $identityFile = $profile?->identityDocumentFile();
+                        @endphp
                         <p>
-                            <strong>Driving License:</strong>
+                            <strong>{{ strtoupper($profile->document_type ?? 'ID') }} Document:</strong>
+                            @if($identityFile)
+                                <a href="{{ asset('public/uploads/drivers/' . $identityFile) }}" target="_blank">View File</a>
+                            @else — @endif
+                        </p>
+                        <p>
+                            <strong>RC Image:</strong>
+                            @if(!empty($profile?->rc_image))
+                                <a href="{{ asset('public/uploads/drivers/' . $profile->rc_image) }}" target="_blank">View File</a>
+                            @else — @endif
+                        </p>
+                        <p>
+                            <strong>Driving License Image:</strong>
                             @if(!empty($profile?->driving_license))
                                 <a href="{{ asset('public/uploads/drivers/' . $profile->driving_license) }}" target="_blank">View File</a>
                             @else — @endif
                         </p>
                         <p class="mb-0">
-                            <strong>Aadhaar Card:</strong>
-                            @if(!empty($profile?->aadhar_card))
-                                <a href="{{ asset('public/uploads/drivers/' . $profile->aadhar_card) }}" target="_blank">View File</a>
+                            <strong>PUC Image:</strong>
+                            @if(!empty($profile?->puc_image))
+                                <a href="{{ asset('public/uploads/drivers/' . $profile->puc_image) }}" target="_blank">View File</a>
                             @else — @endif
                         </p>
                     </div>

@@ -9,6 +9,7 @@ use App\Models\DriverProfile;
 use App\Models\DriverWallet;
 use App\Models\Users;
 use App\Services\DriverWalletService;
+use App\Support\DriverProfileValidator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
@@ -315,37 +316,13 @@ class DeliveryManagementController extends Controller
     {
         $profile = $profile ?? DriverProfile::firstOrCreate(['driver_id' => $driverId]);
 
-        $profile->fill([
-            'city' => trim($validated['city']),
-            'address' => trim($validated['address']),
-            'vehicle_number' => strtoupper(preg_replace('/\s+/', ' ', trim($validated['vehicle_number']))),
-            'driving_license_number' => strtoupper(trim($validated['driving_license_number'])),
-            'vehicle_type' => isset($validated['vehicle_type'])
-                ? ucfirst(strtolower(trim($validated['vehicle_type'])))
-                : ($profile->vehicle_type ?: 'Bike'),
-            'account_holder_name' => trim($validated['account_holder_name']),
-            'bank_name' => trim($validated['bank_name']),
-            'branch_name' => isset($validated['branch_name']) ? trim($validated['branch_name']) : null,
-            'account_number' => trim($validated['account_number']),
-            'ifsc_code' => strtoupper(trim($validated['ifsc_code'])),
-            'account_type' => strtolower(trim($validated['account_type'])),
-        ]);
-
-        if ($request->hasFile('driving_license')) {
-            $this->deleteDriverFile($profile->driving_license);
-            $profile->driving_license = $this->storeDriverFile($request->file('driving_license'), 'license_' . $driverId);
-            $profile->driving_license_uploaded_at = now();
-        }
-
-        if ($request->hasFile('aadhar_card')) {
-            $this->deleteDriverFile($profile->aadhar_card);
-            $profile->aadhar_card = $this->storeDriverFile($request->file('aadhar_card'), 'aadhar_' . $driverId);
-            $profile->aadhar_card_uploaded_at = now();
-        }
-
-        $profile->save();
-
-        return $profile;
+        return DriverProfileValidator::syncProfileFromRequest(
+            $profile,
+            $validated,
+            $request,
+            fn ($file, $prefix) => $this->storeDriverFile($file, $prefix),
+            fn ($fileName) => $this->deleteDriverFile($fileName)
+        );
     }
 
     private function storeDriverFile($file, string $prefix): string

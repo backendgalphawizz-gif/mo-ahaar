@@ -35,6 +35,7 @@ class AdminDeliveryPartnerSeeder extends Seeder
                 'branch_name' => 'NY Branch',
                 'ifsc_code' => 'CHAS0000123',
                 'account_type' => 'current',
+                'document_type' => 'aadhar',
                 'wallet_balance' => 150,
             ],
             [
@@ -54,6 +55,7 @@ class AdminDeliveryPartnerSeeder extends Seeder
                 'branch_name' => 'NY Branch',
                 'ifsc_code' => 'CHAS0000123',
                 'account_type' => 'savings',
+                'document_type' => 'pan',
                 'wallet_balance' => 0,
             ],
         ];
@@ -88,6 +90,7 @@ class AdminDeliveryPartnerSeeder extends Seeder
                     'branch_name' => $partner['branch_name'],
                     'ifsc_code' => $partner['ifsc_code'],
                     'account_type' => $partner['account_type'],
+                    'document_type' => $partner['document_type'] ?? 'aadhar',
                 ]
             );
 

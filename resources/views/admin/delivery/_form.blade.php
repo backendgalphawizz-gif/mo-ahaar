@@ -1,6 +1,8 @@
 @php
     $isEdit = !empty($driver);
     $formAction = $isEdit ? route('admin.delivery.update', $driver->user_id) : route('admin.delivery.store');
+    $documentType = old('document_type', $profile->document_type ?? 'aadhar');
+    $identityFile = $documentType === 'pan' ? ($profile->pan_card ?? null) : ($profile->aadhar_card ?? null);
 @endphp
 
 <div class="page-body">
@@ -29,7 +31,7 @@
 
                     <div class="form-section mb-4">
                         <h6>Personal Details</h6>
-                        <p class="text-muted">Driver contact and profile details</p>
+                        <p class="text-muted">Name, contact, profile photo and identity document</p>
                         <div class="row g-3">
                             <div class="col-md-3">
                                 <label class="form-label">Profile Picture</label>
@@ -37,7 +39,7 @@
                                 @if($isEdit && !empty($driver->profile_image))
                                     <small><a href="{{ asset('public/uploads/drivers/' . $driver->profile_image) }}" target="_blank">View current photo</a></small>
                                 @else
-                                    <small class="text-muted">Clear, front-facing photo. Max 2MB.</small>
+                                    <small class="text-muted">JPG, PNG, WEBP. Max 2MB.</small>
                                 @endif
                             </div>
                             <div class="col-md-9">
@@ -47,20 +49,26 @@
                                         <input type="text" name="name" class="form-control" value="{{ old('name', $driver->name ?? '') }}" maxlength="100" required>
                                     </div>
                                     <div class="col-md-4">
-                                        <label class="form-label">Email Address <span class="text-danger">*</span></label>
-                                        <input type="email" name="email" class="form-control" value="{{ old('email', $driver->email ?? '') }}" maxlength="150" required>
-                                    </div>
-                                    <div class="col-md-4">
                                         <label class="form-label">Mobile No. <span class="text-danger">*</span></label>
                                         <input type="text" name="mobile" class="form-control" value="{{ old('mobile', $driver->mobile ?? '') }}" maxlength="10" oninput="this.value=this.value.replace(/\D/g,'').slice(0,10)" required>
                                     </div>
                                     <div class="col-md-4">
-                                        <label class="form-label">City <span class="text-danger">*</span></label>
-                                        <input type="text" name="city" class="form-control" value="{{ old('city', $profile->city ?? '') }}" maxlength="100" required>
+                                        <label class="form-label">Email Address <span class="text-danger">*</span></label>
+                                        <input type="email" name="email" class="form-control" value="{{ old('email', $driver->email ?? '') }}" maxlength="150" required>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Document Type <span class="text-danger">*</span></label>
+                                        <select name="document_type" class="form-select" required>
+                                            <option value="aadhar" {{ $documentType === 'aadhar' ? 'selected' : '' }}>Aadhaar</option>
+                                            <option value="pan" {{ $documentType === 'pan' ? 'selected' : '' }}>PAN</option>
+                                        </select>
                                     </div>
                                     <div class="col-md-8">
-                                        <label class="form-label">Full Address <span class="text-danger">*</span></label>
-                                        <input type="text" name="address" class="form-control" value="{{ old('address', $profile->address ?? '') }}" maxlength="500" required>
+                                        <label class="form-label">Identity Document Image <span class="text-danger">{{ $isEdit && $identityFile ? '' : '*' }}</span></label>
+                                        <input type="file" name="identity_document" class="form-control" accept=".jpg,.jpeg,.png,.webp,.pdf" {{ !$isEdit || !$identityFile ? 'required' : '' }}>
+                                        @if($isEdit && $identityFile)
+                                            <small><a href="{{ asset('public/uploads/drivers/' . $identityFile) }}" target="_blank">View current document</a></small>
+                                        @endif
                                     </div>
                                     @if(!$isEdit)
                                         <div class="col-md-6">
@@ -86,89 +94,87 @@
                         </div>
                     </div>
 
-                    <div class="row g-4">
-                        <div class="col-lg-6">
-                            <div class="form-section h-100">
-                                <h6>Vehicle Details</h6>
-                                <p class="text-muted">Driver's assigned vehicle info</p>
-                                <div class="row g-3">
-                                    <div class="col-md-6">
-                                        <label class="form-label">Vehicle Registration No. <span class="text-danger">*</span></label>
-                                        <input type="text" name="vehicle_number" class="form-control" value="{{ old('vehicle_number', $profile->vehicle_number ?? '') }}" maxlength="20" required>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">Driving License Number <span class="text-danger">*</span></label>
-                                        <input type="text" name="driving_license_number" class="form-control" value="{{ old('driving_license_number', $profile->driving_license_number ?? '') }}" maxlength="50" required>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">Vehicle Type</label>
-                                        <select name="vehicle_type" class="form-select">
-                                            @foreach(['Bike','Scooter','Car','Van','Truck','Other'] as $type)
-                                                <option value="{{ $type }}" {{ old('vehicle_type', $profile->vehicle_type ?? 'Bike') === $type ? 'selected' : '' }}>{{ $type }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">Upload Driving License</label>
-                                        <input type="file" name="driving_license" class="form-control" accept=".jpg,.jpeg,.png,.webp,.pdf">
-                                        @if($isEdit && !empty($profile?->driving_license))
-                                            <small><a href="{{ asset('public/uploads/drivers/' . $profile->driving_license) }}" target="_blank">View current license</a></small>
-                                        @endif
-                                    </div>
-                                    <div class="col-md-12">
-                                        <label class="form-label">Upload Aadhaar Card</label>
-                                        <input type="file" name="aadhar_card" class="form-control" accept=".jpg,.jpeg,.png,.webp,.pdf">
-                                        @if($isEdit && !empty($profile?->aadhar_card))
-                                            <small><a href="{{ asset('public/uploads/drivers/' . $profile->aadhar_card) }}" target="_blank">View current Aadhaar</a></small>
-                                        @endif
-                                    </div>
-                                </div>
+                    <div class="form-section mb-4">
+                        <h6>Vehicle Details</h6>
+                        <p class="text-muted">Registration, RC, driving license and optional PUC</p>
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Vehicle Number <span class="text-danger">*</span></label>
+                                <input type="text" name="vehicle_number" class="form-control" value="{{ old('vehicle_number', $profile->vehicle_number ?? '') }}" maxlength="20" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">RC Image <span class="text-danger">{{ $isEdit && !empty($profile?->rc_image) ? '' : '*' }}</span></label>
+                                <input type="file" name="rc_image" class="form-control" accept=".jpg,.jpeg,.png,.webp,.pdf" {{ !$isEdit || empty($profile?->rc_image) ? 'required' : '' }}>
+                                @if($isEdit && !empty($profile?->rc_image))
+                                    <small><a href="{{ asset('public/uploads/drivers/' . $profile->rc_image) }}" target="_blank">View RC</a></small>
+                                @endif
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Driving License No. <span class="text-danger">*</span></label>
+                                <input type="text" name="driving_license_number" class="form-control" value="{{ old('driving_license_number', $profile->driving_license_number ?? '') }}" maxlength="50" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Driving License Image <span class="text-danger">{{ $isEdit && !empty($profile?->driving_license) ? '' : '*' }}</span></label>
+                                <input type="file" name="driving_license" class="form-control" accept=".jpg,.jpeg,.png,.webp,.pdf" {{ !$isEdit || empty($profile?->driving_license) ? 'required' : '' }}>
+                                @if($isEdit && !empty($profile?->driving_license))
+                                    <small><a href="{{ asset('public/uploads/drivers/' . $profile->driving_license) }}" target="_blank">View license</a></small>
+                                @endif
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">PUC Number</label>
+                                <input type="text" name="puc_number" id="puc_number" class="form-control" value="{{ old('puc_number', $profile->puc_number ?? '') }}" maxlength="50">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">PUC Expiry Date</label>
+                                <input type="date" name="puc_expiry_date" id="puc_expiry_date" class="form-control" value="{{ old('puc_expiry_date', optional($profile?->puc_expiry_date)->format('Y-m-d')) }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">PUC Image</label>
+                                <input type="file" name="puc_image" id="puc_image" class="form-control" accept=".jpg,.jpeg,.png,.webp,.pdf" @if($isEdit && !empty($profile?->puc_image)) data-has-existing="1" @endif>
+                                @if($isEdit && !empty($profile?->puc_image))
+                                    <small><a href="{{ asset('public/uploads/drivers/' . $profile->puc_image) }}" target="_blank">View PUC</a></small>
+                                @endif
                             </div>
                         </div>
-                        <div class="col-lg-6">
-                            <div class="form-section h-100">
-                                <h6>Bank Details</h6>
-                                <p class="text-muted">Payment routing info for driver</p>
-                                <div class="row g-3">
-                                    <div class="col-md-12">
-                                        <label class="form-label">Bank Account Name <span class="text-danger">*</span></label>
-                                        <input type="text" name="account_holder_name" class="form-control" value="{{ old('account_holder_name', $profile->account_holder_name ?? '') }}" maxlength="150" required>
-                                    </div>
-                                    <div class="col-md-12">
-                                        <label class="form-label">Account Number <span class="text-danger">*</span></label>
-                                        <input type="text" name="account_number" class="form-control" value="{{ old('account_number', $profile->account_number ?? '') }}" maxlength="30" oninput="this.value=this.value.replace(/\D/g,'')" required>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">Bank Name <span class="text-danger">*</span></label>
-                                        <input type="text" name="bank_name" class="form-control" value="{{ old('bank_name', $profile->bank_name ?? '') }}" maxlength="150" required>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">Branch Name</label>
-                                        <input type="text" name="branch_name" class="form-control" value="{{ old('branch_name', $profile->branch_name ?? '') }}" maxlength="150">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">IFSC Code <span class="text-danger">*</span></label>
-                                        <input type="text" name="ifsc_code" class="form-control" value="{{ old('ifsc_code', $profile->ifsc_code ?? '') }}" maxlength="11" oninput="this.value=this.value.toUpperCase()" required>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">Account Type <span class="text-danger">*</span></label>
-                                        <select name="account_type" class="form-select" required>
-                                            @foreach(['savings' => 'Savings', 'current' => 'Current'] as $val => $label)
-                                                <option value="{{ $val }}" {{ strtolower(old('account_type', $profile->account_type ?? 'savings')) === $val ? 'selected' : '' }}>{{ $label }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                    @if(!$isEdit)
-                                        <div class="col-md-12">
-                                            <label class="form-label">Approval Status</label>
-                                            <select name="approval_status" class="form-select">
-                                                <option value="pending" {{ old('approval_status', 'pending') === 'pending' ? 'selected' : '' }}>Pending</option>
-                                                <option value="approved" {{ old('approval_status') === 'approved' ? 'selected' : '' }}>Approved</option>
-                                            </select>
-                                        </div>
-                                    @endif
-                                </div>
+                    </div>
+
+                    <div class="form-section mb-4">
+                        <h6>Bank Details</h6>
+                        <p class="text-muted">Payment routing info for driver payouts</p>
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Account Holder Name <span class="text-danger">*</span></label>
+                                <input type="text" name="account_holder_name" class="form-control" value="{{ old('account_holder_name', $profile->account_holder_name ?? '') }}" maxlength="150" required>
                             </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Bank Name <span class="text-danger">*</span></label>
+                                <input type="text" name="bank_name" class="form-control" value="{{ old('bank_name', $profile->bank_name ?? '') }}" maxlength="150" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Account Number <span class="text-danger">*</span></label>
+                                <input type="text" name="account_number" class="form-control" value="{{ old('account_number', $profile->account_number ?? '') }}" maxlength="30" oninput="this.value=this.value.replace(/\D/g,'')" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">IFSC Code <span class="text-danger">*</span></label>
+                                <input type="text" name="ifsc_code" class="form-control" value="{{ old('ifsc_code', $profile->ifsc_code ?? '') }}" maxlength="11" oninput="this.value=this.value.toUpperCase()" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Account Type <span class="text-danger">*</span></label>
+                                <select name="account_type" class="form-select" required>
+                                    @foreach(['savings' => 'Savings', 'current' => 'Current'] as $val => $label)
+                                        <option value="{{ $val }}" {{ strtolower(old('account_type', $profile->account_type ?? 'savings')) === $val ? 'selected' : '' }}>{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            @if(!$isEdit)
+                                <div class="col-md-6">
+                                    <label class="form-label">Approval Status</label>
+                                    <select name="approval_status" class="form-select">
+                                        <option value="pending" {{ old('approval_status', 'pending') === 'pending' ? 'selected' : '' }}>Pending</option>
+                                        <option value="approved" {{ old('approval_status') === 'approved' ? 'selected' : '' }}>Approved</option>
+                                    </select>
+                                </div>
+                            @endif
                         </div>
                     </div>
 
@@ -183,3 +189,22 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var pucNumber = document.getElementById('puc_number');
+    var pucExpiry = document.getElementById('puc_expiry_date');
+    var pucImage = document.getElementById('puc_image');
+
+    function syncPucRequirements() {
+        var hasPuc = pucNumber && pucNumber.value.trim() !== '';
+        if (pucExpiry) pucExpiry.required = hasPuc;
+        if (pucImage) pucImage.required = hasPuc && !pucImage.dataset.hasExisting;
+    }
+
+    if (pucNumber) {
+        pucNumber.addEventListener('input', syncPucRequirements);
+        syncPucRequirements();
+    }
+});
+</script>

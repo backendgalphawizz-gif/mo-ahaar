@@ -7,12 +7,18 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class DriverProfile extends Model
 {
+    public const DOCUMENT_PAN = 'pan';
+
+    public const DOCUMENT_AADHAR = 'aadhar';
+
     protected $table = 'driver_profiles';
 
     protected $primaryKey = 'profile_id';
 
     protected $fillable = [
         'driver_id',
+        'driver_code',
+        'document_type',
         'account_holder_name',
         'bank_name',
         'branch_name',
@@ -27,21 +33,46 @@ class DriverProfile extends Model
         'driving_license_number',
         'city',
         'address',
-        'driver_code',
-        'driving_license',
+        'pan_card',
         'aadhar_card',
-        'driving_license_uploaded_at',
+        'driving_license',
+        'rc_image',
+        'puc_number',
+        'puc_expiry_date',
+        'puc_image',
+        'pan_card_uploaded_at',
         'aadhar_card_uploaded_at',
+        'driving_license_uploaded_at',
+        'rc_image_uploaded_at',
+        'puc_image_uploaded_at',
     ];
 
     protected $casts = [
         'registration_year' => 'integer',
-        'driving_license_uploaded_at' => 'datetime',
+        'puc_expiry_date' => 'date',
+        'pan_card_uploaded_at' => 'datetime',
         'aadhar_card_uploaded_at' => 'datetime',
+        'driving_license_uploaded_at' => 'datetime',
+        'rc_image_uploaded_at' => 'datetime',
+        'puc_image_uploaded_at' => 'datetime',
     ];
 
     public function driver(): BelongsTo
     {
         return $this->belongsTo(Users::class, 'driver_id', 'user_id');
+    }
+
+    public function identityDocumentFile(): ?string
+    {
+        return $this->document_type === self::DOCUMENT_PAN
+            ? $this->pan_card
+            : $this->aadhar_card;
+    }
+
+    public function identityDocumentUploadedAt()
+    {
+        return $this->document_type === self::DOCUMENT_PAN
+            ? $this->pan_card_uploaded_at
+            : $this->aadhar_card_uploaded_at;
     }
 }
