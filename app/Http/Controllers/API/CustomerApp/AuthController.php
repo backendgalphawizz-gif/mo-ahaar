@@ -414,7 +414,7 @@ class AuthController extends Controller
             ], 422);
         }
 
-        $otp = (string) random_int(100000, 999999);
+        $otp = (string) random_int(1000, 9999);
         $otpData = [
             'otp' => $otp,
             'expires_at' => now()->addMinutes(self::SIGNUP_OTP_TTL_MINUTES)->toISOString(),
@@ -437,7 +437,7 @@ class AuthController extends Controller
     {
         $validated = $request->validate([
             'mobile' => ['required', 'digits:10', 'regex:/^[6-9][0-9]{9}$/'],
-            'otp' => ['required', 'digits:6'],
+            'otp' => ['required', 'digits:4'],
         ]);
 
         $mobile = $validated['mobile'];
@@ -492,7 +492,7 @@ class AuthController extends Controller
             );
         }
 
-        $otp = (string) random_int(100000, 999999);
+        $otp = (string) random_int(1000, 9999);
 
         $user->login_otp = $otp;
         $user->login_otp_expires_at = now()->addMinutes(5);
@@ -552,7 +552,7 @@ class AuthController extends Controller
     {
         $validated = $request->validate([
             'mobile' => ['required', 'regex:/^[0-9]{10}$/'],
-            'otp' => ['required', 'digits:6'],
+            'otp' => ['required', 'digits:4'],
             'fcm_id' => ['nullable', 'string', 'max:255'],
         ]);
 

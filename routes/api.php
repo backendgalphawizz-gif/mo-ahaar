@@ -20,6 +20,10 @@ use App\Http\Controllers\API\CustomerApp\RatingsReviewController as CustomerRati
 use App\Http\Controllers\API\CustomerApp\TicketController as CustomerTicketController;
 use App\Http\Controllers\API\CustomerApp\LanguageController as CustomerLanguageController;
 use App\Http\Controllers\API\MobileAuthController;
+use App\Http\Controllers\API\DriverApp\AuthController as DriverAuthController;
+use App\Http\Controllers\API\DriverApp\DeliveryController as DriverDeliveryController;
+use App\Http\Controllers\API\DriverApp\HomeController as DriverHomeController;
+use App\Http\Controllers\API\DriverApp\NotificationController as DriverNotificationController;
 
 Route::prefix('users')->group(function () {
     Route::get('/', [UsersController::class, 'index'])->name('users.index');
@@ -162,4 +166,34 @@ Route::prefix('mobile-auth')->group(function () {
 Route::prefix('user-app')->group(function () {
     Route::post('/login', [MobileAuthController::class, 'login'])->name('user-app.login');
     Route::post('/verify-otp', [MobileAuthController::class, 'verify'])->name('user-app.verify-otp');
+});
+
+Route::prefix('driver-app')->name('driver-app.')->group(function () {
+
+    Route::prefix('auth')->group(function () {
+        Route::post('/login', [DriverAuthController::class, 'login'])->name('auth.login');
+        Route::post('/forgot-password/request-otp', [DriverAuthController::class, 'requestForgotPasswordOtp'])->name('auth.forgot-password.request-otp');
+        Route::post('/forgot-password/verify-otp', [DriverAuthController::class, 'verifyForgotPasswordOtp'])->name('auth.forgot-password.verify-otp');
+        Route::post('/forgot-password/resend-otp', [DriverAuthController::class, 'resendForgotPasswordOtp'])->name('auth.forgot-password.resend-otp');
+        Route::post('/forgot-password/reset', [DriverAuthController::class, 'resetPassword'])->name('auth.forgot-password.reset');
+    });
+
+    Route::middleware(['inject.bearer', 'auth:sanctum', 'driver'])->group(function () {
+        Route::post('/auth/logout', [DriverAuthController::class, 'logout'])->name('auth.logout');
+
+        Route::prefix('home')->group(function () {
+            Route::get('/dashboard', [DriverHomeController::class, 'dashboard'])->name('home.dashboard');
+            Route::get('/new-deliveries', [DriverHomeController::class, 'newDeliveries'])->name('home.new-deliveries');
+        });
+
+        Route::prefix('deliveries')->group(function () {
+            Route::post('/{assignmentId}/accept', [DriverDeliveryController::class, 'accept'])->name('deliveries.accept');
+            Route::post('/{assignmentId}/reject', [DriverDeliveryController::class, 'reject'])->name('deliveries.reject');
+        });
+
+        Route::prefix('notifications')->group(function () {
+            Route::get('/', [DriverNotificationController::class, 'index'])->name('notifications.index');
+            Route::post('/{notificationId}/read', [DriverNotificationController::class, 'markRead'])->name('notifications.mark-read');
+        });
+    });
 });
