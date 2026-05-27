@@ -4,6 +4,8 @@ namespace Database\Seeders;
 
 use App\Http\Controllers\API\DriverApp\DriverAppController;
 use App\Models\DeliveryAssignment;
+use App\Models\DriverNotification;
+use App\Models\DriverWallet;
 use App\Models\Orders;
 use App\Models\Users;
 use Illuminate\Database\Seeder;
@@ -46,5 +48,30 @@ class DriverAppSeeder extends Seeder
             ->each(function (Orders $order) {
                 DriverAppController::syncAssignmentFromOrder($order, 700);
             });
+
+        if (Schema::hasTable('driver_wallets')) {
+            DriverWallet::updateOrCreate(
+                ['driver_id' => $driver->user_id],
+                ['balance' => 1250, 'pending_balance' => 0, 'currency' => 'INR']
+            );
+        }
+
+        if (Schema::hasTable('driver_notifications')) {
+            $samples = [
+                ['title' => 'Order Delivered', 'message' => 'Delivered to Amit Sharma', 'type' => 'order_delivered'],
+                ['title' => 'New Delivery Assigned', 'message' => 'You have a new delivery request', 'type' => 'new_delivery_assigned'],
+                ['title' => 'Order Cancelled', 'message' => 'Order #OID124 was cancelled', 'type' => 'order_cancelled'],
+            ];
+
+            foreach ($samples as $sample) {
+                DriverNotification::create([
+                    'driver_id' => $driver->user_id,
+                    'title' => $sample['title'],
+                    'message' => $sample['message'],
+                    'type' => $sample['type'],
+                    'is_read' => false,
+                ]);
+            }
+        }
     }
 }
