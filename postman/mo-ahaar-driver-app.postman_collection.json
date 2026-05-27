@@ -167,6 +167,20 @@
         },
         {
           "name": "Logout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.collectionVariables.set('token', '');"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -178,7 +192,40 @@
               "mode": "raw",
               "raw": "{\n  \"revoke_all\": false\n}"
             },
+            "url": "{{base_url}}/driver-app/auth/logout",
+            "description": "Revokes current Sanctum token. Set revoke_all to true to sign out from all devices."
+          }
+        },
+        {
+          "name": "Logout (all devices)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"revoke_all\": true\n}"
+            },
             "url": "{{base_url}}/driver-app/auth/logout"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Settings",
+      "item": [
+        {
+          "name": "Business Settings (Privacy, Terms, FAQ)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/driver-app/settings/business",
+            "description": "Public endpoint. Returns privacy policy, terms & conditions, FAQs, and support contact from static_pages + store_settings."
           }
         }
       ]
@@ -194,7 +241,8 @@
               { "key": "Accept", "value": "application/json" },
               { "key": "Authorization", "value": "Bearer {{token}}" }
             ],
-            "url": "{{base_url}}/driver-app/profile"
+            "url": "{{base_url}}/driver-app/profile",
+            "description": "Returns personal_information, bank_information, vehicle_information, and documents in one response."
           }
         },
         {
@@ -212,7 +260,6 @@
                 { "key": "mobile", "value": "9517530286", "type": "text" },
                 { "key": "country_code", "value": "+91", "type": "text" },
                 { "key": "email", "value": "shreyashah@example.com", "type": "text" },
-                { "key": "vehicle_number", "value": "MP 09 AB 0000", "type": "text" },
                 {
                   "key": "profile_image",
                   "type": "file",
@@ -222,6 +269,38 @@
               ]
             },
             "url": "{{base_url}}/driver-app/profile/personal-information"
+          }
+        },
+        {
+          "name": "Update Bank Information",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account_holder_name\": \"Shreya Shah\",\n  \"bank_name\": \"HDFC Bank\",\n  \"branch_name\": \"Indore Main\",\n  \"account_number\": \"50100123456789\",\n  \"ifsc_code\": \"HDFC0001234\",\n  \"account_type\": \"savings\"\n}"
+            },
+            "url": "{{base_url}}/driver-app/profile/bank-information"
+          }
+        },
+        {
+          "name": "Update Vehicle Information",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vehicle_number\": \"MP 09 AB 0000\",\n  \"vehicle_type\": \"bike\",\n  \"vehicle_model\": \"Hero Splendor\",\n  \"vehicle_color\": \"Black\",\n  \"registration_year\": 2022\n}"
+            },
+            "url": "{{base_url}}/driver-app/profile/vehicle-information"
           }
         },
         {

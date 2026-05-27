@@ -22,7 +22,7 @@
                 <div class="sw-hero-content">
                     <p class="sw-welcome">Welcome back, Admin 👋</p>
                     <h2>Here’s what’s happening today!</h2>
-                    <p class="sw-subtitle">Live overview of machinery performance, production metrics, and order activity
+                    <p class="sw-subtitle">Live overview of users, vendors, orders, and revenue activity
                     </p>
                 </div>
 
@@ -52,12 +52,11 @@
                         <h3>{{ number_format((int) ($totalUsers ?? 0)) }}</h3>
                     </div>
                 </div>
-                <!-- Vendor KPI card removed -->
                 <div class="col-xxl-3 col-lg-4 col-sm-6">
-                    <div class="kpi-card kpi-products">
-                        <div class="kpi-icon"><i class="ri-xbox-line"></i></div>
-                        <p>Total Products</p>
-                        <h3>{{ number_format((int) ($totalProducts ?? 0)) }}</h3>
+                    <div class="kpi-card kpi-vendors">
+                        <div class="kpi-icon"><i class="ri-store-2-line"></i></div>
+                        <p>Total Vendors</p>
+                        <h3>{{ number_format((int) ($totalVendors ?? 0)) }}</h3>
                     </div>
                 </div>
                 <div class="col-xxl-3 col-lg-4 col-sm-6">
@@ -67,19 +66,49 @@
                         <h3>{{ number_format((int) ($totalOrders ?? 0)) }}</h3>
                     </div>
                 </div>
-                <!-- Removed Total Recharge Transactions and Total Venue Bookings KPI cards -->
                 <div class="col-xxl-3 col-lg-4 col-sm-6">
                     <div class="kpi-card kpi-revenue">
                         <div class="kpi-icon"><i class="ri-coins-line"></i></div>
-                        <p>Sales Summary</p>
-                        <h3>₹{{ number_format((float) ($totalRevenue ?? 0), 2) }}</h3>
+                        <p>Revenue</p>
+                        <h3>₹{{ number_format((float) ($totalRevenue ?? 0), 0) }}</h3>
                     </div>
                 </div>
-                <!-- Active Vendors KPI card removed -->
-                <!-- Removed Pending Approvals KPI card -->
+                <div class="col-xxl-3 col-lg-4 col-sm-6">
+                    <div class="kpi-card kpi-active-vendors">
+                        <div class="kpi-icon"><i class="ri-store-line"></i></div>
+                        <p>Active Vendors</p>
+                        <h3>{{ number_format((int) ($activeVendors ?? 0)) }}</h3>
+                    </div>
+                </div>
+                <div class="col-xxl-3 col-lg-4 col-sm-6">
+                    <div class="kpi-card kpi-active-users">
+                        <div class="kpi-icon"><i class="ri-user-follow-line"></i></div>
+                        <p>Active Users</p>
+                        <h3>{{ number_format((int) ($activeUsers ?? 0)) }}</h3>
+                    </div>
+                </div>
+                <div class="col-xxl-3 col-lg-4 col-sm-6">
+                    <div class="kpi-card kpi-pending">
+                        <div class="kpi-icon"><i class="ri-time-line"></i></div>
+                        <p>Pending Approvals</p>
+                        <h3>{{ number_format((int) ($pendingApprovals ?? 0)) }}</h3>
+                    </div>
+                </div>
             </div>
 
-            <!-- Orders & Revenue Trend and Platform Distribution removed -->
+            <div class="row g-4 mb-4">
+                <div class="col-12">
+                    <div class="card dashboard-card h-100">
+                        <div class="sw-section-heading mb-3">
+                            <h3>Sales Overview</h3>
+                            <span></span>
+                        </div>
+                        <div class="chart-panel chart-panel-lg">
+                            <div id="salesOverviewChart"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <div class="row g-4">
                 <div class="col-12">
@@ -183,37 +212,16 @@
             color: rgba(201, 151, 58, 0.11);
         }
 
-        /* background icon */
-        .kpi-users::after {
-            content: "\ede3";
-        }
+        .kpi-users::after { content: "\ede3"; }
+        .kpi-vendors::after { content: "\f1a5"; }
+        .kpi-orders::after { content: "\f11f"; }
+        .kpi-revenue::after { content: "\ef65"; }
+        .kpi-active-vendors::after { content: "\f1a5"; }
+        .kpi-active-users::after { content: "\ede3"; }
+        .kpi-pending::after { content: "\f20f"; }
 
-        /* ri-group-line */
-        .kpi-products::after {
-            content: "\eca1";
-        }
-
-        /* ri-box-3-line */
-        .kpi-orders::after {
-            content: "\f11f";
-        }
-
-        /* ri-shopping-bag-3-line */
-        .kpi-revenue::after {
-            content: "\ef65";
-        }
-
-        /* ri-coins-line */
-
-        /* card backgrounds */
-        .kpi-users,
-        .kpi-orders {
+        .kpi-users, .kpi-orders, .kpi-vendors, .kpi-active-vendors, .kpi-active-users, .kpi-pending {
             background: linear-gradient(135deg, #ffffff 0%, #fffaf1 55%, #fff4df 100%);
-        }
-
-        .kpi-products {
-            background: linear-gradient(135deg, #ffffff 0%, #fbfbfb 100%);
-            border-color: #eeeeee;
         }
 
         .kpi-revenue {
@@ -277,25 +285,13 @@
             color: #6b7280;
         }
 
-        .kpi-users h3::after {
-            content: "↑ 12% from last month";
-            color: #12a85a;
-        }
-
-        .kpi-products h3::after {
-            content: "No change";
-            color: #6b7280;
-        }
-
-        .kpi-orders h3::after {
-            content: "↑ 8% from last month";
-            color: #12a85a;
-        }
-
-        .kpi-revenue h3::after {
-            content: "↑ 15% from last month";
-            color: #12a85a;
-        }
+        .kpi-users h3::after { content: "Registered customers"; color: #6b7280; }
+        .kpi-vendors h3::after { content: "All vendor accounts"; color: #6b7280; }
+        .kpi-orders h3::after { content: "Platform orders"; color: #6b7280; }
+        .kpi-revenue h3::after { content: "Paid order revenue"; color: #12a85a; }
+        .kpi-active-vendors h3::after { content: "Approved vendors"; color: #12a85a; }
+        .kpi-active-users h3::after { content: "Active customer accounts"; color: #12a85a; }
+        .kpi-pending h3::after { content: "Awaiting approval"; color: #e3951d; }
 
         @media (max-width: 575px) {
             .kpi-card {
@@ -584,6 +580,33 @@
         document.addEventListener('DOMContentLoaded', function () {
             if (typeof ApexCharts === 'undefined') {
                 return;
+            }
+
+            var salesLabels = @json($salesChartLabels ?? []);
+            var salesData = @json($salesChartData ?? []);
+
+            var salesNode = document.getElementById('salesOverviewChart');
+            if (salesNode) {
+                new ApexCharts(salesNode, {
+                    chart: { type: 'bar', height: '100%', toolbar: { show: false } },
+                    series: [{ name: 'Sales', data: salesData }],
+                    colors: ['#0da487'],
+                    xaxis: { categories: salesLabels },
+                    yaxis: {
+                        labels: {
+                            formatter: function (val) { return '₹' + Math.round(val).toLocaleString('en-IN'); }
+                        }
+                    },
+                    dataLabels: { enabled: false },
+                    plotOptions: { bar: { borderRadius: 6, columnWidth: '45%' } },
+                    grid: { borderColor: 'rgba(148,163,184,.16)' },
+                    legend: { position: 'top' },
+                    tooltip: {
+                        y: {
+                            formatter: function (val) { return '₹' + Number(val || 0).toLocaleString('en-IN'); }
+                        }
+                    }
+                }).render();
             }
 
             var labels = @json($ordersTrendLabels ?? []);

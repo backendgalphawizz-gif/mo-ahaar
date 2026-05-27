@@ -1,5 +1,4 @@
 @php
-    // Only two roles: 1 = Admin, 2 = Customer
     $userRole = auth()->user()->role_type ?? null;
 @endphp
 
@@ -23,7 +22,7 @@
             </div>
         </div>
         <div class="logo-icon-wrapper">
-            <a href="index.html">
+            <a href="{{ route('admin.dashboard') }}">
                 <img class="img-fluid main-logo main-white" src="{{ $logoUrl }}" alt="logo">
                 <img class="img-fluid main-logo main-dark" src="{{ $logoUrl }}" alt="logo">
             </a>
@@ -39,7 +38,7 @@
 
                     <li class="sidebar-list">
                         <a class="sidebar-link sidebar-title link-nav" href="{{ route('admin.dashboard') }}">
-                            <i class="ri-home-line"></i>
+                            <i class="ri-dashboard-line"></i>
                             <span>Dashboard</span>
                         </a>
                     </li>
@@ -47,130 +46,110 @@
                     <li class="sidebar-list">
                         <a class="sidebar-link sidebar-title link-nav" href="{{ route('admin.customers') }}">
                             <i class="ri-user-3-line"></i>
-                            <span>Customer </span>
+                            <span>User Management</span>
                         </a>
                     </li>
 
                     <li class="sidebar-list">
-                        <a class="linear-icon-link sidebar-link sidebar-title" href="javascript:void(0)">
+                        <a class="sidebar-link sidebar-title link-nav" href="{{ route('admin.vendors') }}">
                             <i class="ri-store-3-line"></i>
-                            <span>Products </span>
+                            <span>Vendor Management</span>
+                        </a>
+                    </li>
+
+                    <li class="sidebar-list">
+                        <a class="sidebar-link sidebar-title link-nav" href="{{ route('admin.delivery.index') }}">
+                            <i class="ri-truck-line"></i>
+                            <span>Delivery Management</span>
+                        </a>
+                    </li>
+
+                    <li class="sidebar-list">
+                        <a class="sidebar-link sidebar-title link-nav" href="{{ route('admin.orders') }}">
+                            <i class="ri-shopping-cart-2-line"></i>
+                            <span>Order Management</span>
+                        </a>
+                    </li>
+
+                    <li class="sidebar-list">
+                        <a class="linear-icon-link sidebar-link sidebar-title" href="javascript:void(0)">
+                            <i class="ri-box-3-line"></i>
+                            <span>Product Management</span>
                         </a>
                         <ul class="sidebar-submenu">
-                            <li> <a href="{{ route('admin.products') }}">Products</a></li>
-                            <li> <a href="{{ route('admin.add-product') }}">Add Products</a></li>
-                            <li> <a href="{{ route('admin.categories') }}">Category List</a></li>
-                            <li> <a href="{{ route('admin.sub-category') }}">Sub Category</a> </li>
-                            <li> <a href="{{ route('admin.product-reviews') }}">Product Reviews</a> </li>
+                            <li><a href="{{ route('admin.products') }}">Product List</a></li>
+                            <li><a href="{{ route('admin.add-product') }}">Add Product</a></li>
+                            <li><a href="{{ route('admin.categories') }}">Categories</a></li>
+                            <li><a href="{{ route('admin.sub-category') }}">Sub Categories</a></li>
+                            <li><a href="{{ route('admin.product-reviews') }}">Product Reviews</a></li>
                         </ul>
                     </li>
 
                     <li class="sidebar-list">
-                        <a class="sidebar-link sidebar-title" href="javascript:void(0)">
-                            <i class="ri-archive-line"></i>
-                            <span>Orders </span>
+                        <a class="linear-icon-link sidebar-link sidebar-title" href="javascript:void(0)">
+                            <i class="ri-bank-card-line"></i>
+                            <span>Payment Management</span>
                         </a>
                         <ul class="sidebar-submenu">
-                            <li><a href="{{ route('admin.orders') }}">Order List</a></li>
-                            <li><a href="{{ route('admin.add-order') }}">Add Order</a></li>
+                            <li><a href="{{ route('admin.payments.status') }}">Payment Status</a></li>
+                            <li><a href="{{ route('admin.payments.commission-settings') }}">Commission Settings</a></li>
+                            <li><a href="{{ route('admin.payments.vendor-transactions') }}">Vendor Transactions</a></li>
+                            <li><a href="{{ route('admin.settings.payment-methods') }}">Payment Methods</a></li>
+                        </ul>
+                    </li>
+
+                    <li class="sidebar-list">
+                        <a class="sidebar-link sidebar-title link-nav" href="{{ route('admin.payments.settlements') }}">
+                            <i class="ri-wallet-3-line"></i>
+                            <span>Payment Requests</span>
+                        </a>
+                    </li>
+
+                    <li class="sidebar-list">
+                        <a class="sidebar-link sidebar-title link-nav" href="{{ route('admin.discount-offers.index') }}">
+                            <i class="ri-coupon-3-line"></i>
+                            <span>Promo Code</span>
+                        </a>
+                    </li>
+
+                    <li class="sidebar-list">
+                        <a class="sidebar-link sidebar-title link-nav" href="{{ route('admin.banners.index') }}">
+                            <i class="ri-image-2-line"></i>
+                            <span>Banner Management</span>
+                        </a>
+                    </li>
+
+                    <li class="sidebar-list">
+                        <a class="linear-icon-link sidebar-link sidebar-title" href="javascript:void(0)">
+                            <i class="ri-bar-chart-box-line"></i>
+                            <span>Reports & Analytics</span>
+                        </a>
+                        <ul class="sidebar-submenu">
                             <li><a href="{{ route('admin.reports.orders') }}">Order Reports</a></li>
+                            <li><a href="{{ route('admin.reports.revenue') }}">Revenue Reports</a></li>
                         </ul>
                     </li>
 
                     <li class="sidebar-list">
-                        <a class="sidebar-link sidebar-title link-nav" href="{{ route('admin.tickets.index') }}">
-                            <i class="ri-customer-service-2-line"></i>
-                            <span>Support Tickets</span>
+                        <a class="sidebar-link sidebar-title link-nav" href="{{ route('admin.notifications.index') }}">
+                            <i class="ri-notification-3-line"></i>
+                            <span>Notifications</span>
                         </a>
                     </li>
 
-                    <!-- <li class="sidebar-list">
-                        <a class="sidebar-link sidebar-title link-nav" href="product-review.html">
-                            <i class="ri-star-line"></i>
-                            <span>Product Review</span>
-                        </a>
-                    </li> -->
-
-                    <!-- <li class="sidebar-list">
-                        <a class="sidebar-link sidebar-title link-nav" href="support-ticket.html">
-                            <i class="ri-phone-line"></i>
-                            <span>Support Ticket</span>
-                        </a>
-                    </li> -->
-
                     <li class="sidebar-list">
-                        <a class="linear-icon-link sidebar-link sidebar-title" href="javascript:void(0)">
-                            <i class="ri-percent-line"></i>
-                            <span>GST Taxes</span>
-                        </a>
-                        <ul class="sidebar-submenu">
-                            <li><a href="{{ route('admin.gst-taxes.index') }}">All GST Taxes</a></li>
-                            <li><a href="{{ route('admin.gst-taxes.create') }}">Add GST Tax</a></li>
-                        </ul>
-                    </li>
-
-                    <li class="sidebar-list">
-                        <a class="linear-icon-link sidebar-link sidebar-title" href="javascript:void(0)">
-                            <i class="ri-price-tag-3-line"></i>
-                            <span>Discount Offers</span>
-                        </a>
-                        <ul class="sidebar-submenu">
-                            <li><a href="{{ route('admin.discount-offers.index') }}">All Offers</a></li>
-                            <li><a href="{{ route('admin.discount-offers.create') }}">Add Offer</a></li>
-                        </ul>
-                    </li>
-
-
-                    <li class="sidebar-list">
-                        <a class="linear-icon-link sidebar-link sidebar-title" href="javascript:void(0)">
-                            <i class="ri-price-tag-3-line"></i>
-                            <span>Discount Offers</span>
-                        </a>
-                        <ul class="sidebar-submenu">
-                            <li><a href="{{ route('admin.discount-offers.index') }}">All Offers</a></li>
-                            <li><a href="{{ route('admin.discount-offers.create') }}">Add Offer</a></li>
-                        </ul>
-                    </li>
-
-                    <li class="sidebar-list">
-                        <a class="linear-icon-link sidebar-link sidebar-title" href="javascript:void(0)">
-                            <i class="ri-settings-line"></i>
-                            <span>Settings</span>
-                        </a>
-                        <ul class="sidebar-submenu">
-                            <li>
-                                <a href="{{ route('admin.profile.edit') }}">Profile Setting</a>
-                            </li>
-                            <li>
-                                <a href="{{ route('admin.settings.store.edit') }}">Store Settings</a>
-                            </li>
-                            <li>
-                                <a href="{{ route('admin.settings.payment-methods') }}">Payment Methods</a>
-                            </li>
-                            <li><a href="{{ route('admin.banners.index') }}">Banners Setting </a></li>
-                        </ul>
-                    </li>
-                    <li class="sidebar-list">
-                        <a class="linear-icon-link sidebar-link sidebar-title" href="javascript:void(0)">
-                            <i class="ri-list-check"></i>
+                        <a class="sidebar-link sidebar-title link-nav" href="{{ route('admin.static-pages.index') }}">
+                            <i class="ri-file-list-3-line"></i>
                             <span>Static Pages</span>
                         </a>
-                        <ul class="sidebar-submenu">
-                            <li><a href="{{ route('admin.static-pages.index') }}">All Pages</a></li>
-                        </ul>
                     </li>
 
                     <li class="sidebar-list">
-                        <a class="linear-icon-link sidebar-link sidebar-title" href="javascript:void(0)">
-                            <i class="ri-notification-3-line"></i>
-                            <span>Notification</span>
+                        <a class="sidebar-link sidebar-title link-nav" href="{{ route('logout') }}">
+                            <i class="ri-logout-box-r-line"></i>
+                            <span>Logout</span>
                         </a>
-                        <ul class="sidebar-submenu">
-                            <li><a href="{{ route('admin.notifications.index') }}">Send Notifications</a></li>
-                        </ul>
                     </li>
-
-
                 </ul>
             </div>
 
@@ -198,26 +177,27 @@
         );
 
         var matchedLink = null;
+        var bestMatchLength = 0;
 
-        links.some(function (link) {
+        links.forEach(function (link) {
             var href = link.getAttribute('href');
             if (!href || href === 'javascript:void(0)' || href.charAt(0) === '#') {
-                return false;
+                return;
             }
 
             var linkPath = '';
             try {
                 linkPath = new URL(href, window.location.origin).pathname.replace(/\/+$/, '') || '/';
             } catch (e) {
-                return false;
+                return;
             }
 
-            if (linkPath === currentPath) {
-                matchedLink = link;
-                return true;
+            if (currentPath === linkPath || (linkPath !== '/admin' && currentPath.startsWith(linkPath))) {
+                if (linkPath.length >= bestMatchLength) {
+                    matchedLink = link;
+                    bestMatchLength = linkPath.length;
+                }
             }
-
-            return false;
         });
 
         if (!matchedLink) {

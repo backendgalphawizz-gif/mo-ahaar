@@ -171,7 +171,7 @@ class AuthController extends Controller
                 'mobile' => $validated['mobile'],
                 'password' => Hash::make(Str::random(16)),
                 // System role (customer app); do not use this field for Retailer vs Wholesaler.
-                // 'role_type' => self::CUSTOMER_ROLE_TYPE,
+                'role_type' => 2,
                 // Segment: Retailer | Wholesaler — separate from role_type.
                 // 'user_type' => $userType,
                 // Retailers are active immediately; wholesalers remain inactive until admin approves.
@@ -207,14 +207,14 @@ class AuthController extends Controller
 
             $customer = Customers::create([
                 'user_id' => $user->user_id,
-                'customer_address' => $validated['address'],
+                'customer_address' => $validated['address'] ?? null,
                 'gender' => $gender,
             ]);
 
             $customer->addresses()->create([
                 'contact_name' => $user->name,
                 'mobile' => $user->mobile,
-                'address_line' => $validated['address'],
+                'address_line' => $validated['address'] ?? null,
                 'address_type' => 'other',
                 'is_default' => true,
             ]);
@@ -244,7 +244,7 @@ class AuthController extends Controller
                     // user_type = DB enum (Retailer/Wholesaler); role_type = customer app role constant.
                     // 'user_type' => $user->user_type,
                     // 'user_role' => $validated['user_role'],
-                    // 'role_type' => $user->role_type,
+                    'role_type' => $user->role_type,
                     'account_status' => $user->customerAccountApprovalLabel(),
                     'can_place_orders' => $user->canPlaceOrdersAsCustomer(),
                     'gender' => $customer->gender,

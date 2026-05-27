@@ -12,6 +12,7 @@ use App\Models\OrderItem;
 use App\Models\Orders;
 use App\Models\Product;
 use App\Models\Customers;
+use App\Models\Users;
 use App\Models\Vendor;
 use App\Models\Venue;
 use App\Models\MobileRecharge;
@@ -25,9 +26,10 @@ class DashboardController extends Controller
     {
         return [
             ['route' => 'admin.dashboard', 'label' => 'Dashboard', 'keywords' => ['dashboard', 'home']],
-            ['route' => 'admin.customers', 'label' => 'All Customers', 'keywords' => ['customer management', 'all customers', 'customers', 'customer']],
-            ['route' => 'admin.add-customer', 'label' => 'Add Customer', 'keywords' => ['add customer']],
-            ['route' => 'admin.bookings.index', 'label' => 'All Bookings', 'keywords' => ['booking management', 'all bookings', 'bookings', 'booking']],
+            ['route' => 'admin.customers', 'label' => 'User Management', 'keywords' => ['user management', 'users', 'customers', 'customer']],
+            ['route' => 'admin.vendors', 'label' => 'Vendor Management', 'keywords' => ['vendor management', 'vendors', 'vendor']],
+            ['route' => 'admin.add-vendor', 'label' => 'Add Vendor', 'keywords' => ['add vendor']],
+            ['route' => 'admin.delivery.index', 'label' => 'Delivery Management', 'keywords' => ['delivery management', 'delivery', 'drivers']],
             ['route' => 'admin.products', 'label' => 'Products', 'keywords' => ['products manage', 'products', 'product']],
             ['route' => 'admin.add-product', 'label' => 'Add Product', 'keywords' => ['add products', 'add product']],
             ['route' => 'admin.categories', 'label' => 'Category List', 'keywords' => ['category list', 'categories', 'category']],
@@ -42,8 +44,9 @@ class DashboardController extends Controller
             ['route' => 'admin.profile.edit', 'label' => 'Profile Setting', 'keywords' => ['profile setting', 'profile settings', 'profile']],
             ['route' => 'admin.settings.store.edit', 'label' => 'Store Settings', 'keywords' => ['store settings', 'store setting']],
             ['route' => 'admin.banners.index', 'label' => 'Banners Setting', 'keywords' => ['banners setting', 'banners', 'banner']],
+            ['route' => 'admin.notifications.index', 'label' => 'Notifications', 'keywords' => ['notification management', 'send notifications', 'notifications']],
+            ['route' => 'admin.discount-offers.index', 'label' => 'Promo Code', 'keywords' => ['promo code', 'discount offers', 'coupons']],
             ['route' => 'admin.static-pages.index', 'label' => 'Static Pages', 'keywords' => ['static pages', 'all pages']],
-            ['route' => 'admin.notifications.index', 'label' => 'Send Notifications', 'keywords' => ['notification management', 'send notifications', 'notifications']],
         ];
     }
 
@@ -222,39 +225,67 @@ class DashboardController extends Controller
     public function index()
     {
         $totalUsers = 0;
+        $totalVendors = 0;
+        $activeVendors = 0;
+        $activeUsers = 0;
+        $pendingApprovals = 0;
         $totalProducts = 0;
         $totalOrders = 0;
         $totalRevenue = 0;
         $recentOrders = collect();
-        $ordersTrendLabels = [];
-        $ordersTrendData = [];
-        $revenueTrendData = [];
+        $salesChartLabels = [];
+        $salesChartData = [];
 
         try {
             if (Schema::hasTable('customers')) {
                 $totalUsers = (int) Customers::count();
+            }
+            if (Schema::hasTable('users')) {
+                $activeUsers = (int) Users::where('role_type', Users::CUSTOMER_APP_ROLE_TYPE)->where('status', '1')->count();
+            }
+            if (Schema::hasTable('vendors')) {
+                $totalVendors = (int) Vendor::count();
+                $activeVendors = (int) Vendor::where('approval_status', 'approved')->count();
+                $pendingApprovals = (int) Vendor::where('approval_status', 'pending')->count();
             }
             if (Schema::hasTable('products')) {
                 $totalProducts = (int) Product::count();
             }
             if (Schema::hasTable('orders')) {
                 $totalOrders = (int) Orders::count();
-                $totalRevenue = (float) Orders::sum('total_amount');
+                $totalRevenue = (float) Orders::where('payment_status', 'paid')->sum('total_amount');
                 $recentOrders = Orders::orderByDesc('order_id')->limit(5)->get();
+
+                $monthlySales = Orders::selectRaw('MONTH(created_at) as month_num, SUM(total_amount) as total')
+                    ->where('payment_status', 'paid')
+                    ->whereYear('created_at', now()->year)
+                    ->groupBy('month_num')
+                    ->orderBy('month_num')
+                    ->get()
+                    ->keyBy('month_num');
+
+                $monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+                for ($m = 1; $m <= 4; $m++) {
+                    $salesChartLabels[] = $monthNames[$m - 1];
+                    $salesChartData[] = (float) ($monthlySales[$m]->total ?? 0);
+                }
             }
         } catch (\Exception $e) {
-            // Keep dashboard usable even if some tables are missing/incomplete.
-            $categories = $categories instanceof Collection ? $categories : collect();
-            $bestSellingProducts = $bestSellingProducts instanceof Collection ? $bestSellingProducts : collect();
-            $recentOrders = $recentOrders instanceof Collection ? $recentOrders : collect();
+            $recentOrders = $recentOrders instanceof \Illuminate\Support\Collection ? $recentOrders : collect();
         }
 
         return view('admin.dashboard', compact(
             'totalUsers',
+            'totalVendors',
+            'activeVendors',
+            'activeUsers',
+            'pendingApprovals',
             'totalProducts',
             'totalOrders',
             'totalRevenue',
-            'recentOrders'
+            'recentOrders',
+            'salesChartLabels',
+            'salesChartData'
         ));
     }
 }

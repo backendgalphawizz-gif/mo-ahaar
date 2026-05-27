@@ -14,6 +14,10 @@ class PaymentEarningController extends Controller
 {
     private function applyActiveVendorFilter(Builder $query): Builder
     {
+        if (\Illuminate\Support\Facades\Schema::hasColumn('vendors', 'approval_status')) {
+            return $query->where('approval_status', 'approved');
+        }
+
         return $query->whereIn('status', ['1', 1]);
     }
 

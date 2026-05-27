@@ -22,6 +22,8 @@ use App\Http\Controllers\Admin\TicketManagementController;
 use App\Http\Controllers\Admin\ProductReviewController;
 use App\Http\Controllers\Admin\GstTaxController;
 use App\Http\Controllers\Admin\DiscountOfferController;
+use App\Http\Controllers\Admin\VendorManagementController;
+use App\Http\Controllers\Admin\DeliveryManagementController;
 use App\Http\Controllers\CommonController;
 
 Route::any('/',       [LoginController::class,'index']);
@@ -65,6 +67,33 @@ Route::middleware(['AdminAuth'])->prefix('admin')->group(function(){
                 ], 500);
             }
         })->name('admin.run-migrations');
+
+        Route::get('/seed-driver-demo', function (\Illuminate\Http\Request $request) {
+            try {
+                $fresh = $request->boolean('fresh');
+                $params = $fresh ? ['--fresh' => true] : [];
+                \Illuminate\Support\Facades\Artisan::call('driver:seed-demo', $params);
+                $output = \Illuminate\Support\Facades\Artisan::output();
+
+                return response()->json([
+                    'success' => true,
+                    'message' => $fresh
+                        ? 'Driver demo data refreshed successfully'
+                        : 'Driver demo data seeded successfully',
+                    'output' => $output,
+                    'driver_login' => [
+                        'email' => \Database\Seeders\DriverDemoDataSeeder::DEMO_DRIVER_EMAIL,
+                        'password' => 'Driver@123',
+                    ],
+                ]);
+            } catch (\Throwable $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Driver demo seed failed',
+                    'error' => $e->getMessage(),
+                ], 500);
+            }
+        })->name('admin.seed-driver-demo');
 
         // Peoduct Management Routes
         Route::get('/products',[ProductManagementController::class,'products'])->name('admin.products');
@@ -132,8 +161,44 @@ Route::middleware(['AdminAuth'])->prefix('admin')->group(function(){
         Route::get('/customers/export-excel', [CustomerManagementController::class, 'exportCustomersExcel'])->name('admin.customers.export-excel');
         Route::get('/customers/export-pdf', [CustomerManagementController::class, 'exportCustomersPdf'])->name('admin.customers.export-pdf');
 
-       
+        // Vendor Management Routes
+        Route::get('/vendors', [VendorManagementController::class, 'index'])->name('admin.vendors');
+        Route::get('/add-vendor', [VendorManagementController::class, 'addVendor'])->name('admin.add-vendor');
+        Route::post('/store-vendor', [VendorManagementController::class, 'storeVendor'])->name('admin.store-vendor');
+        Route::get('/view-vendor/{id}', [VendorManagementController::class, 'viewVendor'])->name('admin.view-vendor');
+        Route::get('/edit-vendor/{id}', [VendorManagementController::class, 'editVendor'])->name('admin.edit-vendor');
+        Route::post('/update-vendor/{id}', [VendorManagementController::class, 'updateVendor'])->name('admin.update-vendor');
+        Route::post('/vendors/{id}/approval-status', [VendorManagementController::class, 'updateApprovalStatus'])->name('admin.vendors.approval-status');
+        Route::post('/vendors/{id}/commission', [VendorManagementController::class, 'updateCommission'])->name('admin.vendors.update-commission');
+        Route::post('/vendors/{id}/toggle-block', [VendorManagementController::class, 'toggleBlock'])->name('admin.vendors.toggle-block');
+        Route::any('/delete-vendor/{id}', [VendorManagementController::class, 'deleteVendor'])->name('admin.delete-vendor');
+        Route::get('/vendors/export-excel', [VendorManagementController::class, 'exportVendorsExcel'])->name('admin.vendors.export-excel');
+
+        // Delivery Management Routes
+        Route::get('/delivery', [DeliveryManagementController::class, 'index'])->name('admin.delivery.index');
+        Route::get('/delivery/add', [DeliveryManagementController::class, 'addDriver'])->name('admin.delivery.add');
+        Route::post('/delivery/store', [DeliveryManagementController::class, 'storeDriver'])->name('admin.delivery.store');
+        Route::get('/delivery/view/{id}', [DeliveryManagementController::class, 'viewDriver'])->name('admin.delivery.view');
+        Route::get('/delivery/edit/{id}', [DeliveryManagementController::class, 'editDriver'])->name('admin.delivery.edit');
+        Route::post('/delivery/update/{id}', [DeliveryManagementController::class, 'updateDriver'])->name('admin.delivery.update');
+        Route::post('/delivery/delete/{id}', [DeliveryManagementController::class, 'deleteDriver'])->name('admin.delivery.delete');
+        Route::post('/delivery/{id}/approval-status', [DeliveryManagementController::class, 'updateApprovalStatus'])->name('admin.delivery.approval-status');
+        Route::post('/delivery/{id}/toggle-status', [DeliveryManagementController::class, 'toggleStatus'])->name('admin.delivery.toggle-status');
+        Route::get('/delivery/export-excel', [DeliveryManagementController::class, 'exportDriversExcel'])->name('admin.delivery.export-excel');
+
+        // Payment Management Routes
+        Route::get('/payments/commission-settings', [PaymentEarningController::class, 'commissionSettings'])->name('admin.payments.commission-settings');
+        Route::post('/payments/commission-settings/{vendorId}', [PaymentEarningController::class, 'updateCommissionPercentage'])->name('admin.payments.update-commission');
+        Route::get('/payments/status', [PaymentEarningController::class, 'paymentStatusTracking'])->name('admin.payments.status');
+        Route::get('/payments/vendor-transactions', [PaymentEarningController::class, 'vendorTransactions'])->name('admin.payments.vendor-transactions');
+        Route::get('/payments/settlements', [PaymentEarningController::class, 'commissionSettlements'])->name('admin.payments.settlements');
+        Route::post('/payments/settlements', [PaymentEarningController::class, 'storeCommissionSettlement'])->name('admin.payments.settlements.store');
+        Route::post('/payments/settlements/{id}/status', [PaymentEarningController::class, 'updateCommissionSettlementStatus'])->name('admin.payments.settlements.update-status');
+
         Route::get('/reports/orders', [ReportsAnalyticsController::class, 'orderReports'])->name('admin.reports.orders');
+        Route::get('/reports/revenue', [ReportsAnalyticsController::class, 'revenueReports'])->name('admin.reports.revenue');
+        Route::get('/reports/recharges', [ReportsAnalyticsController::class, 'rechargeReports'])->name('admin.reports.recharges');
+        Route::get('/reports/venue-bookings', [ReportsAnalyticsController::class, 'venueBookingReports'])->name('admin.reports.venue-bookings');
         Route::get('/reports/orders/export-excel', [ReportsAnalyticsController::class, 'exportOrderReportExcel'])->name('admin.reports.orders.export-excel');
         Route::get('/reports/orders/export-pdf', [ReportsAnalyticsController::class, 'exportOrderReportPdf'])->name('admin.reports.orders.export-pdf');
 

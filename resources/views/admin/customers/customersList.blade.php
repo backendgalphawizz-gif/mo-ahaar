@@ -6,7 +6,7 @@
             <div class="row">
                 <div class="col-12">
                     <div class="title-header option-title d-flex align-items-center mb-4">
-                        <h5><i class="ri-group-line me-2"></i>Customer Management</h5>
+                        <h5><i class="ri-group-line me-2"></i>User Management</h5>
                     </div>
 
                     @if(session('success'))

@@ -27,6 +27,7 @@ use App\Http\Controllers\API\DriverApp\NotificationController as DriverNotificat
 use App\Http\Controllers\API\DriverApp\OrderController as DriverOrderController;
 use App\Http\Controllers\API\DriverApp\PaymentController as DriverPaymentController;
 use App\Http\Controllers\API\DriverApp\ProfileController as DriverProfileController;
+use App\Http\Controllers\API\DriverApp\SettingsController as DriverSettingsController;
 
 Route::prefix('users')->group(function () {
     Route::get('/', [UsersController::class, 'index'])->name('users.index');
@@ -173,6 +174,8 @@ Route::prefix('user-app')->group(function () {
 
 Route::prefix('driver-app')->name('driver-app.')->group(function () {
 
+    Route::get('/settings/business', [DriverSettingsController::class, 'business'])->name('settings.business');
+
     Route::prefix('auth')->group(function () {
         Route::post('/login', [DriverAuthController::class, 'login'])->name('auth.login');
         Route::post('/forgot-password/request-otp', [DriverAuthController::class, 'requestForgotPasswordOtp'])->name('auth.forgot-password.request-otp');
@@ -221,6 +224,8 @@ Route::prefix('driver-app')->name('driver-app.')->group(function () {
         Route::prefix('profile')->group(function () {
             Route::get('/', [DriverProfileController::class, 'show'])->name('profile.show');
             Route::post('/personal-information', [DriverProfileController::class, 'updatePersonalInformation'])->name('profile.personal-information');
+            Route::post('/bank-information', [DriverProfileController::class, 'updateBankInformation'])->name('profile.bank-information');
+            Route::post('/vehicle-information', [DriverProfileController::class, 'updateVehicleInformation'])->name('profile.vehicle-information');
             Route::post('/documents', [DriverProfileController::class, 'updateDocuments'])->name('profile.documents');
         });
     });

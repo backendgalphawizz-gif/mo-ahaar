@@ -79,14 +79,14 @@ class LoginController extends Controller
 
         $existingUser = Users::where('email', $email)->first();
 
-        if ($loginType === 'vendor' && $existingUser && (int) $existingUser->role_type === 2 && Hash::check($password, $existingUser->password)) {
+        if ($loginType === 'vendor' && $existingUser && (int) $existingUser->role_type === 3 && Hash::check($password, $existingUser->password)) {
             if ((string) $existingUser->status !== '1') {
                 Session::flash('error', 'Your vendor account is pending admin approval. Please wait for activation.');
                 return redirect('/vendor/login')->withInput($request->only('email'));
             }
 
             $vendorAccount = Vendor::where('user_id', $existingUser->user_id)->first();
-            if ($vendorAccount && (string) $vendorAccount->status !== '1') {
+            if ($vendorAccount && strtolower((string) $vendorAccount->approval_status) !== 'approved') {
                 Session::flash('error', 'Your vendor account is pending admin approval. Please wait for activation.');
                 return redirect('/vendor/login')->withInput($request->only('email'));
             }
@@ -96,7 +96,7 @@ class LoginController extends Controller
             ->where('status', '1')
             ->first();
 
-        if (!$userData || !in_array((int) $userData->role_type, [1, 2], true) || !Hash::check($password, $userData->password)) {
+        if (!$userData || !in_array((int) $userData->role_type, [1, 3], true) || !Hash::check($password, $userData->password)) {
             Session::flash('error', 'You entered wrong email or password!');
             
             // Redirect to the appropriate login form based on login type
@@ -107,7 +107,7 @@ class LoginController extends Controller
         }
 
         // Additional check: if vendor login is attempted, ensure user is a vendor
-        if ($loginType === 'vendor' && (int) $userData->role_type !== 2) {
+        if ($loginType === 'vendor' && (int) $userData->role_type !== 3) {
             Session::flash('error', 'Only vendors can access this portal. Please use admin login.');
             return redirect('/vendor/login')->withInput($request->only('email'));
         }
@@ -125,7 +125,7 @@ class LoginController extends Controller
             'profile_image' => $userData->profile_image ?? null,
         ];
 
-        if ((int) $userData->role_type === 2) {
+        if ((int) $userData->role_type === 3) {
             $vendor = Vendor::where('user_id', $userData->user_id)->first();
             if (!$vendor) {
                 Session::flash('error', 'Vendor profile not found.');

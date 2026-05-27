@@ -24,6 +24,9 @@ class StoreSetting extends Model
         'customer_registration_privacy_policy_enabled',
         'customer_registration_terms_enabled',
         'customer_registration_faq_enabled',
+        'driver_app_privacy_policy_enabled',
+        'driver_app_terms_enabled',
+        'driver_app_faq_enabled',
     ];
 
     protected $casts = [
@@ -35,5 +38,8 @@ class StoreSetting extends Model
         'customer_registration_privacy_policy_enabled' => 'boolean',
         'customer_registration_terms_enabled' => 'boolean',
         'customer_registration_faq_enabled' => 'boolean',
+        'driver_app_privacy_policy_enabled' => 'boolean',
+        'driver_app_terms_enabled' => 'boolean',
+        'driver_app_faq_enabled' => 'boolean',
     ];
 }
