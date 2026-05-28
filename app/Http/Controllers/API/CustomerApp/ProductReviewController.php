@@ -5,9 +5,12 @@ namespace App\Http\Controllers\API\CustomerApp;
 use App\Http\Controllers\Controller;
 use App\Models\Customers;
 use App\Models\OrderItem;
+use App\Models\Orders;
+use App\Models\PlatformFeedback;
 use App\Models\Product;
 use App\Models\ProductReview;
 use App\Models\Users;
+use App\Models\Vendor;
 use Illuminate\Http\Request;
 
 class ProductReviewController extends Controller
@@ -265,5 +268,166 @@ class ProductReviewController extends Controller
                 ],
             ],
         ], 200);
+    }
+
+    /**
+     * POST /api/customer-app/reviews/restaurants/{vendorId}
+     * Submit restaurant review for delivered order vendor.
+     */
+    public function storeRestaurantReview(Request $request, int $vendorId)
+    {
+        /** @var Users|null $user */
+        $user = $request->user();
+
+        if (!$user || (int) $user->role_type !== self::CUSTOMER_ROLE_TYPE) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Unauthorized customer access',
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            'rating' => ['required', 'integer', 'min:1', 'max:5'],
+            'review' => ['nullable', 'string', 'max:2000'],
+            'feedback_text' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $customer = Customers::where('user_id', $user->user_id)->first();
+        if (!$customer) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Customer profile not found',
+            ], 404);
+        }
+
+        $vendor = Vendor::query()->where('vendor_id', $vendorId)->first();
+        if (!$vendor) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Restaurant not found',
+            ], 404);
+        }
+
+        $hasDeliveredOrder = Orders::query()
+            ->where('customer_id', $customer->customer_id)
+            ->where('vendor_id', $vendorId)
+            ->whereIn('order_status', ['delivered', 'completed'])
+            ->exists();
+
+        if (!$hasDeliveredOrder) {
+            return response()->json([
+                'status' => false,
+                'message' => 'You can review only restaurants you ordered from and received delivery.',
+            ], 422);
+        }
+
+        $feedback = PlatformFeedback::updateOrCreate(
+            [
+                'customer_id' => $customer->customer_id,
+                'user_id' => $user->user_id,
+                'category' => $this->restaurantCategoryKey($vendorId),
+            ],
+            [
+                'rating' => (int) $validated['rating'],
+                'feedback_text' => $validated['review'] ?? $validated['feedback_text'] ?? null,
+                'status' => 1,
+            ]
+        );
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Restaurant review submitted successfully',
+            'data' => [
+                'feedback_id' => $feedback->feedback_id,
+                'vendor_id' => $vendorId,
+                'restaurant_name' => $vendor->business_name,
+                'rating' => (int) $feedback->rating,
+                'review' => $feedback->feedback_text,
+                'submitted_at' => $feedback->updated_at?->toDateTimeString(),
+            ],
+        ], 200);
+    }
+
+    /**
+     * GET /api/customer-app/reviews/restaurants/{vendorId}
+     */
+    public function restaurantReviews(Request $request, int $vendorId)
+    {
+        /** @var Users|null $user */
+        $user = $request->user();
+
+        if (!$user || (int) $user->role_type !== self::CUSTOMER_ROLE_TYPE) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Unauthorized customer access',
+            ], 403);
+        }
+
+        $vendor = Vendor::query()->where('vendor_id', $vendorId)->first();
+        if (!$vendor) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Restaurant not found',
+            ], 404);
+        }
+
+        $perPage = max(1, min((int) $request->input('per_page', 20), 100));
+
+        $reviewsQuery = PlatformFeedback::query()
+            ->with('user:user_id,name,profile_image')
+            ->where('category', $this->restaurantCategoryKey($vendorId))
+            ->where('status', 1)
+            ->whereNotNull('rating')
+            ->orderByDesc('feedback_id');
+
+        $stats = (clone $reviewsQuery)
+            ->selectRaw('COUNT(*) as total_reviews, COALESCE(AVG(rating), 0) as average_rating')
+            ->first();
+
+        $paginated = $reviewsQuery->paginate($perPage);
+
+        $reviews = collect($paginated->items())->map(function (PlatformFeedback $review) use ($user) {
+            return [
+                'feedback_id' => $review->feedback_id,
+                'rating' => (int) $review->rating,
+                'review' => $review->feedback_text,
+                'is_mine' => (int) $review->user_id === (int) $user->user_id,
+                'reviewer' => [
+                    'user_id' => $review->user?->user_id,
+                    'name' => $review->user?->name,
+                    'profile_image_url' => !empty($review->user?->profile_image)
+                        ? url('public/uploads/customers/' . $review->user->profile_image)
+                        : null,
+                ],
+                'created_at' => $review->created_at?->toDateTimeString(),
+            ];
+        })->values();
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Restaurant reviews retrieved successfully',
+            'data' => [
+                'restaurant' => [
+                    'vendor_id' => $vendor->vendor_id,
+                    'restaurant_name' => $vendor->business_name,
+                ],
+                'summary' => [
+                    'average_rating' => round((float) ($stats->average_rating ?? 0), 2),
+                    'total_reviews' => (int) ($stats->total_reviews ?? 0),
+                ],
+                'reviews' => $reviews,
+                'pagination' => [
+                    'current_page' => $paginated->currentPage(),
+                    'per_page' => $paginated->perPage(),
+                    'total' => $paginated->total(),
+                    'last_page' => $paginated->lastPage(),
+                ],
+            ],
+        ], 200);
+    }
+
+    private function restaurantCategoryKey(int $vendorId): string
+    {
+        return 'restaurant:' . $vendorId;
     }
 }

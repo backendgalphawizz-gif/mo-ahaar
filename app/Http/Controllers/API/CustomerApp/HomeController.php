@@ -7,6 +7,7 @@ use App\Models\Banner;
 use App\Models\Customers;
 use App\Models\Product;
 use App\Models\ProductCategory;
+use App\Models\ProductReview;
 use App\Models\StoreSetting;
 use App\Models\Users;
 use App\Models\Vendor;
@@ -61,11 +62,25 @@ class HomeController extends Controller
             if (Schema::hasColumn('products', 'status')) {
                 $productsQuery->where('status', 1);
             }
-            $featuredProducts = $productsQuery
+            $featuredRows = $productsQuery
                 ->orderByDesc('product_id')
                 ->limit(12)
-                ->get()
-                ->map(fn (Product $product) => $this->mapFeaturedProduct($product))
+                ->get();
+
+            $reviewCounts = [];
+            if (Schema::hasTable('product_reviews') && $featuredRows->isNotEmpty()) {
+                $reviewCounts = ProductReview::query()
+                    ->where('status', 1)
+                    ->whereIn('product_id', $featuredRows->pluck('product_id')->all())
+                    ->selectRaw('product_id, COUNT(*) as total_reviews')
+                    ->groupBy('product_id')
+                    ->pluck('total_reviews', 'product_id')
+                    ->map(fn ($count) => (int) $count)
+                    ->all();
+            }
+
+            $featuredProducts = $featuredRows
+                ->map(fn (Product $product) => $this->mapFeaturedProduct($product, $reviewCounts))
                 ->values();
         }
 
@@ -261,7 +276,7 @@ class HomeController extends Controller
         ];
     }
 
-    private function mapFeaturedProduct(Product $product): array
+    private function mapFeaturedProduct(Product $product, array $reviewCounts = []): array
     {
         $row = [
             'product_id' => $product->product_id,
@@ -276,6 +291,7 @@ class HomeController extends Controller
             'product_image_url' => !empty($product->product_image)
                 ? url('public/uploads/products/' . $product->product_image)
                 : null,
+            'review_count' => (int) ($reviewCounts[$product->product_id] ?? 0),
         ];
 
         if (Schema::hasColumn('products', 'sale_status')) {

@@ -130,6 +130,8 @@ Route::prefix('customer-app')->middleware('set.customer.locale')->name('customer
     Route::middleware('auth:sanctum')->prefix('reviews')->group(function () {
         Route::post('/products/{productId}', [CustomerProductReviewController::class, 'store'])->name('reviews.products.store');
         Route::get('/products/{productId}', [CustomerProductReviewController::class, 'index'])->name('reviews.products.index');
+        Route::post('/restaurants/{vendorId}', [CustomerProductReviewController::class, 'storeRestaurantReview'])->name('reviews.restaurants.store');
+        Route::get('/restaurants/{vendorId}', [CustomerProductReviewController::class, 'restaurantReviews'])->name('reviews.restaurants.index');
         Route::get('/my', [CustomerProductReviewController::class, 'myReviews'])->name('reviews.my');
     });
 

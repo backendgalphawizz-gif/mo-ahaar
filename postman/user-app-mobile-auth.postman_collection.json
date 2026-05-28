@@ -107,6 +107,7 @@
           "request": {
             "method": "GET",
             "header": [{ "key": "Accept", "value": "application/json" }],
+            "description": "Dashboard response now includes `featured_products[].review_count` for each featured food item.",
             "url": {
               "raw": "{{base_url}}/customer-app/home/dashboard?latitude={{latitude}}&longitude={{longitude}}",
               "host": ["{{base_url}}"],
@@ -474,6 +475,56 @@
           "request": {
             "method": "GET",
             "url": "{{base_url}}/customer-app/orders/{{order_id}}/invoice"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reviews",
+      "item": [
+        {
+          "name": "Submit Food Review",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 5,\n  \"review\": \"Awesome taste and quick delivery\"\n}"
+            },
+            "url": "{{base_url}}/customer-app/reviews/products/{{product_id}}"
+          }
+        },
+        {
+          "name": "List Food Reviews",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/customer-app/reviews/products/{{product_id}}?per_page=20"
+          }
+        },
+        {
+          "name": "Submit Restaurant Review",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 4,\n  \"review\": \"Great restaurant experience\"\n}"
+            },
+            "url": "{{base_url}}/customer-app/reviews/restaurants/{{vendor_id}}"
+          }
+        },
+        {
+          "name": "List Restaurant Reviews",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/customer-app/reviews/restaurants/{{vendor_id}}?per_page=20"
+          }
+        },
+        {
+          "name": "My Reviews",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/customer-app/reviews/my?per_page=20"
           }
         }
       ]
