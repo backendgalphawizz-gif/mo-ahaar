@@ -1,8 +1,9 @@
 @php
     $isVendorPanel = (int) (session('role_type') ?? 0) === 3;
+    $defaultLogoUrl = asset('public/uploads/settings/moaahar-logo.png');
     $logoUrl = !empty($globalStoreSetting) && !empty($globalStoreSetting->logo)
         ? asset('public/uploads/settings/' . $globalStoreSetting->logo)
-        : asset('public/uploads/settings/moaahar-logo.png');
+        : $defaultLogoUrl;
 
     $pathMatch = function (string $pattern) {
         $path = request()->path();
@@ -32,7 +33,7 @@
     <div>
         <div class="logo-wrapper logo-wrapper-center">
             <a href="{{ route($isVendorPanel ? 'vendor.dashboard' : 'admin.dashboard') }}" title="">
-                <img class="img-fluid for-white" src="{{ $logoUrl }}" alt="moaahar">
+                <img class="img-fluid for-white" src="{{ $logoUrl }}" alt="moaahar" onerror="this.onerror=null;this.src='{{ $defaultLogoUrl }}';">
             </a>
             <div class="back-btn ms-3"><i class="fa fa-angle-left"></i></div>
             <div class="toggle-sidebar">
@@ -171,7 +172,7 @@
 </div>
 
 <style>
-.moa-sidebar { background: #fff; border-right: 1px solid #eceef2; width: 240px; }
+.moa-sidebar { background: #fff !important; border-right: 1px solid #eceef2; }
 .moa-sidebar .logo-wrapper-center { min-height: 60px; padding: 12px 14px !important; border-bottom: 1px solid #f1f3f5; }
 .moa-sidebar .logo-wrapper-center .for-white { max-height: 32px; width: auto; }
 .moa-sidebar #sidebar-menu .sidebar-list { margin: 2px 10px; }

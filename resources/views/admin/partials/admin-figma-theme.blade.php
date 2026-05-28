@@ -1,78 +1,254 @@
-{{-- Shared Figma admin UI — sidebar, header, pages --}}
+{{-- Admin layout + Figma UI (loads on every admin page via layouts.app) --}}
 <style>
-.admin-panel { --moa-red: #ed1c24; --moa-red-soft: #fef2f2; --moa-page-bg: #f4f5f7; }
-.admin-panel .page-body { background: var(--moa-page-bg); padding: 18px 16px 24px; min-height: calc(100vh - 56px); }
-.admin-panel .container-fluid { max-width: 100%; padding: 0; }
+.admin-panel,
+.vendor-panel {
+    --moa-sidebar-w: 240px;
+    --moa-header-h: 60px;
+    --moa-red: #ed1c24;
+    --moa-red-soft: #fef2f2;
+    --moa-page-bg: #f4f5f7;
+}
+
+/* ── Fix compact-wrapper layout (theme default = 280px) ── */
+.admin-panel .page-wrapper.compact-wrapper .page-header,
+.vendor-panel .page-wrapper.compact-wrapper .page-header {
+    margin-left: var(--moa-sidebar-w) !important;
+    width: calc(100% - var(--moa-sidebar-w)) !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: auto !important;
+    right: 0 !important;
+    height: var(--moa-header-h) !important;
+    z-index: 9 !important;
+    background: #fff !important;
+    border-bottom: 1px solid #eceef2;
+    box-shadow: none !important;
+}
+
+.admin-panel .page-wrapper.compact-wrapper .page-body-wrapper,
+.vendor-panel .page-wrapper.compact-wrapper .page-body-wrapper {
+    margin-left: 0 !important;
+    padding-top: 0 !important;
+}
+
+.admin-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper,
+.vendor-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper {
+    width: var(--moa-sidebar-w) !important;
+    top: 0 !important;
+    left: 0 !important;
+    height: 100vh !important;
+    min-height: 100vh !important;
+    background: #fff !important;
+    background-image: none !important;
+    animation: none !important;
+    -webkit-animation: none !important;
+    box-shadow: none !important;
+    border-right: 1px solid #eceef2;
+    z-index: 10 !important;
+    line-height: inherit;
+}
+
+.admin-panel .page-wrapper.compact-wrapper .page-body-wrapper .page-body,
+.vendor-panel .page-wrapper.compact-wrapper .page-body-wrapper .page-body {
+    margin-left: var(--moa-sidebar-w) !important;
+    margin-top: var(--moa-header-h) !important;
+    padding: 18px 16px 24px !important;
+    min-height: calc(100vh - var(--moa-header-h)) !important;
+    background: var(--moa-page-bg) !important;
+}
+
+.admin-panel .page-wrapper.compact-wrapper .page-header .header-wrapper,
+.vendor-panel .page-wrapper.compact-wrapper .page-header .header-wrapper {
+    min-height: var(--moa-header-h) !important;
+    padding: 0 16px !important;
+}
+
+.admin-panel .page-wrapper.compact-wrapper .page-header .header-logo-wrapper,
+.vendor-panel .page-wrapper.compact-wrapper .page-header .header-logo-wrapper {
+    display: none !important;
+}
+
+/* Sidebar link colors (override theme dark gradient white text) */
+.admin-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper.moa-sidebar .sidebar-main .sidebar-links > li > a,
+.admin-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper.moa-sidebar .sidebar-main .sidebar-links .sidebar-link {
+    color: #374151 !important;
+}
+
+.admin-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper.moa-sidebar .sidebar-main .sidebar-links .sidebar-link svg,
+.admin-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper.moa-sidebar .sidebar-main .sidebar-links .sidebar-link > i {
+    color: #4b5563 !important;
+    stroke: #4b5563 !important;
+}
+
+.admin-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper.moa-sidebar .sidebar-main .sidebar-links .sidebar-link.link-nav.active,
+.admin-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper.moa-sidebar .sidebar-main .sidebar-links .sidebar-link.link-nav.active > i {
+    color: #fff !important;
+    stroke: #fff !important;
+}
+
+.admin-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper .sidebar-main .sidebar-links {
+    height: calc(100vh - 64px) !important;
+}
 
 /* Header */
-.admin-panel .page-header { height: 60px; background: #fff; border-bottom: 1px solid #eceef2; box-shadow: none; }
-.admin-panel .header-wrapper { min-height: 60px !important; padding: 0 16px !important; }
-.admin-panel .search-full { max-width: 520px; margin: 0 auto; }
-.admin-panel .search-full .form-control-plaintext,
-.admin-panel .search-full input { background: #f3f4f6 !important; border-radius: 8px !important; min-height: 38px; font-size: 13px; padding-left: 36px !important; border: 1px solid #e5e7eb !important; }
-.admin-panel .search-full .u-posRelative > .ri-search-line { left: 12px; color: #9ca3af; }
-.admin-panel .nav-menus .notification-box { position: relative; list-style: none; }
-.admin-panel .nav-menus .notification-box a { color: #374151; font-size: 20px; }
-.admin-panel .nav-menus .notification-box .dot { position: absolute; top: 2px; right: 2px; width: 8px; height: 8px; background: var(--moa-red); border-radius: 50%; border: 2px solid #fff; }
-.admin-panel .profile-media .user-profile { width: 36px; height: 36px; }
-.admin-panel .profile-media .user-name-hide { display: block !important; }
-.admin-panel .profile-media .user-name-hide span { font-size: 13px; font-weight: 600; color: #111827; display: block; line-height: 1.2; }
-.admin-panel .profile-media .user-name-hide p { font-size: 11px; color: #6b7280; margin: 0; }
+.admin-panel .search-full,
+.vendor-panel .search-full {
+    max-width: 520px;
+    margin: 0 auto;
+    width: 100%;
+}
 
-/* Sidebar width */
-.admin-panel .page-wrapper.compact-wrapper .page-body-wrapper { margin-left: 240px; }
-.admin-panel .sidebar-wrapper { width: 240px !important; }
+.admin-panel .search-full .form-control-plaintext,
+.admin-panel .search-full input,
+.vendor-panel .search-full input {
+    background: #f3f4f6 !important;
+    border-radius: 8px !important;
+    min-height: 38px;
+    font-size: 13px;
+    padding-left: 36px !important;
+    border: 1px solid #e5e7eb !important;
+}
+
+.admin-panel .page-header .search-full .form-group:before {
+    display: none !important;
+    content: none !important;
+}
+
+.admin-panel .search-full .u-posRelative > .ri-search-line {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #9ca3af;
+    z-index: 2;
+}
+
+.admin-panel .nav-menus .notification-box { position: relative; list-style: none; }
+.admin-panel .nav-menus .notification-box a { color: #374151; font-size: 20px; text-decoration: none; }
+.admin-panel .nav-menus .notification-box .dot {
+    position: absolute; top: 2px; right: 2px; width: 8px; height: 8px;
+    background: var(--moa-red); border-radius: 50%; border: 2px solid #fff;
+}
+
+.admin-panel .profile-media .user-profile,
+.vendor-panel .profile-media .user-profile {
+    width: 36px; height: 36px; object-fit: cover;
+}
+
+.admin-panel .profile-media .user-name-hide,
+.vendor-panel .profile-media .user-name-hide {
+    display: block !important;
+}
+
+.admin-panel .profile-media .user-name-hide span {
+    font-size: 13px; font-weight: 600; color: #111827; display: block; line-height: 1.2;
+}
+
+.admin-panel .profile-media .user-name-hide p {
+    font-size: 11px; color: #6b7280; margin: 0;
+}
+
+.admin-panel .container-fluid,
+.vendor-panel .container-fluid {
+    max-width: 100%;
+    padding: 0;
+}
 
 /* Page chrome */
 .admin-panel .figma-page-title { font-size: 24px; font-weight: 700; color: #111827; }
 .admin-panel .figma-page-subtitle { font-size: 13px; color: #6b7280; margin-top: 2px; }
 .admin-panel .figma-page-header { margin-bottom: 16px; }
-.admin-panel .btn-figma-primary { background: var(--moa-red); border-color: var(--moa-red); color: #fff; font-weight: 600; border-radius: 8px; padding: 8px 16px; font-size: 13px; }
+.admin-panel .btn-figma-primary {
+    background: var(--moa-red); border-color: var(--moa-red); color: #fff;
+    font-weight: 600; border-radius: 8px; padding: 8px 16px; font-size: 13px;
+}
 .admin-panel .btn-figma-primary:hover { background: #d9161d; border-color: #d9161d; color: #fff; }
 
-.admin-panel .dashboard-card { border: 1px solid #e8eaee; border-radius: 12px; background: #fff; box-shadow: 0 1px 2px rgba(15,23,42,.04); }
+.admin-panel .dashboard-card {
+    border: 1px solid #e8eaee; border-radius: 12px; background: #fff;
+    box-shadow: 0 1px 2px rgba(15,23,42,.04);
+}
 .admin-panel .dashboard-card .card-body { padding: 16px 18px; }
 
 .admin-panel .figma-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 14px; }
 .admin-panel .figma-toolbar .form-control,
-.admin-panel .figma-toolbar .form-select { border-radius: 8px; min-height: 36px; font-size: 12px; border-color: #e5e7eb; background: #fff; }
+.admin-panel .figma-toolbar .form-select {
+    border-radius: 8px; min-height: 36px; font-size: 12px; border-color: #e5e7eb; background: #fff;
+}
 .admin-panel .figma-toolbar .toolbar-search { flex: 1 1 220px; max-width: 320px; position: relative; }
-.admin-panel .figma-toolbar .toolbar-search i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #9ca3af; }
+.admin-panel .figma-toolbar .toolbar-search i {
+    position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #9ca3af;
+}
 .admin-panel .figma-toolbar .toolbar-search input { padding-left: 34px; width: 100%; }
 
-.admin-panel .figma-line-tabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid #eceef2; margin-bottom: 14px; }
-.admin-panel .figma-line-tabs .tab-link { padding: 10px 14px; font-size: 13px; font-weight: 500; color: #6b7280; text-decoration: none; border-bottom: 2px solid transparent; margin-bottom: -1px; }
-.admin-panel .figma-line-tabs .tab-link.active { color: var(--moa-red); border-bottom-color: var(--moa-red); font-weight: 600; }
+.admin-panel .figma-line-tabs {
+    display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid #eceef2; margin-bottom: 14px;
+}
+.admin-panel .figma-line-tabs .tab-link {
+    padding: 10px 14px; font-size: 13px; font-weight: 500; color: #6b7280;
+    text-decoration: none; border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.admin-panel .figma-line-tabs .tab-link.active {
+    color: var(--moa-red); border-bottom-color: var(--moa-red); font-weight: 600;
+}
 
-.admin-panel .table-modern thead th { font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: .02em; padding: 10px 12px; border-bottom: 1px solid #eceef2; background: #fafbfc; }
-.admin-panel .table-modern tbody td { font-size: 12px; padding: 12px; vertical-align: middle; border-bottom: 1px solid #f1f3f5; color: #1f2937; }
+.admin-panel .table-modern thead th {
+    font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase;
+    letter-spacing: .02em; padding: 10px 12px; border-bottom: 1px solid #eceef2; background: #fafbfc;
+}
+.admin-panel .table-modern tbody td {
+    font-size: 12px; padding: 12px; vertical-align: middle;
+    border-bottom: 1px solid #f1f3f5; color: #1f2937;
+}
 .admin-panel .table-modern tbody tr:hover { background: #fafafa; }
 
-.admin-panel .user-avatar { width: 36px; height: 36px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; }
+.admin-panel .user-avatar {
+    width: 36px; height: 36px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; flex-shrink: 0;
+}
 .admin-panel .user-avatar.avatar-blue { background: #dbeafe; color: #1d4ed8; }
 .admin-panel .user-avatar.avatar-green { background: #dcfce7; color: #15803d; }
 .admin-panel .user-avatar.avatar-orange { background: #ffedd5; color: #c2410c; }
 
 .admin-panel .figma-switch { position: relative; display: inline-block; width: 40px; height: 22px; }
 .admin-panel .figma-switch input { opacity: 0; width: 0; height: 0; }
-.admin-panel .figma-switch .slider { position: absolute; cursor: pointer; inset: 0; background: #d1d5db; border-radius: 999px; transition: .2s; }
-.admin-panel .figma-switch .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: .2s; }
+.admin-panel .figma-switch .slider {
+    position: absolute; cursor: pointer; inset: 0; background: #d1d5db; border-radius: 999px; transition: .2s;
+}
+.admin-panel .figma-switch .slider:before {
+    position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px;
+    background: #fff; border-radius: 50%; transition: .2s;
+}
 .admin-panel .figma-switch input:checked + .slider { background: var(--moa-red); }
 .admin-panel .figma-switch input:checked + .slider:before { transform: translateX(18px); }
 .admin-panel .status-label { font-size: 10px; font-weight: 700; letter-spacing: .04em; margin-top: 4px; display: block; }
 .admin-panel .status-label.on { color: #16a34a; }
 .admin-panel .status-label.off { color: #9ca3af; }
 
-.admin-panel .figma-pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; padding-top: 12px; border-top: 1px solid #eceef2; font-size: 12px; color: #6b7280; }
+.admin-panel .figma-pagination {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+    gap: 12px; margin-top: 16px; padding-top: 12px; border-top: 1px solid #eceef2;
+    font-size: 12px; color: #6b7280;
+}
 .admin-panel .figma-pagination .page-link { border-radius: 6px; font-size: 12px; min-width: 32px; text-align: center; }
 .admin-panel .figma-pagination .page-item.active .page-link { background: var(--moa-red); border-color: var(--moa-red); }
 
-/* Stepper (restaurant add/edit) */
-.admin-panel .figma-stepper { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; position: relative; }
-.admin-panel .figma-stepper::before { content: ""; position: absolute; top: 16px; left: 8%; right: 8%; height: 2px; background: #e5e7eb; z-index: 0; }
+.admin-panel .figma-stepper {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    margin-bottom: 24px; position: relative;
+}
+.admin-panel .figma-stepper::before {
+    content: ""; position: absolute; top: 16px; left: 8%; right: 8%;
+    height: 2px; background: #e5e7eb; z-index: 0;
+}
 .admin-panel .figma-step { flex: 1; text-align: center; position: relative; z-index: 1; color: inherit; }
 .admin-panel a.figma-step:hover .step-label { color: #ed1c24; }
-.admin-panel .figma-step .step-circle { width: 32px; height: 32px; border-radius: 50%; background: #fff; border: 2px solid #d1d5db; color: #6b7280; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+.admin-panel .figma-step .step-circle {
+    width: 32px; height: 32px; border-radius: 50%; background: #fff; border: 2px solid #d1d5db;
+    color: #6b7280; display: inline-flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; margin-bottom: 6px;
+}
 .admin-panel .figma-step.active .step-circle { border-color: var(--moa-red); background: var(--moa-red); color: #fff; }
 .admin-panel .figma-step.done .step-circle { border-color: var(--moa-red); color: var(--moa-red); background: #fff; }
 .admin-panel .figma-step .step-label { font-size: 11px; color: #6b7280; font-weight: 500; display: block; }
@@ -80,11 +256,31 @@
 
 .admin-panel .form-section-figma { background: #fff; border: 1px solid #eceef2; border-radius: 12px; padding: 20px; }
 .admin-panel .form-section-figma h6 { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
-.admin-panel .form-control, .admin-panel .form-select { border-radius: 8px; min-height: 40px; font-size: 13px; border-color: #e5e7eb; }
+.admin-panel .form-control, .admin-panel .form-select {
+    border-radius: 8px; min-height: 40px; font-size: 13px; border-color: #e5e7eb;
+}
 .admin-panel .invalid-feedback { font-size: 11px; margin-top: 4px; }
 
-.admin-panel .kpi-card { border: 1px solid #e8eaee; border-radius: 12px; background: #fff; padding: 14px 48px 12px 14px; position: relative; min-height: 88px; }
+.admin-panel .kpi-card {
+    border: 1px solid #e8eaee; border-radius: 12px; background: #fff;
+    padding: 14px 48px 12px 14px; position: relative; min-height: 88px;
+}
 .admin-panel .kpi-card p { font-size: 11px; color: #6b7280; margin: 0 0 6px; }
 .admin-panel .kpi-card h3 { font-size: 26px; font-weight: 700; margin: 0; color: #111827; }
-.admin-panel .kpi-icon { position: absolute; right: 12px; top: 12px; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px; }
+.admin-panel .kpi-icon {
+    position: absolute; right: 12px; top: 12px; width: 32px; height: 32px;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px;
+}
+
+@media (max-width: 991px) {
+    .admin-panel .page-wrapper.compact-wrapper .page-header,
+    .vendor-panel .page-wrapper.compact-wrapper .page-header {
+        margin-left: 0 !important;
+        width: 100% !important;
+    }
+    .admin-panel .page-wrapper.compact-wrapper .page-body-wrapper .page-body,
+    .vendor-panel .page-wrapper.compact-wrapper .page-body-wrapper .page-body {
+        margin-left: 0 !important;
+    }
+}
 </style>

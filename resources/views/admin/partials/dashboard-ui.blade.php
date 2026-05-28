@@ -1,6 +1,4 @@
-@include('admin.partials.admin-figma-theme')
 <style>
-.page-body { background: #f3f4f6; min-height: calc(100vh - 64px); padding: 14px 10px 18px; }
 .container-fluid { max-width: 1240px; }
 .dashboard-card { border: 1px solid #e7e9ee; border-radius: 9px; box-shadow: none; background: #fff; }
 .dashboard-card .card-body { padding: 14px; }

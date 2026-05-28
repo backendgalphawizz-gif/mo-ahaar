@@ -8,7 +8,16 @@
     @php
         $isVendorPanel = (int) (session('role_type') ?? 0) === 3;
         $dashboardRoute = $isVendorPanel ? 'vendor.dashboard' : 'admin.dashboard';
+        $defaultLogoUrl = asset('public/uploads/settings/moaahar-logo.png');
+        $defaultAvatarUrl = asset('public/assets/images/logo/1.png');
+        $logoUrl = !empty($globalStoreSetting) && !empty($globalStoreSetting->logo)
+            ? asset('public/uploads/settings/' . $globalStoreSetting->logo)
+            : $defaultLogoUrl;
+        $profileImageUrl = session('profile_image')
+            ? asset('public/uploads/admins/' . session('profile_image'))
+            : $defaultAvatarUrl;
     @endphp
+    @include('admin.partials.admin-figma-theme')
     <!-- tap on top start -->
     <div class="tap-top">
         <span class="lnr lnr-chevron-up"></span>
@@ -23,13 +32,8 @@
                 <div class="header-logo-wrapper p-0">
                     <div class="logo-wrapper">
                         <a href="{{ route($dashboardRoute) }}">
-                            @php
-                                $logoUrl = !empty($globalStoreSetting) && !empty($globalStoreSetting->logo)
-                                    ? asset('public/uploads/settings/' . $globalStoreSetting->logo)
-                                    : asset('public/uploads/settings/moaahar-logo.png');
-                            @endphp
-                            <img class="img-fluid main-logo" src="{{ $logoUrl }}" alt="logo">
-                            <img class="img-fluid white-logo" src="{{ $logoUrl }}" alt="logo">
+                            <img class="img-fluid main-logo" src="{{ $logoUrl }}" alt="logo" onerror="this.onerror=null;this.src='{{ $defaultLogoUrl }}';">
+                            <img class="img-fluid white-logo" src="{{ $logoUrl }}" alt="logo" onerror="this.onerror=null;this.src='{{ $defaultLogoUrl }}';">
                         </a>
                     </div>
                     <div class="toggle-sidebar">
@@ -70,7 +74,7 @@
                         @endif
                         <li class="profile-nav onhover-dropdown pe-0 me-0">
                             <div class="media profile-media">
-                                <img class="user-profile rounded-circle" src="{{ session('profile_image') ? asset('public/uploads/admins/' . session('profile_image')) : asset('public/assets/images/users/4.jpg') }}" alt="{{ session('name', 'Admin') }}">
+                                <img class="user-profile rounded-circle" src="{{ $profileImageUrl }}" alt="{{ session('name', 'Admin') }}" onerror="this.onerror=null;this.src='{{ $defaultAvatarUrl }}';">
                                 <div class="user-name-hide media-body">
                                     <span>{{ session('name', 'Admin User') }}</span>
                                     <p class="mb-0 font-roboto">{{ $isVendorPanel ? 'Vendor' : 'Super Admin' }}</p>
