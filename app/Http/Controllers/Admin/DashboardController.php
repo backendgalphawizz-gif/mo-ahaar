@@ -243,7 +243,12 @@ class DashboardController extends Controller
         $totalProducts = 0;
         $totalOrders = 0;
         $totalRevenue = 0;
+        $totalDeliveryBoys = 0;
+        $cancelledOrders = 0;
+        $completedOrders = 0;
+        $adminEarnings = 0;
         $recentOrders = collect();
+        $todayOrders = collect();
         $salesChartLabels = [];
         $salesChartData = [];
 
@@ -308,10 +313,23 @@ class DashboardController extends Controller
             if (Schema::hasTable('products')) {
                 $totalProducts = (int) Product::count();
             }
+            if (Schema::hasTable('users')) {
+                $totalDeliveryBoys = (int) Users::where('role_type', Users::DRIVER_APP_ROLE_TYPE)->count();
+            }
             if (Schema::hasTable('orders')) {
                 $totalOrders = (int) Orders::count();
                 $totalRevenue = (float) Orders::where('payment_status', 'paid')->sum('total_amount');
+                $cancelledOrders = (int) Orders::whereIn('order_status', ['cancelled', 'canceled'])->count();
+                $completedOrders = (int) Orders::whereIn('order_status', ['delivered', 'completed', 'success'])->count();
                 $recentOrders = Orders::orderByDesc('order_id')->limit(5)->get();
+                $todayOrders = Orders::with(['customer.user', 'vendor', 'deliveryAssignment.driver'])
+                    ->whereDate('created_at', Carbon::today())
+                    ->orderByDesc('order_id')
+                    ->limit(10)
+                    ->get();
+
+                $paidOrders = Orders::with('vendor')->where('payment_status', 'paid')->get(['order_id', 'total_amount', 'vendor_id']);
+                $adminEarnings = (float) $paidOrders->sum(fn ($order) => $order->adminCommissionAmount());
 
                 $monthlySales = Orders::selectRaw('MONTH(created_at) as month_num, SUM(total_amount) as total')
                     ->where('payment_status', 'paid')
@@ -340,7 +358,12 @@ class DashboardController extends Controller
             'totalProducts',
             'totalOrders',
             'totalRevenue',
+            'totalDeliveryBoys',
+            'cancelledOrders',
+            'completedOrders',
+            'adminEarnings',
             'recentOrders',
+            'todayOrders',
             'salesChartLabels',
             'salesChartData'
         ));

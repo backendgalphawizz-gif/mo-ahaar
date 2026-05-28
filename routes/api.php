@@ -19,6 +19,7 @@ use App\Http\Controllers\API\CustomerApp\VideoController as CustomerVideoControl
 use App\Http\Controllers\API\CustomerApp\RatingsReviewController as CustomerRatingsReviewController;
 use App\Http\Controllers\API\CustomerApp\TicketController as CustomerTicketController;
 use App\Http\Controllers\API\CustomerApp\LanguageController as CustomerLanguageController;
+use App\Http\Controllers\API\CustomerApp\PromoController as CustomerPromoController;
 use App\Http\Controllers\API\CustomerApp\SettingsController as CustomerSettingsController;
 use App\Http\Controllers\API\CustomerApp\VendorBrowsingController as CustomerVendorBrowsingController;
 use App\Http\Controllers\API\MobileAuthController;
@@ -146,6 +147,11 @@ Route::prefix('customer-app')->middleware('set.customer.locale')->name('customer
         Route::get('/', [CustomerTicketController::class, 'index'])->name('tickets.index');
         Route::post('/', [CustomerTicketController::class, 'store'])->name('tickets.store');
         Route::post('/{ticketId}/reply', [CustomerTicketController::class, 'reply'])->name('tickets.reply');
+    });
+
+    Route::middleware('auth:sanctum')->prefix('promo')->group(function () {
+        Route::get('/list', [CustomerPromoController::class, 'list'])->name('promo.list');
+        Route::post('/apply', [CustomerPromoController::class, 'apply'])->name('promo.apply');
     });
 
     Route::middleware('auth:sanctum')->prefix('cart')->group(function () {

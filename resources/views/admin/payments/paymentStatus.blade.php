@@ -4,9 +4,10 @@
 @include('admin.partials.dashboard-ui')
 <div class="page-body">
     <div class="container-fluid">
-        <div class="d-flex flex-wrap align-items-center gap-3 mb-4">
-            <h5 class="mb-0">Payment Management</h5>
-        </div>
+        @include('admin.partials.figma-page-header', [
+            'title' => 'Payment Management',
+            'subtitle' => 'Track order payments and transaction status',
+        ])
 
         @if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
 

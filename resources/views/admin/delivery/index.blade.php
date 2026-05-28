@@ -1,12 +1,16 @@
 @extends('layouts.app')
 
 @section('content')
+@include('admin.partials.dashboard-ui')
 <div class="page-body">
     <div class="container-fluid">
         <div class="card dashboard-card">
             <div class="card-body">
-                <div class="d-flex flex-wrap align-items-center gap-3 mb-4">
-                    <h5 class="mb-0">Delivery Partner Management</h5>
+                @include('admin.partials.figma-page-header', [
+                    'title' => 'Delivery Management',
+                    'subtitle' => 'Manage delivery partners and driver profiles',
+                ])
+                <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
                     <form method="GET" action="{{ route('admin.delivery.index') }}" class="ms-auto d-flex flex-wrap gap-2">
                         <div class="input-group" style="min-width:260px;">
                             <span class="input-group-text"><i class="ri-search-line"></i></span>

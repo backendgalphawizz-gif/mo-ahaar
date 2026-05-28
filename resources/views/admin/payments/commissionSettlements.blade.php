@@ -4,8 +4,10 @@
 @include('admin.partials.dashboard-ui')
 <div class="page-body">
     <div class="container-fluid">
-        <h4 class="mb-1" style="font-size:30px;font-weight:700;">Payment Requests</h4>
-        <p class="text-muted mb-4 small">Manage withdrawal requests from vendors and delivery personnel.</p>
+        @include('admin.partials.figma-page-header', [
+            'title' => 'Payment Requests',
+            'subtitle' => 'Manage withdrawal requests from vendors and delivery personnel',
+        ])
 
         @if(session('success'))
             <div class="alert alert-success alert-dismissible fade show" role="alert">

@@ -83,10 +83,18 @@ class OrderManagementController extends Controller
              $query->where('order_status', 'pending');
          }
 
+         if ($request->filled('date_from')) {
+             $query->whereDate('created_at', '>=', $request->query('date_from'));
+         }
+         if ($request->filled('date_to')) {
+             $query->whereDate('created_at', '<=', $request->query('date_to'));
+         }
+
          $statusCounts = [];
          foreach (self::orderStatusGroups() as $key => $statuses) {
              $statusCounts[$key] = $this->scopedOrdersQuery()->whereIn('order_status', $statuses)->count();
          }
+         $statusCounts['total'] = (int) $this->scopedOrdersQuery()->count();
 
          $availableDrivers = Users::where('role_type', Users::DRIVER_APP_ROLE_TYPE)
              ->where('approval_status', 'approved')

@@ -135,4 +135,32 @@ class DiscountOffer extends Model
 
         return true;
     }
+
+    /**
+     * Discount amount on cart subtotal (percentage or fixed, capped at subtotal).
+     */
+    public function calculateCartDiscount(float $cartSubtotal): float
+    {
+        if ($cartSubtotal <= 0) {
+            return 0.0;
+        }
+
+        if ($this->discount_type === self::TYPE_PERCENTAGE) {
+            return round($cartSubtotal * ((float) $this->discount_value / 100), 2);
+        }
+
+        return round(min((float) $this->discount_value, $cartSubtotal), 2);
+    }
+
+    /**
+     * Human-readable savings label for mobile UI.
+     */
+    public function discountLabel(): string
+    {
+        if ($this->discount_type === self::TYPE_PERCENTAGE) {
+            return rtrim(rtrim(number_format((float) $this->discount_value, 2, '.', ''), '0'), '.') . '% off';
+        }
+
+        return '₹' . number_format((float) $this->discount_value, 2, '.', '') . ' off';
+    }
 }

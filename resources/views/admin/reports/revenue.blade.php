@@ -4,9 +4,10 @@
 @include('admin.partials.dashboard-ui')
 <div class="page-body">
     <div class="container-fluid">
-        <div class="d-flex align-items-center mb-4">
-            <h5 class="mb-0">Reports & Analytics</h5>
-        </div>
+        @include('admin.partials.figma-page-header', [
+            'title' => 'Reports & Analytics',
+            'subtitle' => 'Revenue, orders, and platform performance overview',
+        ])
 
         <div class="row g-3 mb-3">
             <div class="col-lg-3 col-md-6"><div class="card dashboard-card h-100"><div class="card-body"><small class="text-muted">Total Revenue</small><h3>₹{{ number_format((float) $summary['total_revenue'], 0) }}</h3><small class="text-success">+12.5%</small></div></div></div>

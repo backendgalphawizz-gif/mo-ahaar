@@ -9,12 +9,12 @@
     <div class="container-fluid">
         <div class="row">
             <div class="col-12">
-                <div class="title-header option-title d-flex flex-wrap align-items-center gap-2 mb-4">
-                    <h5 class="mb-0">Food Management</h5>
-                    <a class="btn btn-danger btn-sm ms-auto" href="{{ route($isVendorPanel ? 'vendor.add-product' : 'admin.add-product') }}">
-                        <i class="ri-add-line me-1"></i>Add Food
-                    </a>
-                </div>
+                @include('admin.partials.figma-page-header', [
+                    'title' => 'Food Management',
+                    'subtitle' => 'Manage menu items, pricing, and availability',
+                    'actionUrl' => route($isVendorPanel ? 'vendor.add-product' : 'admin.add-product'),
+                    'actionLabel' => 'Add Food',
+                ])
 
                 
 

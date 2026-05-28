@@ -4,9 +4,10 @@
 @include('admin.partials.dashboard-ui')
 <div class="page-body">
     <div class="container-fluid">
-        <div class="d-flex align-items-center mb-3">
-            <h5 class="mb-0">Static Pages</h5>
-        </div>
+        @include('admin.partials.figma-page-header', [
+            'title' => 'Static Pages',
+            'subtitle' => 'Manage legal and help content for User and Driver apps',
+        ])
 
         @if(session('success'))
             <div class="alert alert-success alert-dismissible fade show" role="alert">

@@ -4,12 +4,12 @@
 @include('admin.partials.dashboard-ui')
 <div class="page-body">
     <div class="container-fluid">
-        <div class="d-flex align-items-center mb-4">
-            <h5 class="mb-0">Banner Management</h5>
-            <a href="{{ route('admin.banners.create') }}" class="btn btn-theme btn-sm ms-auto">
-                <i class="ri-add-line me-1"></i>Add Banner
-            </a>
-        </div>
+        @include('admin.partials.figma-page-header', [
+            'title' => 'Banner Management',
+            'subtitle' => 'Manage promotional banners on the customer app',
+            'actionUrl' => route('admin.banners.create'),
+            'actionLabel' => 'Add Banner',
+        ])
 
         @if(session('success'))
             <div class="alert alert-success alert-dismissible fade show" role="alert">
@@ -20,48 +20,61 @@
 
         <div class="card dashboard-card">
             <div class="card-body">
+                <form method="GET" action="{{ route('admin.banners.index') }}" class="figma-toolbar">
+                    <input type="date" name="date_from" value="{{ request('date_from') }}" class="form-control form-control-sm">
+                    <select name="status" class="form-select form-select-sm">
+                        <option value="">Status: All</option>
+                        <option value="1" {{ request('status') === '1' ? 'selected' : '' }}>Active</option>
+                        <option value="2" {{ request('status') === '2' ? 'selected' : '' }}>Inactive</option>
+                    </select>
+                    <button type="submit" class="btn btn-outline-secondary btn-sm">Apply</button>
+                    <span class="toolbar-spacer"></span>
+                    <a href="{{ route('admin.banners.index') }}" class="btn btn-outline-secondary btn-sm">Export All</a>
+                </form>
+
                 <div class="table-responsive">
                     <table class="table table-modern align-middle">
                         <thead>
                             <tr>
+                                <th>Sl No.</th>
                                 <th>Banner Image</th>
                                 <th>Title</th>
-                                <th>Status</th>
-                                <th>Actions</th>
+                                <th>Created Date &amp; Time</th>
+                                <th>Toggle Status</th>
+                                <th>Action</th>
                             </tr>
                         </thead>
                         <tbody>
                             @forelse($banners as $banner)
                                 <tr>
+                                    <td>{{ $loop->iteration }}</td>
                                     <td>
                                         <img src="{{ asset('public/uploads/banners/' . $banner->banner_image) }}" alt="banner" class="banner-thumb">
                                     </td>
                                     <td>{{ $banner->title ?: '-' }}</td>
+                                    <td>
+                                        <div>{{ optional($banner->created_at)->format('d/m/Y') }}</div>
+                                        <small class="text-muted">{{ optional($banner->created_at)->format('h:i A') }}</small>
+                                    </td>
                                     <td>
                                         <div class="form-check form-switch m-0">
                                             <input class="form-check-input" type="checkbox" disabled {{ (int) $banner->status === 1 ? 'checked' : '' }}>
                                         </div>
                                     </td>
                                     <td>
-                                        <ul class="d-flex gap-2 mb-0 list-unstyled">
-                                            <li>
-                                                <a href="{{ route('admin.banners.edit', $banner->id) }}" title="Edit">
-                                                    <i class="ri-pencil-line"></i>
-                                                </a>
-                                            </li>
-                                            <li>
-                                                <a href="javascript:void(0)" class="delete-banner-btn" data-form-id="delete-banner-form-{{ $banner->id }}" data-banner-name="{{ $banner->title ?: 'this banner' }}" title="Delete">
-                                                    <i class="ri-delete-bin-line text-danger"></i>
-                                                </a>
-                                                <form id="delete-banner-form-{{ $banner->id }}" method="POST" action="{{ route('admin.banners.delete', $banner->id) }}" class="d-none">
-                                                    @csrf
-                                                </form>
-                                            </li>
-                                        </ul>
+                                        <div class="d-flex gap-2 table-action-icons">
+                                            <a href="{{ route('admin.banners.edit', $banner->id) }}" title="Edit"><i class="ri-pencil-line"></i></a>
+                                            <a href="javascript:void(0)" class="delete-banner-btn text-danger" data-form-id="delete-banner-form-{{ $banner->id }}" data-banner-name="{{ $banner->title ?: 'this banner' }}" title="Delete">
+                                                <i class="ri-delete-bin-line"></i>
+                                            </a>
+                                            <form id="delete-banner-form-{{ $banner->id }}" method="POST" action="{{ route('admin.banners.delete', $banner->id) }}" class="d-none">
+                                                @csrf
+                                            </form>
+                                        </div>
                                     </td>
                                 </tr>
                             @empty
-                                <tr><td colspan="4" class="text-center text-muted py-4">No banners found.</td></tr>
+                                <tr><td colspan="6" class="text-center text-muted py-4">No banners found.</td></tr>
                             @endforelse
                         </tbody>
                     </table>
@@ -84,7 +97,6 @@ document.addEventListener('DOMContentLoaded', function () {
             var name = this.getAttribute('data-banner-name') || 'this banner';
             var form = document.getElementById(formId);
             if (!form) return;
-
             if (typeof Swal !== 'undefined') {
                 Swal.fire({
                     title: 'Delete Banner?',
@@ -95,9 +107,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     cancelButtonText: 'Cancel',
                     confirmButtonColor: '#dc3545'
                 }).then(function (result) {
-                    if (result.isConfirmed) {
-                        form.submit();
-                    }
+                    if (result.isConfirmed) form.submit();
                 });
             } else if (confirm('Delete ' + name + '?')) {
                 form.submit();

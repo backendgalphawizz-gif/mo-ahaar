@@ -590,6 +590,37 @@
       ]
     },
     {
+      "name": "Promo",
+      "item": [
+        {
+          "name": "Promo - List Available",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/customer-app/promo/list?order_amount={{order_amount}}",
+              "query": [{ "key": "order_amount", "value": "{{order_amount}}" }]
+            }
+          }
+        },
+        {
+          "name": "Promo - Apply",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"{{promo_code}}\",\n  \"order_amount\": {{order_amount}}\n}"
+            },
+            "url": "{{base_url}}/customer-app/promo/apply"
+          }
+        }
+      ]
+    },
+    {
       "name": "Notifications",
       "item": [
         {
@@ -619,6 +650,7 @@
     { "key": "address_id", "value": "" },
     { "key": "order_id", "value": "" },
     { "key": "promo_code", "value": "TRIVAGO" },
+    { "key": "order_amount", "value": "999" },
     { "key": "search_query", "value": "pizza" },
     { "key": "shipping_address", "value": "G-14 1st Sabari Nagar, Sukhliya, Indore" },
     { "key": "transaction_id", "value": "" },

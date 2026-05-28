@@ -5,37 +5,43 @@
 @php
     $isVendorPanel = (int) (session('role_type') ?? 0) === 3;
     $driversList = collect($availableDrivers ?? []);
+    $ordersRoute = $isVendorPanel ? 'vendor.orders' : 'admin.orders';
+    $activeFilter = request('status_filter');
+    $figmaKpis = [
+        'total' => ['label' => 'Total Orders', 'filter' => null],
+        'accepted' => ['label' => 'Accepted Orders', 'filter' => 'accepted'],
+        'picked_up' => ['label' => 'Picked Up Orders', 'filter' => 'picked_up'],
+        'out_for_delivery' => ['label' => 'Out for Delivery', 'filter' => 'out_for_delivery'],
+        'delivered' => ['label' => 'Delivered Orders', 'filter' => 'delivered'],
+        'rejected' => ['label' => 'Rejected Orders', 'filter' => 'rejected'],
+    ];
+    $figmaTabs = [
+        ['label' => 'All', 'filter' => null],
+        ['label' => 'Pending', 'filter' => 'new'],
+        ['label' => 'Accepted', 'filter' => 'accepted'],
+        ['label' => 'Picked Up', 'filter' => 'picked_up'],
+        ['label' => 'Out for Delivery', 'filter' => 'out_for_delivery'],
+        ['label' => 'Delivered', 'filter' => 'delivered'],
+        ['label' => 'Rejected', 'filter' => 'rejected'],
+    ];
 @endphp
 <div class="page-body">
     <div class="container-fluid">
-        <div class="d-flex flex-wrap align-items-center gap-3 mb-4">
-            <h5 class="mb-0">Order Management</h5>
-        </div>
+        @include('admin.partials.figma-page-header', [
+            'title' => 'Order Management',
+            'subtitle' => 'Manage and track all customer orders',
+        ])
 
         @if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
         @if(session('error'))<div class="alert alert-danger">{{ session('error') }}</div>@endif
 
-        @php
-            $kpis = [
-                'new' => ['label' => 'New', 'icon' => 'ri-inbox-line', 'class' => 'kpi-new'],
-                'accepted' => ['label' => 'Accepted', 'icon' => 'ri-checkbox-circle-line', 'class' => 'kpi-accepted'],
-                'rejected' => ['label' => 'Rejected', 'icon' => 'ri-close-circle-line', 'class' => 'kpi-rejected'],
-                'picked_up' => ['label' => 'Picked Up', 'icon' => 'ri-user-received-line', 'class' => 'kpi-picked'],
-                'out_for_delivery' => ['label' => 'Out For Delivery', 'icon' => 'ri-truck-line', 'class' => 'kpi-delivery'],
-                'delivered' => ['label' => 'Delivered', 'icon' => 'ri-checkbox-multiple-line', 'class' => 'kpi-delivered'],
-                'cancelled' => ['label' => 'Cancelled', 'icon' => 'ri-forbid-line', 'class' => 'kpi-cancelled'],
-            ];
-            $activeFilter = request('status_filter');
-        @endphp
-
-        <div class="row g-3 mb-4">
-            @foreach($kpis as $key => $kpi)
-                <div class="col-xxl col-lg-3 col-md-4 col-6">
-                    <a href="{{ route($isVendorPanel ? 'vendor.orders' : 'admin.orders', array_filter(['status_filter' => $key, 'search' => $search ?? null])) }}"
-                       class="order-kpi-card {{ $activeFilter === $key ? 'active' : '' }} {{ $kpi['class'] }}">
-                        <span class="kpi-icon"><i class="{{ $kpi['icon'] }}"></i></span>
-                        <p class="kpi-count mb-0">{{ number_format($statusCounts[$key] ?? 0) }}</p>
-                        <p class="kpi-label">{{ $kpi['label'] }}</p>
+        <div class="row g-3 mb-3 figma-kpi-grid">
+            @foreach($figmaKpis as $key => $kpi)
+                <div class="col-xxl-2 col-lg-4 col-md-6">
+                    <a href="{{ route($ordersRoute, array_filter(['status_filter' => $kpi['filter'], 'search' => $search ?? null])) }}"
+                       class="kpi-card text-decoration-none {{ $activeFilter === $kpi['filter'] || ($key === 'total' && empty($activeFilter)) ? 'border-dark' : '' }}">
+                        <p>{{ $kpi['label'] }}</p>
+                        <h3>{{ number_format($statusCounts[$key] ?? 0) }}</h3>
                     </a>
                 </div>
             @endforeach
@@ -43,43 +49,40 @@
 
         <div class="card dashboard-card">
             <div class="card-body">
-                <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-                    <form method="GET" action="{{ route($isVendorPanel ? 'vendor.orders' : 'admin.orders') }}" class="d-flex flex-wrap gap-2 flex-grow-1">
-                        @if($activeFilter)<input type="hidden" name="status_filter" value="{{ $activeFilter }}">@endif
-                        <div class="input-group" style="max-width:280px;">
-                            <span class="input-group-text"><i class="ri-search-line"></i></span>
-                            <input type="text" name="search" class="form-control" placeholder="Search orders..." value="{{ $search ?? request('search') }}">
-                        </div>
-                        <button type="submit" class="btn btn-outline-secondary btn-sm">Search</button>
-                        @if(request()->hasAny(['search', 'status_filter']))
-                            <a href="{{ route($isVendorPanel ? 'vendor.orders' : 'admin.orders') }}" class="btn btn-outline-secondary btn-sm">Clear</a>
-                        @endif
-                    </form>
-                    <div class="dropdown">
-                        <button class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown">Filter</button>
-                        <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item" href="{{ route($isVendorPanel ? 'vendor.orders' : 'admin.orders') }}">All Orders</a></li>
-                            @foreach($kpis as $key => $kpi)
-                                <li><a class="dropdown-item" href="{{ route($isVendorPanel ? 'vendor.orders' : 'admin.orders', ['status_filter' => $key]) }}">{{ $kpi['label'] }}</a></li>
-                            @endforeach
-                        </ul>
-                    </div>
+                <div class="figma-status-tabs">
+                    @foreach($figmaTabs as $tab)
+                        <a href="{{ route($ordersRoute, array_filter(['status_filter' => $tab['filter'], 'search' => $search ?? null])) }}"
+                           class="tab-link {{ ($activeFilter === $tab['filter']) || (empty($activeFilter) && empty($tab['filter'])) ? 'active' : '' }}">
+                            {{ $tab['label'] }}
+                        </a>
+                    @endforeach
                 </div>
+
+                <form method="GET" action="{{ route($ordersRoute) }}" class="figma-toolbar">
+                    @if($activeFilter)<input type="hidden" name="status_filter" value="{{ $activeFilter }}">@endif
+                    <input type="date" name="date_from" value="{{ request('date_from') }}" class="form-control form-control-sm">
+                    <input type="date" name="date_to" value="{{ request('date_to') }}" class="form-control form-control-sm">
+                    <button type="submit" class="btn btn-outline-secondary btn-sm">Filter Date</button>
+                    <span class="toolbar-spacer"></span>
+                    <input type="text" name="search" class="form-control form-control-sm" style="max-width:220px;" placeholder="Search orders..." value="{{ $search ?? request('search') }}">
+                    <button type="submit" class="btn btn-outline-secondary btn-sm">Search</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="window.print()">Export</button>
+                </form>
 
                 <div class="table-responsive">
                     <table class="table table-modern align-middle">
                         <thead>
                             <tr>
                                 <th>Order ID</th>
-                                <th>Product Info</th>
                                 <th>Customer Info</th>
-                                <th>Vendor Info</th>
-                                <th>Amount & Comm.</th>
-                                <th>Payment</th>
+                                <th>Restaurant Detail</th>
+                                <th>Total Amount</th>
+                                <th>Admin Commission</th>
+                                <th>Payment Method</th>
                                 <th>Delivery Boy</th>
                                 <th>Status</th>
-                                <th>Date</th>
-                                <th>Actions</th>
+                                <th>Date &amp; Time</th>
+                                <th>Action</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -88,28 +91,37 @@
                                     $customer = $order->customer?->user;
                                     $driver = $order->deliveryAssignment?->driver;
                                     $commission = $order->adminCommissionAmount();
+                                    $customerInitials = collect(explode(' ', (string) ($customer->name ?? 'NA')))->filter()->take(2)->map(fn ($p) => strtoupper(substr($p, 0, 1)))->implode('');
+                                    $statusBadge = match (strtolower((string) $order->order_status)) {
+                                        'delivered', 'completed', 'success' => 'badge-soft-success',
+                                        'cancelled', 'rejected' => 'badge-soft-danger',
+                                        'out_for_delivery', 'shipped' => 'badge-soft-info',
+                                        default => 'badge-soft-warning',
+                                    };
                                 @endphp
                                 <tr>
                                     <td><a href="{{ route($isVendorPanel ? 'vendor.order-details' : 'admin.order-details', $order->order_id) }}" class="fw-semibold text-primary">{{ $order->order_number }}</a></td>
-                                    <td><small>{{ $order->productSummary() }}</small></td>
                                     <td>
-                                        <div>{{ $customer->name ?? '—' }}</div>
-                                        @if(!empty($customer?->mobile))<small class="text-muted">(+91 {{ $customer->mobile }})</small>@endif
+                                        <div class="cell-with-avatar">
+                                            <span class="user-avatar">{{ $customerInitials ?: 'NA' }}</span>
+                                            <div>
+                                                <div>{{ $customer->name ?? '—' }}</div>
+                                                @if(!empty($customer?->mobile))<small class="text-muted">+91 {{ $customer->mobile }}</small>@endif
+                                            </div>
+                                        </div>
                                     </td>
                                     <td>
                                         <div>{{ $order->vendor?->business_name ?? '—' }}</div>
-                                        @if($order->vendor_id)<small class="text-muted">(V-{{ $order->vendor_id }})</small>@endif
+                                        @if(!empty($order->vendor?->mobile))<small class="text-muted">+91 {{ $order->vendor->mobile }}</small>@endif
                                     </td>
-                                    <td>
-                                        <div>Total: ₹{{ number_format((float) $order->total_amount, 0) }}</div>
-                                        <small class="text-success">Comm: ₹{{ number_format($commission, 1) }}</small>
-                                    </td>
+                                    <td class="fw-semibold">₹{{ number_format((float) $order->total_amount, 0) }}</td>
+                                    <td class="text-success">₹{{ number_format($commission, 0) }}</td>
                                     <td>{{ strtoupper($order->payment_method ?? '—') }}</td>
                                     <td>
                                         @if($driver)
                                             <span class="fw-medium">{{ $driver->name }}</span>
                                         @elseif($isVendorPanel)
-                                            <span class="text-muted">Not Assigned</span>
+                                            <span class="text-muted small">Not Assigned</span>
                                         @else
                                             <button type="button" class="btn btn-sm btn-outline-warning assign-driver-btn"
                                                 data-bs-toggle="modal" data-bs-target="#assignDriverModal"
@@ -117,25 +129,13 @@
                                                 data-order-number="{{ $order->order_number }}">Assign Driver</button>
                                         @endif
                                     </td>
+                                    <td><span class="badge {{ $statusBadge }}">{{ \App\Models\Orders::statusLabel($order->order_status) }}</span></td>
                                     <td>
-                                        @php
-                                            $statusBadge = match (strtolower((string) $order->order_status)) {
-                                                'delivered', 'completed', 'success' => 'badge-soft-success',
-                                                'cancelled', 'rejected' => 'badge-soft-danger',
-                                                'out_for_delivery', 'shipped' => 'badge-soft-info',
-                                                default => 'badge-soft-warning',
-                                            };
-                                        @endphp
-                                        <span class="badge {{ $statusBadge }}">{{ \App\Models\Orders::statusLabel($order->order_status) }}</span>
+                                        <div>{{ optional($order->created_at)->format('d/m/Y') }}</div>
+                                        <small class="text-muted">{{ optional($order->created_at)->format('h:i A') }}</small>
                                     </td>
-                                    <td>{{ optional($order->created_at)->format('d-m-Y') }}</td>
                                     <td>
-                                        <div class="d-flex gap-1">
-                                            <a href="{{ route($isVendorPanel ? 'vendor.order-details' : 'admin.order-details', $order->order_id) }}" class="btn btn-sm btn-outline-primary" title="View"><i class="ri-eye-line"></i></a>
-                                            @if(!$isVendorPanel)
-                                            <a href="{{ route('admin.order-invoice-pdf', $order->order_id) }}" class="btn btn-sm btn-outline-secondary" title="Invoice"><i class="ri-download-line"></i></a>
-                                            @endif
-                                        </div>
+                                        <a href="{{ route($isVendorPanel ? 'vendor.order-details' : 'admin.order-details', $order->order_id) }}" class="btn btn-sm btn-outline-primary" title="View"><i class="ri-eye-line"></i></a>
                                     </td>
                                 </tr>
                             @empty
@@ -154,51 +154,30 @@
 </div>
 
 @if(!$isVendorPanel)
-<div class="modal fade" id="assignDriverModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <form method="POST" id="assignDriverForm" action="">
-                @csrf
-                <div class="modal-header">
-                    <h5 class="modal-title">Assign Delivery Boy</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <p class="text-muted small mb-3">Order: <strong id="assignOrderLabel">—</strong></p>
-                    <label class="form-label">Select Driver</label>
-                    <select name="driver_id" class="form-select" required>
-                        <option value="">Choose driver...</option>
-                        @foreach($driversList as $d)
-                            <option value="{{ $d->user_id }}">{{ $d->name }} (+91 {{ $d->mobile }})</option>
-                        @endforeach
-                    </select>
-                    @if($driversList->isEmpty())
-                        <small class="text-danger d-block mt-2">No approved drivers available. Add drivers from Delivery Management.</small>
-                    @endif
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-danger">Assign</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
+@include('admin.orders.partials.assign-driver-modal', ['driversList' => $driversList])
 @endif
 @endsection
 
 @section('scripts')
+<style>
+.kpi-card { display: block; border: 1px solid #e8ebf0; border-radius: 10px; background: #fff; padding: 12px; color: inherit; }
+.kpi-card p { margin: 0 0 4px; font-size: 10px; color: #6b7280; }
+.kpi-card h3 { margin: 0; font-size: 22px; font-weight: 700; color: #111827; }
+</style>
+@if(!$isVendorPanel)
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('.assign-driver-btn').forEach(function (btn) {
         btn.addEventListener('click', function () {
-            var orderId = btn.getAttribute('data-order-id');
-            var orderNumber = btn.getAttribute('data-order-number');
-            document.getElementById('assignDriverForm').action = '{{ url('admin/orders') }}/' + orderId + '/assign-driver';
-            document.getElementById('assignOrderLabel').textContent = orderNumber;
+            var orderId = this.getAttribute('data-order-id');
+            var orderNumber = this.getAttribute('data-order-number');
+            var form = document.getElementById('assignDriverForm');
+            var label = document.getElementById('assignDriverOrderLabel');
+            if (form) form.action = '{{ url('/admin/orders') }}/' + orderId + '/assign-driver';
+            if (label) label.textContent = orderNumber || ('#' + orderId);
         });
     });
-
 });
 </script>
+@endif
 @endsection

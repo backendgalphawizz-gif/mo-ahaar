@@ -54,4 +54,40 @@
 .vendor-panel .nav-tabs .nav-link { border: 0; color: #64748b; font-size: 12px; padding: 8px 10px; }
 .vendor-panel .nav-tabs .nav-link.active { border: 0; border-bottom: 2px solid #ef4444; color: #111827; font-weight: 600; }
 .vendor-panel .badge { border-radius: 999px; padding: 4px 8px; font-size: 10px; font-weight: 600; }
+
+/* Figma admin design system */
+.figma-page-title { font-size: 22px; font-weight: 700; color: #111827; line-height: 1.2; }
+.figma-page-subtitle { font-size: 12px; color: #6b7280; }
+.figma-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px; }
+.figma-toolbar .form-control, .figma-toolbar .form-select { max-width: 160px; min-height: 30px; font-size: 11px; }
+.figma-toolbar .toolbar-spacer { flex: 1 1 auto; }
+.figma-status-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.figma-status-tabs .tab-link {
+    border: 1px solid #e5e7eb; background: #fff; color: #374151; border-radius: 6px;
+    padding: 5px 10px; font-size: 11px; font-weight: 500; text-decoration: none;
+}
+.figma-status-tabs .tab-link.active { background: #111827; border-color: #111827; color: #fff; }
+.figma-kpi-grid .kpi-card { min-height: 84px; padding: 12px 44px 10px 12px; }
+.figma-kpi-grid .kpi-card h3 { font-size: 24px; }
+.figma-kpi-grid .kpi-card p { font-size: 10px; }
+.figma-kpi-grid .kpi-icon { width: 26px; height: 26px; font-size: 13px; right: 10px; top: 10px; }
+.figma-section-title { font-size: 14px; font-weight: 600; color: #111827; margin: 0 0 10px; }
+.user-avatar {
+    width: 30px; height: 30px; border-radius: 50%; background: #f3f4f6; color: #374151;
+    display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; flex-shrink: 0;
+}
+.cell-with-avatar { display: flex; align-items: center; gap: 8px; }
+.promo-thumb {
+    width: 40px; height: 40px; border-radius: 8px; background: #fef3c7; color: #d97706;
+    display: inline-flex; align-items: center; justify-content: center; font-size: 18px;
+}
+.promo-cell { display: flex; align-items: center; gap: 10px; }
+.status-pill { font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 999px; }
+.status-pill.active { background: #dcfce7; color: #166534; }
+.status-pill.inactive { background: #f1f5f9; color: #64748b; }
+.table-action-icons a, .table-action-icons button {
+    border: 0; background: transparent; padding: 0; color: #64748b; font-size: 15px;
+}
+.table-action-icons a:hover { color: #111827; }
+.table-action-icons .text-danger:hover { color: #dc2626 !important; }
 </style>

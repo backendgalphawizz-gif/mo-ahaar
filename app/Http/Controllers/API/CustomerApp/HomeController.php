@@ -79,8 +79,24 @@ class HomeController extends Controller
                     ->all();
             }
 
+            $vendorsById = collect();
+            if (
+                Schema::hasTable('vendors')
+                && Schema::hasColumn('products', 'vendor_id')
+                && $featuredRows->isNotEmpty()
+            ) {
+                $vendorIds = $featuredRows->pluck('vendor_id')->filter()->unique()->values()->all();
+                if ($vendorIds !== []) {
+                    $vendorsById = Vendor::whereIn('vendor_id', $vendorIds)->get()->keyBy('vendor_id');
+                }
+            }
+
             $featuredProducts = $featuredRows
-                ->map(fn (Product $product) => $this->mapFeaturedProduct($product, $reviewCounts))
+                ->map(fn (Product $product) => $this->mapFeaturedProduct(
+                    $product,
+                    $reviewCounts,
+                    $vendorsById->get($product->vendor_id)
+                ))
                 ->values();
         }
 
@@ -276,8 +292,13 @@ class HomeController extends Controller
         ];
     }
 
-    private function mapFeaturedProduct(Product $product, array $reviewCounts = []): array
+    private function mapFeaturedProduct(Product $product, array $reviewCounts = [], ?Vendor $vendor = null): array
     {
+        $restaurantName = $vendor?->business_name;
+        if ($restaurantName === null && Schema::hasColumn('products', 'store_name') && !empty($product->store_name)) {
+            $restaurantName = $product->store_name;
+        }
+
         $row = [
             'product_id' => $product->product_id,
             'product_name' => $product->product_name,
@@ -292,6 +313,8 @@ class HomeController extends Controller
                 ? url('public/uploads/products/' . $product->product_image)
                 : null,
             'review_count' => (int) ($reviewCounts[$product->product_id] ?? 0),
+            'restaurant_name' => $restaurantName,
+            'location' => $vendor?->address,
         ];
 
         if (Schema::hasColumn('products', 'sale_status')) {

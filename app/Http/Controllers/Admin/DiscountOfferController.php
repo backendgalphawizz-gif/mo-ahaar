@@ -17,13 +17,23 @@ class DiscountOfferController extends Controller
     public function index(Request $request)
     {
         $search = trim((string) $request->query('search', ''));
+        $statusFilter = $request->query('status', 'all');
+        $dateFrom = $request->query('date_from');
+        $dateTo = $request->query('date_to');
 
-        $offers = DiscountOffer::when($search !== '', fn ($q) => $q->where('title', 'like', '%' . $search . '%'))
+        $offers = DiscountOffer::when($search !== '', fn ($q) => $q->where(function ($inner) use ($search) {
+                $inner->where('title', 'like', '%' . $search . '%')
+                    ->orWhere('description', 'like', '%' . $search . '%');
+            }))
+            ->when($statusFilter === 'active', fn ($q) => $q->where('is_active', 1))
+            ->when($statusFilter === 'inactive', fn ($q) => $q->where('is_active', 0))
+            ->when(!empty($dateFrom), fn ($q) => $q->whereDate('valid_from', '>=', $dateFrom))
+            ->when(!empty($dateTo), fn ($q) => $q->whereDate('valid_until', '<=', $dateTo))
             ->orderByDesc('id')
             ->paginate(15)
             ->withQueryString();
 
-        return view('admin.discount-offers.index', compact('offers', 'search'));
+        return view('admin.discount-offers.index', compact('offers', 'search', 'statusFilter', 'dateFrom', 'dateTo'));
     }
 
     // -------------------------------------------------------------------------

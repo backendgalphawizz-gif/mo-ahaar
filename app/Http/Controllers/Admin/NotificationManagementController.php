@@ -65,7 +65,7 @@ class NotificationManagementController extends Controller
             'target_type' => 'required|in:users,drivers',
             'recipient_scope' => 'required|in:all,specific',
             'recipient_id' => 'nullable|integer',
-            'title' => 'nullable|string|max:190',
+            'title' => 'required|string|max:190',
             'message' => 'required|string|max:5000',
         ]);
 

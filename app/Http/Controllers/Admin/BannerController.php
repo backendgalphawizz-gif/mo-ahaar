@@ -11,10 +11,12 @@ use Illuminate\Validation\Rule;
 
 class BannerController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $title = 'Homepage Banners';
         $banners = Banner::where('status', '!=', 0)
+            ->when($request->filled('status'), fn ($q) => $q->where('status', (int) $request->query('status')))
+            ->when($request->filled('date_from'), fn ($q) => $q->whereDate('created_at', '>=', $request->query('date_from')))
             ->orderByDesc('id')
             ->get();
 

@@ -1,13 +1,15 @@
 @extends('layouts.app')
 
 @section('content')
+    @include('admin.partials.dashboard-ui')
     <div class="page-body">
         <div class="container-fluid">
             <div class="row">
                 <div class="col-12">
-                    <div class="title-header option-title d-flex align-items-center mb-4">
-                        <h5><i class="ri-group-line me-2"></i>User Management</h5>
-                    </div>
+                    @include('admin.partials.figma-page-header', [
+                        'title' => 'User Management',
+                        'subtitle' => 'Manage registered customers on the platform',
+                    ])
 
                     @if(session('success'))
                         <div class="alert alert-success alert-dismissible fade show" role="alert">
