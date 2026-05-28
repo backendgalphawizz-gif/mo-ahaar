@@ -62287,7 +62287,7 @@ body[class*="dark-"] .main-white {
   i {
   font-size: 20px;
   margin-right: 10px;
-  color: #fff;
+  color: #4b5563 ;
   -webkit-transition: all 0.3s ease;
   transition: all 0.3s ease;
   line-height: 1;
@@ -62987,7 +62987,7 @@ body[class*="dark-"] .main-white {
   .simplebar-content
   > li
   .sidebar-link:hover {
-  background-color: #cb9b41fa;
+  background-color: #e31e241a;
   /* background-color: rgba(255, 255, 255, 0.06); */
 }
 

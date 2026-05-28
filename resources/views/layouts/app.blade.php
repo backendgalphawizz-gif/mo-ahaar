@@ -49,7 +49,7 @@
                     <div class="form-group w-100">
                         <div class="Typeahead Typeahead--twitterUsers">
                             <div class="u-posRelative">
-                                <i class="ri-search-line"></i>
+                                <i class="ri-search-line" style="margin: 0 !important"></i>
                                 <input class="demo-input Typeahead-input form-control-plaintext w-100" type="text"
                                     placeholder="Search here..." name="q" value="{{ request('q') }}" title="" autocomplete="off" autofocus>
                                 <i class="close-search" data-feather="x"></i>

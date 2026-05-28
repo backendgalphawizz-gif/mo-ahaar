@@ -56,7 +56,7 @@
                     <li class="sidebar-list {{ $userMenuOpen ? 'submenu-open' : '' }}">
                         <a class="sidebar-link sidebar-title has-submenu {{ $userMenuOpen ? 'open' : '' }}" href="javascript:void(0)">
                             <i class="ri-user-3-line"></i><span>User Management</span>
-                            <i class="ri-arrow-down-s-line submenu-arrow"></i>
+                            
                         </a>
                         <ul class="sidebar-submenu" @if($userMenuOpen) style="display:block" @endif>
                             <li><a href="{{ route('admin.customers') }}" class="{{ $isActive(['admin/customers', 'admin/view-customer', 'admin/edit-customer', 'admin/add-customer']) && !$isActive(['admin/customers/transactions']) ? 'active' : '' }}">View Users</a></li>
@@ -67,7 +67,7 @@
                     <li class="sidebar-list {{ $restaurantMenuOpen ? 'submenu-open' : '' }}">
                         <a class="sidebar-link sidebar-title has-submenu {{ $restaurantMenuOpen ? 'open' : '' }}" href="javascript:void(0)">
                             <i class="ri-store-2-line"></i><span>Restaurant Management</span>
-                            <i class="ri-arrow-down-s-line submenu-arrow"></i>
+                            
                         </a>
                         <ul class="sidebar-submenu" @if($restaurantMenuOpen) style="display:block" @endif>
                             <li><a href="{{ route('admin.vendors') }}" class="{{ $isActive(['admin/vendors', 'admin/add-vendor', 'admin/view-vendor', 'admin/edit-vendor']) ? 'active' : '' }}">View Restaurants</a></li>
@@ -78,7 +78,7 @@
                     <li class="sidebar-list {{ $deliveryMenuOpen ? 'submenu-open' : '' }}">
                         <a class="sidebar-link sidebar-title has-submenu {{ $deliveryMenuOpen ? 'open' : '' }}" href="javascript:void(0)">
                             <i class="ri-truck-line"></i><span>Delivery Management</span>
-                            <i class="ri-arrow-down-s-line submenu-arrow"></i>
+                            
                         </a>
                         <ul class="sidebar-submenu" @if($deliveryMenuOpen) style="display:block" @endif>
                             <li><a href="{{ route('admin.delivery.index') }}" class="{{ $isActive(['admin/delivery']) && !$isActive(['admin/delivery/wallet-transactions']) ? 'active' : '' }}">View Drivers</a></li>
@@ -111,7 +111,7 @@
                         @else
                         <a class="sidebar-link sidebar-title has-submenu {{ $productMenuOpen ? 'open' : '' }}" href="javascript:void(0)">
                             <i class="ri-restaurant-line"></i><span>Product Management</span>
-                            <i class="ri-arrow-down-s-line submenu-arrow"></i>
+                            
                         </a>
                         <ul class="sidebar-submenu" @if($productMenuOpen) style="display:block" @endif>
                             <li><a href="{{ route('admin.categories') }}" class="{{ $isActive(['admin/categories', 'admin/add-category', 'admin/edit-category']) ? 'active' : '' }}">Categories</a></li>
