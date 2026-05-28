@@ -49,8 +49,13 @@ class DriverWalletService
             $wallet = $this->getOrCreateWallet($driverId);
             $amount = (float) $assignment->payout_amount;
 
-            $wallet->balance = number_format(((float) $wallet->balance + $amount), 2, '.', '');
-            $wallet->save();
+            $newBalance = round((float) $wallet->balance + $amount, 2);
+            
+            $wallet->update([
+                'balance' => $newBalance,
+            ]);
+            
+            $wallet->refresh();
 
             return DriverTransaction::create([
                 'driver_id' => $driverId,
@@ -92,8 +97,13 @@ class DriverWalletService
 
             // Keep ledger balance unchanged for pending withdrawals.
             // Available balance is derived as (balance - pending_balance).
-            $wallet->pending_balance = number_format(((float) $wallet->pending_balance + $amount), 2, '.', '');
-            $wallet->save();
+            $newPendingBalance = round((float) $wallet->pending_balance + $amount, 2);
+            
+            $wallet->update([
+                'pending_balance' => $newPendingBalance,
+            ]);
+            
+            $wallet->refresh();
 
             $transaction = DriverTransaction::create([
                 'driver_id' => $driverId,
@@ -110,7 +120,7 @@ class DriverWalletService
             return [
                 'withdrawal' => $withdrawal,
                 'transaction' => $transaction,
-                'wallet' => $wallet->fresh(),
+                'wallet' => $wallet,
             ];
         });
     }

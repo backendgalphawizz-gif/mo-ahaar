@@ -15,6 +15,7 @@ class DatabaseSeeder extends Seeder
             TicketSampleSeeder::class,
             VendorSeeder::class,
             DriverAppSeeder::class,
+            UserAppDemoDataSeeder::class,
         ]);
     }
 }

@@ -125,6 +125,7 @@ class ProfileController extends DriverAppController
         ], 200);
     }
 
+    
     public function updateBankInformation(Request $request)
     {
         $driver = $this->resolveDriver($request);
