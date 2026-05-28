@@ -18,7 +18,7 @@
     <div class="page-body">
         <div class="container-fluid">
             <div class="title-header option-title d-flex align-items-center mb-4">
-                <h5>{{ $title }}</h5>
+                <h5>Food Details</h5>
                 <a href="{{ route('admin.edit-product', array_merge(['id' => $product->product_id], array_filter(['segment' => $editSegment]))) }}"
                     class="btn btn-theme btn-sm ms-auto me-2">Edit Product</a>
                 <a href="{{ route('admin.products', array_filter(['segment' => $editSegment])) }}"

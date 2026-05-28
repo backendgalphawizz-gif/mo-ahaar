@@ -11,34 +11,121 @@ use App\Models\Orders;
 use App\Models\OrderTracking;
 use App\Models\PaymentGateway;
 use App\Models\StoreSetting;
+use App\Models\Users;
+use App\Services\DriverAssignmentService;
+
 class OrderManagementController extends Controller
 {
-   // Vendor order number logic removed
+   public function __construct(
+      private readonly DriverAssignmentService $driverAssignmentService
+   ) {
+   }
+
+   public static function orderStatusGroups(): array
+   {
+      return [
+         'new' => ['pending', 'payment_pending'],
+         'accepted' => ['accepted', 'confirmed', 'processing'],
+         'rejected' => ['rejected'],
+         'picked_up' => ['picked_up'],
+         'out_for_delivery' => ['out_for_delivery', 'shipped'],
+         'delivered' => ['delivered', 'completed', 'success'],
+         'cancelled' => ['cancelled'],
+      ];
+   }
 
       public function orders(Request $request)
     {
-      $title = 'Orders List';
-          $query = Orders::with(['customer.user'])->orderByDesc('order_id');
+      $title = 'Order Management';
+          $query = Orders::with([
+             'customer.user',
+             'vendor',
+             'orderItems',
+             'deliveryAssignment.driver',
+          ])->orderByDesc('order_id');
 
           $search = trim((string) $request->query('search', ''));
           if ($search !== '') {
              $query->where(function ($q) use ($search) {
                 $q->where('order_number', 'like', "%$search%")
                   ->orWhereHas('customer.user', function ($u) use ($search) {
-                     $u->where('name', 'like', "%$search%");
+                     $u->where('name', 'like', "%$search%")
+                        ->orWhere('mobile', 'like', "%$search%");
+                  })
+                  ->orWhereHas('vendor', function ($v) use ($search) {
+                     $v->where('business_name', 'like', "%$search%");
                   })
                   ->orWhere('payment_method', 'like', "%$search%");
              });
           }
 
-         // Incoming orders are new vendor action items.
+         $statusFilter = $request->query('status_filter');
+         if ($statusFilter && isset(self::orderStatusGroups()[$statusFilter])) {
+             $query->whereIn('order_status', self::orderStatusGroups()[$statusFilter]);
+         }
+
          if ($request->query('scope') === 'incoming') {
              $query->where('order_status', 'pending');
          }
 
-         $allOrders = $query->paginate(10)->withQueryString();
+         $statusCounts = [];
+         foreach (self::orderStatusGroups() as $key => $statuses) {
+             $statusCounts[$key] = Orders::whereIn('order_status', $statuses)->count();
+         }
 
-      return view('admin.orders.ordersList', compact('title', 'allOrders'));
+         $availableDrivers = Users::where('role_type', Users::DRIVER_APP_ROLE_TYPE)
+             ->where('approval_status', 'approved')
+             ->where('status', '1')
+             ->orderBy('name')
+             ->get(['user_id', 'name', 'mobile']);
+
+         $allOrders = $query->paginate(15)->withQueryString();
+
+      return view('admin.orders.ordersList', compact('title', 'allOrders', 'statusCounts', 'availableDrivers', 'search'));
+   }
+
+   public function assignDriver(Request $request, $id)
+   {
+      $order = Orders::with(['vendor', 'customer.user'])->find($id);
+      if (!$order) {
+         return back()->with('error', 'Order not found.');
+      }
+
+      $validated = $request->validate([
+         'assignment_mode' => ['nullable', Rule::in([DriverAssignmentService::MODE_MANUAL, DriverAssignmentService::MODE_BROADCAST])],
+         'driver_id' => ['nullable', 'integer', Rule::exists('users', 'user_id')->where('role_type', Users::DRIVER_APP_ROLE_TYPE)],
+      ]);
+
+      $mode = $validated['assignment_mode'] ?? DriverAssignmentService::MODE_MANUAL;
+
+      try {
+         if ($mode === DriverAssignmentService::MODE_BROADCAST) {
+            $result = $this->driverAssignmentService->broadcastToNearbyDrivers($order);
+            return back()->with('success', 'Broadcast sent to nearby drivers. Notified ' . ($result['drivers_notified'] ?? 0) . ' driver(s). First accepted driver will be assigned automatically.');
+         }
+
+         if (empty($validated['driver_id'])) {
+            return back()->with('error', 'Please select a driver for manual assignment.');
+         }
+
+         $driver = Users::where('user_id', $validated['driver_id'])
+            ->where('role_type', Users::DRIVER_APP_ROLE_TYPE)
+            ->where('approval_status', 'approved')
+            ->where('status', '1')
+            ->first();
+
+         if (!$driver) {
+            return back()->with('error', 'Selected driver is not available for assignment.');
+         }
+
+         $this->driverAssignmentService->assignManually($order, $driver);
+
+         return back()->with('success', 'Delivery partner assigned successfully.');
+      } catch (\InvalidArgumentException $e) {
+         return back()->with('error', $e->getMessage());
+      } catch (\Exception $e) {
+         return back()->with('error', 'Failed to assign driver: ' . $e->getMessage());
+      }
    }
 
    public function addOrder()
@@ -223,13 +310,19 @@ class OrderManagementController extends Controller
     public function orderDetails($id)
     {
       $title = 'Order Details';
-      $order = Orders::with(['customer.user', 'vendor', 'orderItems.product'])->find($id);
+      $order = Orders::with(['customer.user', 'vendor', 'orderItems.product', 'deliveryAssignment.driver'])->find($id);
 
       if (!$order) {
          return back()->with('error', 'Order not found.');
       }
 
-      return view('admin.orders.orderDetails', compact('title', 'order'));
+      $availableDrivers = Users::where('role_type', Users::DRIVER_APP_ROLE_TYPE)
+         ->where('approval_status', 'approved')
+         ->where('status', '1')
+         ->orderBy('name')
+         ->get(['user_id', 'name', 'mobile']);
+
+      return view('admin.orders.orderDetails', compact('title', 'order', 'availableDrivers'));
     }
 
     public function orderTracking($id)

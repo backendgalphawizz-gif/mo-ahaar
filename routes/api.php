@@ -19,12 +19,15 @@ use App\Http\Controllers\API\CustomerApp\VideoController as CustomerVideoControl
 use App\Http\Controllers\API\CustomerApp\RatingsReviewController as CustomerRatingsReviewController;
 use App\Http\Controllers\API\CustomerApp\TicketController as CustomerTicketController;
 use App\Http\Controllers\API\CustomerApp\LanguageController as CustomerLanguageController;
+use App\Http\Controllers\API\CustomerApp\SettingsController as CustomerSettingsController;
+use App\Http\Controllers\API\CustomerApp\VendorBrowsingController as CustomerVendorBrowsingController;
 use App\Http\Controllers\API\MobileAuthController;
 use App\Http\Controllers\API\DriverApp\AuthController as DriverAuthController;
 use App\Http\Controllers\API\DriverApp\DeliveryController as DriverDeliveryController;
 use App\Http\Controllers\API\DriverApp\HomeController as DriverHomeController;
 use App\Http\Controllers\API\DriverApp\NotificationController as DriverNotificationController;
 use App\Http\Controllers\API\DriverApp\OrderController as DriverOrderController;
+use App\Http\Controllers\API\DriverApp\LocationController as DriverLocationController;
 use App\Http\Controllers\API\DriverApp\PaymentController as DriverPaymentController;
 use App\Http\Controllers\API\DriverApp\ProfileController as DriverProfileController;
 use App\Http\Controllers\API\DriverApp\SettingsController as DriverSettingsController;
@@ -80,10 +83,18 @@ Route::prefix('customer-app')->middleware('set.customer.locale')->name('customer
         Route::delete('/{addressId}', [CustomerAddressController::class, 'destroy'])->name('addresses.destroy');
     });
 
+    Route::get('/settings/business', [CustomerSettingsController::class, 'business'])->name('settings.business');
+
     Route::middleware('auth:sanctum')->prefix('home')->group(function () {
         Route::get('/dashboard', [CustomerHomeController::class, 'dashboard'])->name('home.dashboard');
         /** Same payload as dashboard — home screen (banners + featured products). */
         Route::get('/screen', [CustomerHomeController::class, 'dashboard'])->name('home.screen');
+    });
+
+    Route::middleware('auth:sanctum')->prefix('vendors')->group(function () {
+        Route::get('/nearby', [CustomerVendorBrowsingController::class, 'nearby'])->name('vendors.nearby');
+        Route::get('/{vendorId}/menu', [CustomerVendorBrowsingController::class, 'menu'])->name('vendors.menu');
+        Route::get('/{vendorId}', [CustomerVendorBrowsingController::class, 'show'])->name('vendors.show');
     });
 
     Route::middleware('auth:sanctum')->prefix('location')->group(function () {
@@ -111,10 +122,10 @@ Route::prefix('customer-app')->middleware('set.customer.locale')->name('customer
     Route::middleware('auth:sanctum')->prefix('orders')->group(function () {
         Route::get('/history', [CustomerOrdersController::class, 'history'])->name('orders.history');
         Route::get('/', [CustomerOrdersController::class, 'index'])->name('orders.index');
-        Route::get('/{orderId}', [CustomerOrdersController::class, 'show'])->name('orders.show');
+        Route::get('/{orderId}/invoice', [CustomerOrdersController::class, 'invoice'])->name('orders.invoice');
         Route::get('/{orderId}/tracking', [CustomerOrdersController::class, 'tracking'])->name('orders.tracking');
+        Route::get('/{orderId}', [CustomerOrdersController::class, 'show'])->name('orders.show');
         Route::post('/{orderId}/cancel', [CustomerOrdersController::class, 'cancel'])->name('orders.cancel');
-
     });
 
     Route::middleware('auth:sanctum')->prefix('reviews')->group(function () {
@@ -142,6 +153,10 @@ Route::prefix('customer-app')->middleware('set.customer.locale')->name('customer
         Route::post('/update', [CustomerCartController::class, 'update'])->name('cart.update');
         Route::post('/remove', [CustomerCartController::class, 'remove'])->name('cart.remove');
         Route::post('/clear', [CustomerCartController::class, 'clear'])->name('cart.clear');
+        Route::post('/cooking-instructions', [CustomerCartController::class, 'updateCookingInstructions'])->name('cart.cooking-instructions');
+        Route::post('/apply-promo', [CustomerCartController::class, 'applyPromo'])->name('cart.apply-promo');
+        Route::post('/remove-promo', [CustomerCartController::class, 'removePromo'])->name('cart.remove-promo');
+        Route::post('/select-address', [CustomerCartController::class, 'selectAddress'])->name('cart.select-address');
     });
 
     Route::middleware('auth:sanctum')->prefix('checkout')->group(function () {
@@ -151,6 +166,7 @@ Route::prefix('customer-app')->middleware('set.customer.locale')->name('customer
     });
 
     Route::middleware('auth:sanctum')->prefix('payment')->group(function () {
+        Route::get('/methods', [CustomerCheckoutController::class, 'paymentMethods'])->name('payment.methods');
         Route::post('/razorpay/create-order', [CustomerPaymentController::class, 'createRazorpayOrder'])->name('payment.razorpay.create-order');
         Route::post('/razorpay/verify', [CustomerPaymentController::class, 'verifyRazorpayPayment'])->name('payment.razorpay.verify');
         Route::post('/update-status', [CustomerPaymentController::class, 'updatePaymentStatus'])->name('payment.update-status');
@@ -186,6 +202,11 @@ Route::prefix('driver-app')->name('driver-app.')->group(function () {
 
     Route::middleware(['inject.bearer', 'auth:sanctum', 'driver'])->group(function () {
         Route::post('/auth/logout', [DriverAuthController::class, 'logout'])->name('auth.logout');
+
+        Route::prefix('location')->group(function () {
+            Route::post('/update', [DriverLocationController::class, 'update'])->name('location.update');
+            Route::post('/online-status', [DriverLocationController::class, 'setOnlineStatus'])->name('location.online-status');
+        });
 
         Route::prefix('home')->group(function () {
             Route::get('/dashboard', [DriverHomeController::class, 'dashboard'])->name('home.dashboard');

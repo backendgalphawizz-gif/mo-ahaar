@@ -143,6 +143,7 @@ Route::middleware(['AdminAuth'])->prefix('admin')->group(function(){
         Route::post('/update-order-status/{id}',[OrderManagementController::class,'updateOrderStatus'])->name('admin.update-order-status');
         Route::post('/add-order-tracking/{id}',[OrderManagementController::class,'addOrderTracking'])->name('admin.add-order-tracking');
         Route::post('/update-delivery-status/{id}',[OrderManagementController::class,'updateDeliveryStatus'])->name('admin.update-delivery-status');
+        Route::post('/orders/{id}/assign-driver',[OrderManagementController::class,'assignDriver'])->name('admin.orders.assign-driver');
         Route::get('/orders/export-excel', [OrderManagementController::class, 'exportOrdersExcel'])->name('admin.orders.export-excel');
         Route::get('/orders/export-pdf', [OrderManagementController::class, 'exportOrdersPdf'])->name('admin.orders.export-pdf');
 

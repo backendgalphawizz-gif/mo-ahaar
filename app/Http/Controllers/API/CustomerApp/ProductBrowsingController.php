@@ -7,8 +7,8 @@ use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\ProductReview;
 use App\Models\ProductSubCategory;
-use App\Models\ProductSubSubCategory;
 use App\Models\Users;
+use App\Models\Vendor;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 
@@ -29,6 +29,77 @@ class ProductBrowsingController extends Controller
     //         'data' => $categories
     //     ]);
     // }
+
+    public function search(Request $request)
+    {
+        $user = $request->user();
+        if (!$user || (int) $user->role_type !== self::CUSTOMER_ROLE_TYPE) {
+            return response()->json(['status' => false, 'message' => 'Unauthorized customer access'], 403);
+        }
+
+        $validated = $request->validate([
+            'q' => ['nullable', 'string', 'max:120'],
+            'query' => ['nullable', 'string', 'max:120'],
+        ]);
+
+        $term = trim((string) ($validated['q'] ?? $validated['query'] ?? ''));
+        if ($term === '') {
+            return response()->json([
+                'status' => true,
+                'message' => 'Search query is required',
+                'data' => ['products' => [], 'restaurants' => []],
+            ], 200);
+        }
+
+        $like = '%' . $term . '%';
+
+        $products = Product::query()
+            ->visibleToCustomerUser($user)
+            ->where('status', 1)
+            ->whereIn('is_active_status', [1, '1'])
+            ->where(function ($q) use ($like) {
+                $q->where('product_name', 'like', $like)
+                    ->orWhere('short_description', 'like', $like)
+                    ->orWhere('tags', 'like', $like);
+            })
+            ->limit(30)
+            ->get()
+            ->map(fn (Product $product) => $this->mapProductListItem($product))
+            ->values();
+
+        $restaurants = collect();
+        if (Schema::hasTable('vendors')) {
+            $restaurants = Vendor::query()
+                ->when(Schema::hasColumn('vendors', 'status'), fn ($q) => $q->where('status', '1'))
+                ->where(function ($q) use ($like) {
+                    $q->where('business_name', 'like', $like)
+                        ->orWhere('business_description', 'like', $like)
+                        ->orWhere('address', 'like', $like);
+                })
+                ->limit(20)
+                ->get()
+                ->map(fn (Vendor $vendor) => [
+                    'vendor_id' => $vendor->vendor_id,
+                    'restaurant_id' => $vendor->vendor_id,
+                    'restaurant_name' => $vendor->business_name,
+                    'location' => $vendor->address,
+                    'image_url' => !empty($vendor->business_banner)
+                        ? url('public/uploads/vendors/' . $vendor->business_banner)
+                        : (!empty($vendor->business_logo) ? url('public/uploads/vendors/' . $vendor->business_logo) : null),
+                ])
+                ->values();
+        }
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Search results retrieved successfully',
+            'data' => [
+                'query' => $term,
+                'products' => $products,
+                'restaurants' => $restaurants,
+            ],
+        ], 200);
+    }
 
     public function categories(Request $request)
     {
@@ -53,9 +124,24 @@ class ProductBrowsingController extends Controller
             }])
             ->get();
 
+        $mapped = $categories->map(function (ProductCategory $category) {
+            return [
+                'category_id' => $category->category_id,
+                'category_name' => $category->category_name,
+                'name' => $category->category_name,
+                'category_image' => $category->category_image,
+                'category_image_url' => !empty($category->category_image)
+                    ? url('public/uploads/categories/' . $category->category_image)
+                    : null,
+                'sub_categories' => $category->subCategories,
+            ];
+        })->values();
+
         return response()->json([
+            'status' => true,
             'success' => true,
-            'data' => $categories
+            'message' => 'Categories retrieved successfully',
+            'data' => $mapped,
         ], 200);
     }
 
@@ -191,17 +277,64 @@ class ProductBrowsingController extends Controller
     */
     public function categoryDetails(Request $request, $categoryId)
     {
+        $user = $request->user();
+
         $category = ProductCategory::where('category_id', $categoryId)->where('status', 1)->first();
         if (!$category) {
             return response()->json([
+                'status' => false,
                 'success' => false,
-                'message' => 'Category not found.'
+                'message' => 'Category not found.',
             ], 404);
         }
+
+        $products = Product::query()
+            ->visibleToCustomerUser($user)
+            ->where('category_id', $categoryId)
+            ->where('status', 1)
+            ->whereIn('is_active_status', [1, '1'])
+            ->orderByDesc('featured')
+            ->orderBy('product_name')
+            ->get()
+            ->map(fn (Product $product) => $this->mapProductListItem($product))
+            ->values();
+
         return response()->json([
+            'status' => true,
             'success' => true,
-            'data' => $category
+            'message' => 'Category details retrieved successfully',
+            'data' => [
+                'category' => [
+                    'category_id' => $category->category_id,
+                    'category_name' => $category->category_name,
+                    'name' => $category->category_name,
+                    'category_image_url' => !empty($category->category_image)
+                        ? url('public/uploads/categories/' . $category->category_image)
+                        : null,
+                ],
+                'products' => $products,
+            ],
         ]);
+    }
+
+    private function mapProductListItem(Product $product): array
+    {
+        $effectivePrice = (float) ($product->sale_price ?: $product->price);
+
+        return [
+            'product_id' => $product->product_id,
+            'name' => $product->product_name,
+            'product_name' => $product->product_name,
+            'description' => $product->short_description,
+            'price' => number_format($effectivePrice, 2, '.', ''),
+            'original_price' => $product->sale_price ? number_format((float) $product->price, 2, '.', '') : null,
+            'currency' => 'INR',
+            'rating' => null,
+            'image_url' => !empty($product->product_image)
+                ? url('public/uploads/products/' . $product->product_image)
+                : null,
+            'is_vegetarian' => true,
+        ];
     }
 
     /**

@@ -18,17 +18,18 @@
     <div class="card-body">
 
         <div class="mb-3">
-            <label class="form-label-title">Offer Title <span class="text-danger">*</span></label>
+            <label class="form-label-title">Promo Code <span class="text-danger">*</span></label>
             <input type="text" name="title"
                    class="form-control @error('title') is-invalid @enderror"
-                   placeholder="e.g. Summer Sale 20% Off"
+                   placeholder="E.G., SUMMER50, FLAT300"
                    value="{{ old('title', $isEdit ? $discountOffer->title : '') }}"
                    maxlength="150" required>
+            <small class="text-muted">Customers will enter this exact code.</small>
             @error('title')<div class="invalid-feedback">{{ $message }}</div>@enderror
         </div>
 
         <div class="mb-3">
-            <label class="form-label-title">Description</label>
+            <label class="form-label-title">Display Message</label>
             <textarea name="description"
                       class="form-control @error('description') is-invalid @enderror"
                       rows="2"

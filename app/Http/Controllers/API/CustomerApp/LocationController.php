@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Schema;
 
 class LocationController extends Controller
 {
-    private const CUSTOMER_ROLE_TYPE = 3;
+    private const CUSTOMER_ROLE_TYPE = Users::CUSTOMER_APP_ROLE_TYPE;
 
     public function enable(Request $request)
     {

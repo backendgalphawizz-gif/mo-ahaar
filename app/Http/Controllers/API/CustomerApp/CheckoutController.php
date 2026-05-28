@@ -14,6 +14,7 @@ use App\Models\Users;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Razorpay\Api\Api;
 use Razorpay\Api\Errors\BadRequestError;
 use Razorpay\Api\Errors\SignatureVerificationError;
@@ -46,12 +47,16 @@ class CheckoutController extends Controller
             ], 403);
         }
 
-        $customer = Customers::with([
-            'addresses' => function ($query) {
-                $query->orderByDesc('is_default')->orderByDesc('updated_at')->orderByDesc('customer_address_id');
-            },
-            'defaultAddress',
-        ])->where('user_id', $user->user_id)->first();
+        $customerQuery = Customers::query()->where('user_id', $user->user_id);
+        if (\Illuminate\Support\Facades\Schema::hasTable('customer_addresses')) {
+            $customerQuery->with([
+                'addresses' => function ($query) {
+                    $query->orderByDesc('is_default')->orderByDesc('updated_at')->orderByDesc('customer_address_id');
+                },
+                'defaultAddress',
+            ]);
+        }
+        $customer = $customerQuery->first();
         if (!$customer) {
             return response()->json(['status' => false, 'message' => 'Customer profile not found'], 404);
         }
@@ -68,30 +73,58 @@ class CheckoutController extends Controller
             return $validationError;
         }
 
-        [$cartPayload, $subtotal, $totalTax] = $this->buildCartSummary($items);
+        $totals = $this->calculateCheckoutTotals($items, $customer);
 
-        $defaultAddress = $customer->defaultAddress ?: $customer->addresses->first();
+        $selectedAddress = $this->resolveSelectedCartAddress($customer);
 
         return response()->json([
             'status'  => true,
             'message' => 'Checkout summary',
             'data'    => [
-                'cart_items'       => $cartPayload,
-                'items_count'      => count($cartPayload),
-                'subtotal'         => number_format($subtotal, 2, '.', ''),
-                'shipping_amount'  => '0.00',
-                'tax_amount'       => number_format($totalTax, 2, '.', ''),
-                'total_amount'     => number_format($subtotal + $totalTax, 2, '.', ''),
+                'cart_items'       => $totals['cart_payload'],
+                'items_count'      => count($totals['cart_payload']),
+                'subtotal'         => number_format($totals['subtotal'], 2, '.', ''),
+                'delivery_fee'     => number_format($totals['delivery_fee'], 2, '.', ''),
+                'shipping_amount'  => number_format($totals['delivery_fee'], 2, '.', ''),
+                'tax_amount'       => number_format($totals['tax_amount'], 2, '.', ''),
+                'gst_and_other_charges' => number_format($totals['tax_amount'], 2, '.', ''),
+                'promo_discount'   => number_format($totals['promo_discount'], 2, '.', ''),
+                'offer_discount'   => number_format($totals['offer_discount'], 2, '.', ''),
+                'total_amount'     => number_format($totals['total_amount'], 2, '.', ''),
+                'cooking_instructions' => $customer->cart_cooking_instructions,
+                'promo_code' => $customer->cart_promo_code,
                 'shipping_details' => [
-                    'full_name'       => $user->name,
-                    'mobile'          => $user->mobile,
-                    'address'         => $defaultAddress?->formattedAddress() ?: $customer->customer_address,
-                    'customer_address_id' => $defaultAddress?->customer_address_id,
+                    'full_name'       => $selectedAddress?->contact_name ?: $user->name,
+                    'mobile'          => $selectedAddress?->mobile ?: $user->mobile,
+                    'address'         => $selectedAddress?->formattedAddress() ?: $customer->customer_address,
+                    'customer_address_id' => $selectedAddress?->customer_address_id,
                 ],
+                'delivery_address' => $selectedAddress ? $this->transformAddress($selectedAddress) : null,
                 'shipping_addresses' => $customer->addresses->map(fn (CustomerAddress $address) => $this->transformAddress($address))->values(),
-                'payment_methods'  => [
-                    ['key' => 'razorpay', 'label' => 'Razorpay'],
+                'payment_methods'  => $this->availablePaymentMethods(),
+                'order_info' => [
+                    'subtotal' => number_format($totals['subtotal'], 2, '.', ''),
+                    'delivery_fee' => number_format($totals['delivery_fee'], 2, '.', ''),
+                    'gst_and_other_charges' => number_format($totals['tax_amount'], 2, '.', ''),
+                    'promo_discount' => number_format($totals['promo_discount'], 2, '.', ''),
+                    'total_amount' => number_format($totals['total_amount'], 2, '.', ''),
                 ],
+            ],
+        ]);
+    }
+
+    public function paymentMethods(Request $request)
+    {
+        $user = $request->user();
+        if (!$this->isAuthorizedCustomer($user)) {
+            return response()->json(['status' => false, 'message' => 'Unauthorized customer access'], 403);
+        }
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Payment methods retrieved successfully',
+            'data' => [
+                'payment_methods' => $this->availablePaymentMethods(),
             ],
         ]);
     }
@@ -315,32 +348,44 @@ class CheckoutController extends Controller
         }
 
         $validated = $request->validate([
-            // 'order_id' => ['required', 'integer'],
+            'payment_method' => ['required', 'string', Rule::in(['cod', 'cash_on_delivery', 'online', 'razorpay', 'upi', 'card', 'net_banking'])],
             'customer_address_id' => ['nullable', 'integer'],
-            'razorpay_order_id' => ['required', 'string'],
-            'razorpay_payment_id' => ['required', 'string'],
-            'razorpay_signature' => ['required', 'string'],
+            'address_id' => ['nullable', 'integer'],
+            'shipping_address' => ['nullable', 'string', 'max:1000'],
+            'notes' => ['nullable', 'string', 'max:500'],
+            'razorpay_order_id' => ['nullable', 'string'],
+            'razorpay_payment_id' => ['nullable', 'string'],
+            'razorpay_signature' => ['nullable', 'string'],
         ]);
 
-        // $customer = Customers::where('user_id', $user->user_id)->first();
-        // if (!$customer) {
-        //     return response()->json(['status' => false, 'message' => 'Customer profile not found'], 404);
-        // }
+        $paymentMethod = $this->normalizePaymentMethod($validated['payment_method']);
+        $isCod = in_array($paymentMethod, ['cod', 'cash_on_delivery'], true);
+        $isOnline = !$isCod;
 
-        $customer = Customers::with(['addresses', 'defaultAddress'])->where('user_id', $user->user_id)->first();
+        if ($isOnline) {
+            $request->validate([
+                'razorpay_order_id' => ['required', 'string'],
+                'razorpay_payment_id' => ['required', 'string'],
+                'razorpay_signature' => ['required', 'string'],
+            ]);
+        }
+
+        $customerQuery = Customers::query()->where('user_id', $user->user_id);
+        if (\Illuminate\Support\Facades\Schema::hasTable('customer_addresses')) {
+            $customerQuery->with(['addresses', 'defaultAddress']);
+        }
+        $customer = $customerQuery->first();
         if (!$customer) {
             return response()->json(['status' => false, 'message' => 'Customer profile not found'], 404);
         }
 
-        $shippingAddress = $this->resolveShippingAddress($customer, $validated['customer_address_id'] ?? null);
-        if (!$shippingAddress) {
+        $addressId = $validated['customer_address_id'] ?? $validated['address_id'] ?? $customer->cart_selected_address_id;
+        $shippingAddressJson = $this->buildShippingAddressJson($customer, $user, $addressId, $validated['shipping_address'] ?? null);
+        if ($shippingAddressJson === null) {
             return response()->json(['status' => false, 'message' => 'Shipping address not found'], 404);
         }
 
-        $items = CartItem::with('product')
-            ->where('customer_id', $customer->customer_id)
-            ->get();
-
+        $items = CartItem::with('product')->where('customer_id', $customer->customer_id)->get();
         if ($items->isEmpty()) {
             return response()->json(['status' => false, 'message' => 'Your cart is empty'], 422);
         }
@@ -349,184 +394,97 @@ class CheckoutController extends Controller
             return $validationError;
         }
 
-        [$cartPayload, $subtotal, $totalTax] = $this->buildCartSummary($items);
-
-        $paymentMethod = self::DEFAULT_PAYMENT_METHOD;
-        $isOnlinePayment = true;
-
-        // $order = Orders::where('order_id', $validated['order_id'])
-        //     ->where('customer_id', $customer->customer_id)
-        //     ->first();
-
-        // if (!$order) {
-        //     return response()->json(['status' => false, 'message' => 'Order not found'], 404);
-        // }
-
-        // if ($order->payment_status === 'paid') {
-        //     return response()->json([
-        //         'status' => true,
-        //         'message' => 'Order already placed.',
-        //         'data' => [
-        //             'order_id' => $order->order_id,
-        //             'order_number' => $order->order_number,
-        //             'payment_status' => $order->payment_status,
-        //             'order_status' => $order->order_status,
-        //         ],
-        //     ]);
-        // }
-
-        $keyId = config('services.razorpay.key_id');
-        $keySecret = config('services.razorpay.key_secret');
-
-        if (empty($keyId) || empty($keySecret)) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Razorpay credentials are not configured',
-            ], 500);
-        }
+        $totals = $this->calculateCheckoutTotals($items, $customer);
+        $notes = trim((string) ($validated['notes'] ?? $customer->cart_cooking_instructions ?? ''));
 
         DB::beginTransaction();
         try {
-            $api = new Api($keyId, $keySecret);
-            $api->utility->verifyPaymentSignature([
-                'razorpay_order_id' => $validated['razorpay_order_id'],
-                'razorpay_payment_id' => $validated['razorpay_payment_id'],
-                'razorpay_signature' => $validated['razorpay_signature'],
-            ]);
+            if ($isOnline) {
+                $keyId = config('services.razorpay.key_id');
+                $keySecret = config('services.razorpay.key_secret');
+                if (empty($keyId) || empty($keySecret)) {
+                    return response()->json([
+                        'status' => false,
+                        'message' => 'Razorpay credentials are not configured',
+                    ], 500);
+                }
 
-            $vendorId = $items->first()->product->vendor_id ?? null;
-            $shippingAddressPayload = $shippingAddress->toArray();
-            $shippingAddressPayload['formatted_address'] = $shippingAddress->formattedAddress();
-            $shippingAddressJson = json_encode($shippingAddressPayload);
-
-            if ($shippingAddressJson === false) {
-                throw new \RuntimeException('Unable to encode shipping address.');
-            }
-
-            $order = Orders::create([
-                'customer_id'      => $customer->customer_id,
-                'vendor_id'        => $vendorId,
-                'order_number'     => $this->generateOrderNumber(),
-                'subtotal'         => $subtotal,
-                'tax_amount'       => $totalTax,
-                'gst_amount'       => $totalTax,
-                'shipping_amount'  => 0,
-                'total_amount'     => $subtotal + $totalTax,
-                'payment_method'   => $paymentMethod,
-                'payment_status'   => 'pending',
-                'order_status'     => $isOnlinePayment ? 'payment_pending' : 'pending',
-                'shipping_address' => $shippingAddressJson,
-                'notes'            => $validated['notes'] ?? null,
-            ]);
-
-            foreach ($items as $item) {
-                $product   = $item->product;
-                $gst       = $this->computeItemGst($item);
-
-                $baseUnitPrice = $gst['base_unit_price'];
-                $gstPerUnit    = $gst['gst_per_unit'];
-                $lineGst       = round($gstPerUnit * $item->quantity, 2);
-                $lineBase      = round($baseUnitPrice * $item->quantity, 2);
-                $lineTotal     = round($lineBase + $lineGst, 2);
-
-                $discount = $item->sale_price
-                    ? round(((float) $item->unit_price - (float) $item->sale_price) * $item->quantity, 2)
-                    : 0;
-
-                OrderItem::create([
-                    'order_id'        => $order->order_id,
-                    'product_id'      => $item->product_id,
-                    'product_name'    => $product->product_name,
-                    'sku'             => $product->sku,
-                    'quantity'        => $item->quantity,
-                    'unit_price'      => $baseUnitPrice,
-                    'discount_amount' => $discount,
-                    'tax_amount'      => $lineGst,
-                    'gst_amount'      => $lineGst,
-                    'gst_percentage'  => $gst['gst_percentage'],
-                    'gst_calculation_type' => $gst['gst_type'],
-                    'effective_price' => round($baseUnitPrice + $gstPerUnit, 2),
-                    'line_total'      => $lineTotal,
-                    'item_status'     => $isOnlinePayment ? 'payment_pending' : 'pending',
+                $api = new Api($keyId, $keySecret);
+                $api->utility->verifyPaymentSignature([
+                    'razorpay_order_id' => $validated['razorpay_order_id'],
+                    'razorpay_payment_id' => $validated['razorpay_payment_id'],
+                    'razorpay_signature' => $validated['razorpay_signature'],
                 ]);
             }
 
-            // NotificationController::pushOrderUpdate(
-            //     (int) $customer->customer_id,
-            //     (int) $order->order_id,
-            //     'Order Placed',
-            //     'Your order ' . $order->order_number . ' has been placed successfully.',
-            //     [
-            //         'order_number' => $order->order_number,
-            //         'order_status' => $order->order_status,
-            //     ]
-            // );
+            $order = $this->persistOrder(
+                $customer,
+                $items,
+                $shippingAddressJson,
+                $totals,
+                $paymentMethod,
+                $isCod ? 'pending' : 'paid',
+                $isCod ? 'pending' : 'confirmed',
+                $notes
+            );
 
-            CartItem::where('customer_id', $customer->customer_id)->delete();
-            
-            DB::commit();
-
-            DB::transaction(function () use ($order, $validated, $customer) {
+            if ($isOnline) {
                 $order->razorpay_order_id = $validated['razorpay_order_id'];
                 $order->razorpay_payment_id = $validated['razorpay_payment_id'];
                 $order->razorpay_signature = $validated['razorpay_signature'];
-                $order->payment_status = 'paid';
-                $order->order_status = 'confirmed';
                 $order->save();
+                OrderItem::where('order_id', $order->order_id)->update(['item_status' => 'confirmed']);
+            }
 
-                OrderItem::where('order_id', $order->order_id)->update([
-                    'item_status' => 'confirmed',
-                ]);
+            $this->decrementStockForOrder($order);
+            CartItem::where('customer_id', $customer->customer_id)->delete();
+            if (\Illuminate\Support\Facades\Schema::hasColumn('customers', 'cart_promo_code')) {
+                $customer->cart_promo_code = null;
+            }
+            if (\Illuminate\Support\Facades\Schema::hasColumn('customers', 'cart_discount_offer_id')) {
+                $customer->cart_discount_offer_id = null;
+            }
+            if (\Illuminate\Support\Facades\Schema::hasColumn('customers', 'cart_cooking_instructions')) {
+                $customer->cart_cooking_instructions = null;
+            }
+            $customer->save();
 
-                $orderItems = OrderItem::where('order_id', $order->order_id)->get();
-                $orderedProductIds = [];
+            DB::commit();
 
-                foreach ($orderItems as $orderItem) {
-                    $orderedProductIds[] = $orderItem->product_id;
-                    $product = Product::where('product_id', $orderItem->product_id)->first();
-                    if ($product && $product->stock !== null) {
-                        $product->decrement('stock', $orderItem->quantity);
-                    }
-                }
+            NotificationController::pushOrderUpdate(
+                (int) $customer->customer_id,
+                (int) $order->order_id,
+                'Order Placed',
+                'Your order ' . $order->order_number . ' has been placed successfully.',
+                [
+                    'order_number' => $order->order_number,
+                    'order_status' => $order->order_status,
+                ]
+            );
 
-                if (!empty($orderedProductIds)) {
-                    CartItem::where('customer_id', $customer->customer_id)
-                        ->whereIn('product_id', array_unique($orderedProductIds))
-                        ->delete();
-                }
-
-                // NotificationController::pushOrderUpdate(
-                //     (int) $customer->customer_id,
-                //     (int) $order->order_id,
-                //     'Order Confirmed',
-                //     'Payment received for order ' . $order->order_number . '. Your order is now confirmed.',
-                //     [
-                //         'order_number' => $order->order_number,
-                //         'payment_status' => $order->payment_status,
-                //         'order_status' => $order->order_status,
-                //     ]
-                // );
-            });
-
-            
-            
             return response()->json([
                 'status' => true,
                 'message' => 'Order placed successfully',
                 'data' => [
                     'order_id' => $order->order_id,
                     'order_number' => $order->order_number,
+                    'payment_method' => $order->payment_method,
                     'payment_status' => $order->payment_status,
                     'order_status' => $order->order_status,
-                    'razorpay_payment_id' => $order->razorpay_payment_id,
+                    'total_amount' => number_format((float) $order->total_amount, 2, '.', ''),
+                    'items_ordered' => $items->count(),
+                    'track_order_url' => url('/api/customer-app/orders/' . $order->order_id . '/tracking'),
                 ],
-            ]);
+            ], 201);
         } catch (SignatureVerificationError $e) {
+            DB::rollBack();
+
             return response()->json([
                 'status' => false,
                 'message' => 'Invalid Razorpay signature',
             ], 422);
         } catch (\Throwable $e) {
+            DB::rollBack();
             report($e);
 
             return response()->json([
@@ -777,7 +735,9 @@ class CheckoutController extends Controller
         return [
             'customer_address_id' => $address->customer_address_id,
             'contact_name' => $address->contact_name,
+            'full_name' => $address->contact_name,
             'mobile' => $address->mobile,
+            'mobile_number' => $address->mobile,
             'address_line' => $address->address_line,
             'landmark' => $address->landmark,
             'city' => $address->city,
@@ -785,8 +745,229 @@ class CheckoutController extends Controller
             'country' => $address->country,
             'pincode' => $address->pincode,
             'address_type' => $address->address_type,
+            'delivery_type' => $address->address_type,
             'is_default' => (bool) $address->is_default,
             'formatted_address' => $address->formattedAddress(),
         ];
+    }
+
+    private function availablePaymentMethods(): array
+    {
+        return [
+            [
+                'id' => 'online',
+                'key' => 'online',
+                'label' => 'ONLINE PAYMENT',
+                'name' => 'Razor Pay',
+                'provider' => 'Razorpay',
+                'type' => 'online',
+            ],
+            [
+                'id' => 'cod',
+                'key' => 'cod',
+                'label' => 'PAY VIA CASH',
+                'name' => 'Cash On Delivery',
+                'provider' => 'COD',
+                'type' => 'cod',
+            ],
+        ];
+    }
+
+    private function normalizePaymentMethod(string $method): string
+    {
+        $method = strtolower(trim($method));
+
+        return match ($method) {
+            'cash_on_delivery', 'cash' => 'cod',
+            'razorpay', 'upi', 'card', 'net_banking' => 'online',
+            default => $method,
+        };
+    }
+
+    private function resolveSelectedCartAddress(Customers $customer): ?CustomerAddress
+    {
+        if (!\Illuminate\Support\Facades\Schema::hasTable('customer_addresses')) {
+            return null;
+        }
+
+        if ($customer->cart_selected_address_id) {
+            $selected = $customer->addresses
+                ?->firstWhere('customer_address_id', (int) $customer->cart_selected_address_id);
+            if ($selected) {
+                return $selected;
+            }
+        }
+
+        return $customer->defaultAddress ?: $customer->addresses->first();
+    }
+
+    private function buildShippingAddressJson(
+        Customers $customer,
+        Users $user,
+        ?int $addressId,
+        ?string $shippingAddressText
+    ): ?string {
+        if ($addressId && \Illuminate\Support\Facades\Schema::hasTable('customer_addresses') && $customer->relationLoaded('addresses')) {
+            $address = $customer->addresses->firstWhere('customer_address_id', $addressId);
+            if (!$address) {
+                return null;
+            }
+            $payload = $address->toArray();
+            $payload['formatted_address'] = $address->formattedAddress();
+
+            return json_encode($payload) ?: null;
+        }
+
+        if (is_string($shippingAddressText) && trim($shippingAddressText) !== '') {
+            return json_encode([
+                'contact_name' => $user->name,
+                'mobile' => $user->mobile,
+                'address_line' => trim($shippingAddressText),
+                'formatted_address' => trim($shippingAddressText),
+            ]) ?: null;
+        }
+
+        $fallback = $this->resolveSelectedCartAddress($customer);
+        if (!$fallback) {
+            return null;
+        }
+
+        $payload = $fallback->toArray();
+        $payload['formatted_address'] = $fallback->formattedAddress();
+
+        return json_encode($payload) ?: null;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function calculateCheckoutTotals($items, Customers $customer): array
+    {
+        [$cartPayload, $subtotal, $totalTax] = $this->buildCartSummary($items);
+
+        $lineSubtotal = $cartPayload ? array_sum(array_map(
+            fn ($row) => (float) $row['line_total'],
+            $cartPayload
+        )) : 0.0;
+
+        $offerDiscount = max(0, $lineSubtotal - $subtotal);
+        $promoDiscount = 0.0;
+
+        if ($customer->cart_discount_offer_id && \Illuminate\Support\Facades\Schema::hasTable('discount_offers')) {
+            $promoOffer = \App\Models\DiscountOffer::active()
+                ->currentlyValid()
+                ->find($customer->cart_discount_offer_id);
+            if ($promoOffer && $promoOffer->cartAmountConditionMet($subtotal)) {
+                $base = max(0, $subtotal);
+                if ($promoOffer->discount_type === \App\Models\DiscountOffer::TYPE_PERCENTAGE) {
+                    $promoDiscount = round($base * ((float) $promoOffer->discount_value / 100), 2);
+                } else {
+                    $promoDiscount = round(min((float) $promoOffer->discount_value, $base), 2);
+                }
+            }
+        }
+
+        $deliveryFee = $items->isEmpty() ? 0.0 : (float) config('customer-app.delivery_fee', 40);
+        $totalAmount = max(0, $subtotal - $promoDiscount + $deliveryFee + $totalTax);
+
+        return [
+            'cart_payload' => $cartPayload,
+            'subtotal' => round($subtotal, 2),
+            'offer_discount' => round($offerDiscount, 2),
+            'promo_discount' => round($promoDiscount, 2),
+            'delivery_fee' => round($deliveryFee, 2),
+            'tax_amount' => round($totalTax, 2),
+            'total_amount' => round($totalAmount, 2),
+        ];
+    }
+
+    private function persistOrder(
+        Customers $customer,
+        $items,
+        string $shippingAddressJson,
+        array $totals,
+        string $paymentMethod,
+        string $paymentStatus,
+        string $orderStatus,
+        string $notes
+    ): Orders {
+        $vendorId = $items->first()->product->vendor_id ?? null;
+
+        $orderData = [
+            'customer_id' => $customer->customer_id,
+            'vendor_id' => $vendorId,
+            'order_number' => $this->generateOrderNumber(),
+            'subtotal' => $totals['subtotal'],
+            'tax_amount' => $totals['tax_amount'],
+            'shipping_amount' => $totals['delivery_fee'],
+            'total_amount' => $totals['total_amount'],
+            'payment_method' => $paymentMethod,
+            'payment_status' => $paymentStatus,
+            'order_status' => $orderStatus,
+            'shipping_address' => $shippingAddressJson,
+            'notes' => $notes !== '' ? $notes : null,
+        ];
+
+        if (\Illuminate\Support\Facades\Schema::hasColumn('orders', 'gst_amount')) {
+            $orderData['gst_amount'] = $totals['tax_amount'];
+        }
+
+        $order = Orders::create($orderData);
+
+        foreach ($items as $item) {
+            $product = $item->product;
+            $gst = $this->computeItemGst($item);
+
+            $baseUnitPrice = $gst['base_unit_price'];
+            $gstPerUnit = $gst['gst_per_unit'];
+            $lineGst = round($gstPerUnit * $item->quantity, 2);
+            $lineBase = round($baseUnitPrice * $item->quantity, 2);
+            $lineTotal = round($lineBase + $lineGst, 2);
+
+            $discount = $item->sale_price
+                ? round(((float) $item->unit_price - (float) $item->sale_price) * $item->quantity, 2)
+                : 0;
+
+            $orderItemData = [
+                'order_id' => $order->order_id,
+                'product_id' => $item->product_id,
+                'product_name' => $product->product_name,
+                'sku' => $product->sku,
+                'quantity' => $item->quantity,
+                'unit_price' => $baseUnitPrice,
+                'discount_amount' => $discount,
+                'tax_amount' => $lineGst,
+                'line_total' => $lineTotal,
+                'item_status' => $orderStatus === 'confirmed' ? 'confirmed' : 'pending',
+            ];
+
+            if (\Illuminate\Support\Facades\Schema::hasColumn('order_items', 'gst_amount')) {
+                $orderItemData['gst_amount'] = $lineGst;
+            }
+            if (\Illuminate\Support\Facades\Schema::hasColumn('order_items', 'gst_percentage')) {
+                $orderItemData['gst_percentage'] = $gst['gst_percentage'];
+            }
+            if (\Illuminate\Support\Facades\Schema::hasColumn('order_items', 'gst_calculation_type')) {
+                $orderItemData['gst_calculation_type'] = $gst['gst_type'];
+            }
+            if (\Illuminate\Support\Facades\Schema::hasColumn('order_items', 'effective_price')) {
+                $orderItemData['effective_price'] = round($baseUnitPrice + $gstPerUnit, 2);
+            }
+
+            OrderItem::create($orderItemData);
+        }
+
+        return $order;
+    }
+
+    private function decrementStockForOrder(Orders $order): void
+    {
+        $orderItems = OrderItem::where('order_id', $order->order_id)->get();
+        foreach ($orderItems as $orderItem) {
+            $product = Product::where('product_id', $orderItem->product_id)->first();
+            if ($product && $product->stock !== null) {
+                $product->decrement('stock', $orderItem->quantity);
+            }
+        }
     }
 }

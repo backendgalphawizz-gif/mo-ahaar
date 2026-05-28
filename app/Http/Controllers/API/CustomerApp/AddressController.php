@@ -221,16 +221,39 @@ class AddressController extends Controller
 
     private function validateAddress(Request $request): array
     {
+        if ($request->filled('full_name') && !$request->filled('contact_name')) {
+            $request->merge(['contact_name' => $request->input('full_name')]);
+        }
+        if ($request->filled('mobile_number') && !$request->filled('mobile')) {
+            $request->merge(['mobile' => $request->input('mobile_number')]);
+        }
+        if ($request->filled('delivery_type') && !$request->filled('address_type')) {
+            $request->merge(['address_type' => strtolower((string) $request->input('delivery_type'))]);
+        }
+        if (!$request->filled('address_line')) {
+            $line1 = trim((string) $request->input('house_no_building_name', ''));
+            $line2 = trim((string) $request->input('road_name_area_colony', ''));
+            $combined = trim($line1 . ($line1 !== '' && $line2 !== '' ? ', ' : '') . $line2);
+            if ($combined !== '') {
+                $request->merge(['address_line' => $combined]);
+            }
+        }
+
         return $request->validate([
             'contact_name' => ['nullable', 'string', 'max:120'],
+            'full_name' => ['nullable', 'string', 'max:120'],
             'mobile' => ['nullable', 'string', 'max:20'],
+            'mobile_number' => ['nullable', 'string', 'max:20'],
             'address_line' => ['required', 'string', 'max:1000'],
+            'house_no_building_name' => ['nullable', 'string', 'max:255'],
+            'road_name_area_colony' => ['nullable', 'string', 'max:255'],
             'landmark' => ['nullable', 'string', 'max:255'],
             'city' => ['nullable', 'string', 'max:120'],
             'state' => ['nullable', 'string', 'max:120'],
             'country' => ['nullable', 'string', 'max:120'],
             'pincode' => ['nullable', 'string', 'max:20'],
             'address_type' => ['nullable', 'string', 'max:50'],
+            'delivery_type' => ['nullable', 'string', 'max:50'],
             'is_default' => ['nullable', 'boolean'],
         ]);
     }

@@ -10,7 +10,7 @@ use Illuminate\Http\Request;
 
 class RatingsReviewController extends Controller
 {
-    private const CUSTOMER_ROLE_TYPE = 3;
+    private const CUSTOMER_ROLE_TYPE = Users::CUSTOMER_APP_ROLE_TYPE;
 
     /**
      * POST /api/customer-app/feedback

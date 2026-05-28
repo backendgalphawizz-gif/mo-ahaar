@@ -1,104 +1,76 @@
 ﻿@extends('layouts.app')
 
 @section('content')
+@include('admin.partials.dashboard-ui')
 <div class="page-body">
     <div class="container-fluid">
-        <div class="title-header option-title d-flex align-items-center mb-4">
-            <h5><i class="ri-secure-payment-line me-2"></i>{{ $title }}</h5>
+        <div class="d-flex flex-wrap align-items-center gap-3 mb-4">
+            <h5 class="mb-0">Payment Management</h5>
         </div>
 
-        @if(session('success'))
-            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                {{ session('success') }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        @endif
+        @if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
 
-        <div class="row g-3 mb-4">
-            <div class="col-md-3">
-                <div class="card border-0 product-metric product-metric-primary h-100">
-                    <div class="card-body">
-                        <small>Total Orders</small>
-                        <h3>{{ $stats['total'] }}</h3>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card border-0 product-metric product-metric-success h-100">
-                    <div class="card-body">
-                        <small>Paid</small>
-                        <h3>{{ $stats['paid'] }}</h3>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card border-0 product-metric product-metric-warning h-100">
-                    <div class="card-body">
-                        <small>Pending</small>
-                        <h3>{{ $stats['pending'] }}</h3>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card border-0 product-metric product-metric-danger h-100">
-                    <div class="card-body">
-                        <small>Failed/Refunded</small>
-                        <h3>{{ $stats['failed'] + $stats['refunded'] }}</h3>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="card card-table">
+        <div class="card dashboard-card">
             <div class="card-body">
-                <div class="product-search-toolbar">
-                    <form method="GET" action="{{ route('admin.payments.status') }}" class="product-search-form product-search-form-wide">
-                        <div class="product-search-field">
-                            <i class="ri-search-line product-search-icon"></i>
-                            <input type="text" name="search" class="form-control" value="{{ $search ?? '' }}" placeholder="Search by order no., vendor, customer, payment method, or status">
+                <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+                    <form method="GET" action="{{ route('admin.payments.status') }}" class="d-flex flex-wrap gap-2 flex-grow-1">
+                        <div class="input-group" style="max-width:280px;">
+                            <span class="input-group-text"><i class="ri-search-line"></i></span>
+                            <input type="text" name="search" class="form-control" placeholder="Search payments..." value="{{ $search ?? '' }}">
                         </div>
-                        <div class="product-filter-field">
-                            <select name="status" class="form-select">
-                                <option value="">All Payment Status</option>
-                                <option value="pending" {{ $status === 'pending' ? 'selected' : '' }}>Pending</option>
-                                <option value="paid" {{ $status === 'paid' ? 'selected' : '' }}>Paid</option>
-                                <option value="failed" {{ $status === 'failed' ? 'selected' : '' }}>Failed</option>
-                                <option value="refunded" {{ $status === 'refunded' ? 'selected' : '' }}>Refunded</option>
-                            </select>
-                        </div>
-                        <button type="submit" class="btn btn-theme btn-sm">Search</button>
-                        <a href="{{ route('admin.payments.status') }}" class="btn btn-outline-secondary btn-sm">Reset</a>
+                        <select name="status" class="form-select" style="max-width:160px;">
+                            <option value="">All Status</option>
+                            <option value="paid" {{ ($status ?? '') === 'paid' ? 'selected' : '' }}>Paid</option>
+                            <option value="pending" {{ ($status ?? '') === 'pending' ? 'selected' : '' }}>Pending</option>
+                            <option value="failed" {{ ($status ?? '') === 'failed' ? 'selected' : '' }}>Failed</option>
+                            <option value="refunded" {{ ($status ?? '') === 'refunded' ? 'selected' : '' }}>Refunded</option>
+                        </select>
+                        <button type="submit" class="btn btn-outline-secondary btn-sm">Filter</button>
                     </form>
+                    <a href="{{ route('admin.orders.export-excel') }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="ri-download-line me-1"></i>Export
+                    </a>
                 </div>
 
                 <div class="table-responsive">
-                    <table class="table all-package theme-table table-product align-middle text-start">
+                    <table class="table table-modern align-middle">
                         <thead>
                             <tr>
-                                <th>S.No.</th>
+                                <th>Transaction ID</th>
                                 <th>Order ID</th>
-                                <th>Vendor</th>
                                 <th>Customer</th>
+                                <th>Vendor</th>
                                 <th>Amount</th>
-                                <th>Payment Method</th>
-                                <th>Payment Status</th>
-                                <th>Transaction Date</th>
+                                <th>Method</th>
+                                <th>Date</th>
+                                <th>Status</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             @forelse($orders as $order)
+                                @php
+                                    $payBadge = match (strtolower((string) $order->payment_status)) {
+                                        'paid' => 'badge-soft-success',
+                                        'failed', 'refunded' => 'badge-soft-danger',
+                                        default => 'badge-soft-warning',
+                                    };
+                                @endphp
                                 <tr>
-                                    <td>{{ $loop->iteration }}</td>
-                                    <td>#{{ $order->order_number }}</td>
-                                    <td>{{ optional($order->vendor)->business_name ?? optional($order->vendor)->owner_name ?? 'N/A' }}</td>
+                                    <td>TXN-{{ str_pad((string) $order->order_id, 3, '0', STR_PAD_LEFT) }}</td>
+                                    <td>{{ $order->order_number }}</td>
                                     <td>{{ optional(optional($order->customer)->user)->name ?? 'N/A' }}</td>
-                                    <td>₹{{ number_format((float)$order->total_amount, 2) }}</td>
-                                    <td>{{ ucfirst($order->payment_method) }}</td>
-                                    <td>{{ ucfirst($order->payment_status) }}</td>
-                                    <td>{{ optional($order->created_at)->format('d M Y') }}</td>
+                                    <td class="text-warning fw-medium">{{ optional($order->vendor)->business_name ?? 'N/A' }}</td>
+                                    <td>₹{{ number_format((float) $order->total_amount, 0) }}</td>
+                                    <td>{{ strtoupper($order->payment_method ?? '—') }}</td>
+                                    <td>{{ optional($order->created_at)->format('d-m-Y') }}</td>
+                                    <td><span class="badge {{ $payBadge }}">{{ ucfirst($order->payment_status ?? 'pending') }}</span></td>
+                                    <td>
+                                        <a href="{{ route('admin.order-details', $order->order_id) }}" class="btn btn-sm btn-outline-secondary" title="View"><i class="ri-eye-line"></i></a>
+                                    </td>
                                 </tr>
                             @empty
-                                <tr><td colspan="8" class="text-center text-muted py-4">No records found.</td></tr>
+                                <tr><td colspan="9" class="text-center py-4 text-muted">No payment records found.</td></tr>
                             @endforelse
                         </tbody>
                     </table>
@@ -108,46 +80,3 @@
     </div>
 </div>
 @endsection
-
-@section('scripts')
-<style>
-.product-metric { border-radius: 12px; color: #fff; }
-.product-metric .card-body { padding: 16px 18px; }
-.product-metric small { text-transform: uppercase; letter-spacing: .05em; opacity: .9; }
-.product-metric h3 { margin: 8px 0 0; font-weight: 700; }
-.product-metric-primary { background: linear-gradient(135deg, #0f4c75, #3282b8); }
-.product-metric-success { background: linear-gradient(135deg, #198754, #146c43); }
-.product-metric-warning { background: linear-gradient(135deg, #fd7e14, #d0620a); }
-.product-metric-danger { background: linear-gradient(135deg, #dc3545, #a71d2a); }
-.product-search-form-wide {
-    display: grid;
-    grid-template-columns: minmax(280px, 1.8fr) minmax(220px, 1fr) auto auto;
-    gap: 12px;
-    align-items: center;
-}
-.product-search-field {
-    position: relative;
-}
-.product-search-field .form-control {
-    padding-left: 40px;
-    min-height: 42px;
-}
-.product-search-icon {
-    position: absolute;
-    left: 14px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: #7c8798;
-    font-size: 18px;
-}
-.product-filter-field .form-select {
-    min-height: 42px;
-}
-@media (max-width: 991px) {
-    .product-search-form-wide {
-        grid-template-columns: 1fr;
-    }
-}
-</style>
-@endsection
-

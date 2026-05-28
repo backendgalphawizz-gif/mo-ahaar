@@ -1,411 +1,226 @@
 ﻿@extends('layouts.app')
 
 @section('content')
-    <div class="page-wrapper compact-wrapper" id="pageWrapper">
-        <div class="page-body-wrapper">
-            <div class="page-body">
-                <div class="container-fluid">
-                    <div class="row">
-                        <div class="col-sm-12">
-                            <div class="card card-table">
-                                <div class="card-body">
-                                    <div
-                                        class="title-header option-title d-flex align-items-center justify-content-between">
-                                        <div>
-                                            <h5 class="mb-0">{{ $title ?? 'Order List' }}</h5>
+@include('admin.partials.dashboard-ui')
+<div class="page-body">
+    <div class="container-fluid">
+        <div class="d-flex flex-wrap align-items-center gap-3 mb-4">
+            <h5 class="mb-0">Order Management</h5>
+        </div>
 
-                                        </div>
-                                        {{-- Export dropdown --}}
-                                        <div class="dropdown">
-                                            <button class="btn btn-outline-secondary dropdown-toggle" type="button"
-                                                data-bs-toggle="dropdown" aria-expanded="false" style="height: 38px;">
-                                                <i class="ri-download-line"></i> Export
-                                            </button>
-                                            <ul class="dropdown-menu dropdown-menu-end">
-                                                <li>
-                                                    <a class="dropdown-item "
-                                                        href="{{ route('admin.orders.export-excel', array_filter(['search' => request('search'), 'from_date' => request('from_date'), 'to_date' => request('to_date'), 'scope' => request('scope')])) }}">
-                                                        <i class="ri-file-excel-line me-1 text-success"></i> Export
-                                                        Excel
-                                                    </a>
-                                                </li>
-                                                <li>
-                                                    <a class="dropdown-item"
-                                                        href="{{ route('admin.orders.export-pdf', array_filter(['search' => request('search'), 'from_date' => request('from_date'), 'to_date' => request('to_date'), 'scope' => request('scope')])) }}">
-                                                        <i class="ri-file-pdf-line me-1 text-danger"></i> Export PDF
-                                                    </a>
-                                                </li>
-                                            </ul>
-                                        </div>
+        @if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
+        @if(session('error'))<div class="alert alert-danger">{{ session('error') }}</div>@endif
 
-                                    </div>
-                                    <div class="d-flex align-items-center justify-content-between flex-wrap mb-3 gap-2 ">
-                                        {{-- <form method="GET" action="{{ route('admin.orders') }}"
-                                            class="d-flex align-items-center" style="gap: 8px;">
-                                            <input type="text" name="search" class="form-control form-control-sm"
-                                                placeholder="Search orders..." value="{{ request('search') }}"
-                                                style="width: 180px;">
-                                            <button type="submit" class="btn btn-sm btn-outline-primary">Search</button>
-                                        </form> --}}
-                                        <form method="GET" action="{{ route('admin.orders') }}"
-                                            class="d-flex align-items-center justify-content-between flex-wrap"
-                                            style="gap: 8px;">
-                                            <input type="text" name="search" class="form-control form-control-sm"
-                                                placeholder="Search orders..." value="{{ request('search') }}"
-                                                style="width: 180px; height: 38px;">
+        @php
+            $kpis = [
+                'new' => ['label' => 'New', 'icon' => 'ri-inbox-line', 'class' => 'kpi-new'],
+                'accepted' => ['label' => 'Accepted', 'icon' => 'ri-checkbox-circle-line', 'class' => 'kpi-accepted'],
+                'rejected' => ['label' => 'Rejected', 'icon' => 'ri-close-circle-line', 'class' => 'kpi-rejected'],
+                'picked_up' => ['label' => 'Picked Up', 'icon' => 'ri-user-received-line', 'class' => 'kpi-picked'],
+                'out_for_delivery' => ['label' => 'Out For Delivery', 'icon' => 'ri-truck-line', 'class' => 'kpi-delivery'],
+                'delivered' => ['label' => 'Delivered', 'icon' => 'ri-checkbox-multiple-line', 'class' => 'kpi-delivered'],
+                'cancelled' => ['label' => 'Cancelled', 'icon' => 'ri-forbid-line', 'class' => 'kpi-cancelled'],
+            ];
+            $activeFilter = request('status_filter');
+        @endphp
 
-                                            <button type="submit" class="btn btn-outline-primary"
-                                                style="height: 38px;">Search</button>
-                                            <a href="{{ route('admin.orders') }}" class="btn btn-outline-secondary"
-                                                style="height: 38px;">All
-                                                Orders</a>
-                                        </form>
+        <div class="row g-3 mb-4">
+            @foreach($kpis as $key => $kpi)
+                <div class="col-xxl col-lg-3 col-md-4 col-6">
+                    <a href="{{ route('admin.orders', array_filter(['status_filter' => $key, 'search' => $search ?? null])) }}"
+                       class="order-kpi-card {{ $activeFilter === $key ? 'active' : '' }} {{ $kpi['class'] }}">
+                        <span class="kpi-icon"><i class="{{ $kpi['icon'] }}"></i></span>
+                        <p class="kpi-count mb-0">{{ number_format($statusCounts[$key] ?? 0) }}</p>
+                        <p class="kpi-label">{{ $kpi['label'] }}</p>
+                    </a>
+                </div>
+            @endforeach
+        </div>
 
-                                        <form method="GET" action="{{ route('admin.orders') }}"
-                                            class="d-flex align-items-center flex-wrap customFlexDiv" style="gap: 8px;">
-
-
-
-                                            <div class="d-flex flex-column flex-md-row gap-2 customFlexDiv"><input
-                                                    type="date" name="from_date"
-                                                    class="form-control form-control-sm customSelect"
-                                                    value="{{ request('from_date') }}">
-
-                                                <input type="date" name="to_date"
-                                                    class="form-control form-control-sm customSelect"
-                                                    value="{{ request('to_date') }}">
-
-                                                <button type="submit" class="btn btn-outline-primary" style="height: 38px;">
-                                                    Filter
-                                                </button>
-                                            </div>
-
-                                            <a href="{{ route('admin.add-order') }}" class="btn btn-solid"
-                                                style="height: 38px;">Create Order</a>
-                                    </div>
-
-                                    </form>
-
-
-
-
-
-
-
-                                    @if(session('success'))
-                                        <div class="alert alert-success alert-dismissible fade show" role="alert">
-                                            {{ session('success') }}
-                                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                                        </div>
-                                    @endif
-
-                                    @if(session('error'))
-                                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                                            {{ session('error') }}
-                                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                                        </div>
-                                    @endif
-
-                                    <style>
-                                        .form-select {
-                                            width: fit-content;
-                                        }
-
-                                        .customSelect {
-                                            style="width: 150px; height: 38px;"
-                                        }
-
-                                        .order-status-cell {
-                                            min-width: 190px;
-                                        }
-
-                                        .status-pill-select {
-                                            min-width: 200px !important;
-                                            border-radius: 4px;
-                                            font-weight: 600;
-                                            font-size: 12px;
-                                            border-width: 1px;
-                                            transition: all 0.2s ease;
-                                            padding: 8px 16px;
-                                            padding-right: 34px;
-                                        }
-
-                                        .status-pill-select.status-pending,
-                                        .status-pill-select.status-processing,
-                                        .status-pill-select.status-out_for_delivery {
-                                            background-color: #fff1c1c7;
-                                            border-color: #f0626524;
-                                            color: #e3951d;
-                                        }
-
-                                        .status-pill-select.status-accepted,
-                                        .status-pill-select.status-delivered {
-                                            background-color: #eaf8ef;
-                                            border-color: #18a95724;
-                                            color: #3fb96b;
-                                        }
-
-                                        .status-pill-select.status-shipped {
-                                            background-color: #eff6ff;
-                                            border-color: #93c5fd;
-                                            color: #1e40af;
-                                        }
-
-                                        .status-pill-select.status-rejected,
-                                        .status-pill-select.status-cancelled {
-                                            background-color: #fdecec;
-                                            border-color: #dc354524;
-                                            color: #dc3545;
-                                        }
-
-                                        .status-pill-select:focus {
-                                            box-shadow: 0 0 0 0.2rem rgba(13, 148, 136, 0.15);
-                                        }
-
-
-                                        @media (max-width: 992px) {
-
-                                            .customFlexDiv,
-                                            .customFlexDiv .btn.btn-outline-primary {
-                                                width: 100%;
-                                            }
-
-                                        }
-                                    </style>
-
-                                    <div class="table-responsive">
-                                        <table class="table all-package order-table theme-table text-start" id="table_id">
-                                            <thead>
-                                                <tr>
-                                                    <th>S.No.</th>
-                                                    <th>Order ID</th>
-                                                    <th>Order Date</th>
-                                                    <th>Payment Method</th>
-                                                    <th>Order Status</th>
-                                                    <th>Amount</th>
-                                                    <th>Actions</th>
-                                                </tr>
-                                            </thead>
-
-                                            <tbody>
-                                                @forelse($allOrders as $order)
-                                                    <tr>
-                                                        <td>{{ ($allOrders->firstItem() ?? 0) + $loop->index }}</td>
-                                                        <td>
-                                                            {{ $order->order_number }}
-                                                            <br>
-                                                            <small class="text-muted">
-                                                                {{ optional(optional($order->customer)->user)->name ?? 'Customer N/A' }}
-                                                            </small>
-                                                            <!-- Vendor info removed -->
-                                                        </td>
-
-                                                        <td>{{ \Carbon\Carbon::parse($order->created_at)->format('M d, Y') }}
-                                                        </td>
-
-                                                        <td>{{ ucfirst($order->payment_method) }}</td>
-
-                                                        <td class="order-status-cell">
-                                                            <form method="POST"
-                                                                action="{{ route('admin.update-order-status', $order->order_id) }}"
-                                                                class="order-status-form">
-                                                                @csrf
-                                                                @include('admin.orders.partials.order-status-quick-select', ['order' => $order])
-                                                            </form>
-                                                        </td>
-
-                                                        <td>₹{{ number_format((float) $order->total_amount, 2) }}</td>
-
-                                                        <td>
-                                                            <ul>
-                                                                <li>
-                                                                    <a href="{{ route('admin.order-details', $order->order_id) }}"
-                                                                        title="View order details">
-                                                                        <i class="ri-eye-line"></i>
-                                                                    </a>
-                                                                </li>
-
-                                                                <li>
-                                                                    <a href="{{ route('admin.edit-order', $order->order_id) }}">
-                                                                        <i class="ri-pencil-line"></i>
-                                                                    </a>
-                                                                </li>
-
-                                                                <li>
-                                                                    <a href="javascript:void(0)" class="delete-order"
-                                                                        data-order-id="{{ $order->order_id }}">
-                                                                        <i class="ri-delete-bin-line"></i>
-                                                                    </a>
-                                                                </li>
-
-                                                                <li>
-                                                                    <a class="btn btn-sm btn-solid text-white"
-                                                                        href="{{ route('admin.order-tracking', $order->order_id) }}">Tracking</a>
-                                                                </li>
-                                                            </ul>
-
-                                                            <!-- <div class="d-flex flex-wrap gap-1 mt-2">
-                                                                                                                                                                                                    @if($order->order_status === 'pending')
-                                                                                                                                                                                                        <form method="POST" action="{{ route('admin.update-order-status', $order->order_id) }}" class="d-inline">
-                                                                                                                                                                                                            @csrf
-                                                                                                                                                                                                            <input type="hidden" name="order_status" value="accepted">
-                                                                                                                                                                                                            <button type="submit" class="btn btn-sm btn-success">Accept</button>
-                                                                                                                                                                                                        </form>
-                                                                                                                                                                                                        <form method="POST" action="{{ route('admin.update-order-status', $order->order_id) }}" class="d-inline">
-                                                                                                                                                                                                            @csrf
-                                                                                                                                                                                                            <input type="hidden" name="order_status" value="rejected">
-                                                                                                                                                                                                            <button type="submit" class="btn btn-sm btn-danger">Reject</button>
-                                                                                                                                                                                                        </form>
-                                                                                                                                                                                                    @endif
-
-                                                                                                                                                                                                    @if(in_array($order->order_status, ['accepted', 'processing']))
-                                                                                                                                                                                                        <form method="POST" action="{{ route('admin.update-order-status', $order->order_id) }}" class="d-inline">
-                                                                                                                                                                                                            @csrf
-                                                                                                                                                                                                            <input type="hidden" name="order_status" value="out_for_delivery">
-                                                                                                                                                                                                            <button type="submit" class="btn btn-sm btn-primary">Out for Delivery</button>
-                                                                                                                                                                                                        </form>
-                                                                                                                                                                                                    @endif
-
-                                                                                                                                                                                                    @if($order->order_status === 'out_for_delivery')
-                                                                                                                                                                                                        <form method="POST" action="{{ route('admin.update-order-status', $order->order_id) }}" class="d-inline">
-                                                                                                                                                                                                            @csrf
-                                                                                                                                                                                                            <input type="hidden" name="order_status" value="delivered">
-                                                                                                                                                                                                            <button type="submit" class="btn btn-sm btn-dark">Delivered</button>
-                                                                                                                                                                                                        </form>
-                                                                                                                                                                                                    @endif
-                                                                                                                                                                                                </div> -->
-                                                        </td>
-                                                    </tr>
-                                                @empty
-                                                    <tr>
-                                                        <td colspan="7" class="text-center py-4">No orders found.</td>
-                                                    </tr>
-                                                @endforelse
-                                            </tbody>
-                                        </table>
-                                    </div>
-
-                                    @if($allOrders->hasPages())
-                                        <div
-                                            class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-2 mt-3 admin-pagination-wrap">
-                                            <div class="text-muted small">
-                                                Showing {{ $allOrders->firstItem() }} to {{ $allOrders->lastItem() }} of
-                                                {{ $allOrders->total() }} entries
-                                            </div>
-                                            <div>
-                                                {{ $allOrders->onEachSide(1)->links('pagination::bootstrap-5') }}
-                                            </div>
-                                        </div>
-                                    @endif
-                                </div>
-                            </div>
+        <div class="card dashboard-card">
+            <div class="card-body">
+                <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+                    <form method="GET" action="{{ route('admin.orders') }}" class="d-flex flex-wrap gap-2 flex-grow-1">
+                        @if($activeFilter)<input type="hidden" name="status_filter" value="{{ $activeFilter }}">@endif
+                        <div class="input-group" style="max-width:280px;">
+                            <span class="input-group-text"><i class="ri-search-line"></i></span>
+                            <input type="text" name="search" class="form-control" placeholder="Search orders..." value="{{ $search ?? request('search') }}">
                         </div>
+                        <button type="submit" class="btn btn-outline-secondary btn-sm">Search</button>
+                        @if(request()->hasAny(['search', 'status_filter']))
+                            <a href="{{ route('admin.orders') }}" class="btn btn-outline-secondary btn-sm">Clear</a>
+                        @endif
+                    </form>
+                    <div class="dropdown">
+                        <button class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown">Filter</button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="{{ route('admin.orders') }}">All Orders</a></li>
+                            @foreach($kpis as $key => $kpi)
+                                <li><a class="dropdown-item" href="{{ route('admin.orders', ['status_filter' => $key]) }}">{{ $kpi['label'] }}</a></li>
+                            @endforeach
+                        </ul>
                     </div>
                 </div>
+
+                <div class="table-responsive">
+                    <table class="table table-modern align-middle">
+                        <thead>
+                            <tr>
+                                <th>Order ID</th>
+                                <th>Product Info</th>
+                                <th>Customer Info</th>
+                                <th>Vendor Info</th>
+                                <th>Amount & Comm.</th>
+                                <th>Payment</th>
+                                <th>Delivery Boy</th>
+                                <th>Status</th>
+                                <th>Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($allOrders as $order)
+                                @php
+                                    $customer = $order->customer?->user;
+                                    $driver = $order->deliveryAssignment?->driver;
+                                    $commission = $order->adminCommissionAmount();
+                                @endphp
+                                <tr>
+                                    <td><a href="{{ route('admin.order-details', $order->order_id) }}" class="fw-semibold text-primary">{{ $order->order_number }}</a></td>
+                                    <td><small>{{ $order->productSummary() }}</small></td>
+                                    <td>
+                                        <div>{{ $customer->name ?? '—' }}</div>
+                                        @if(!empty($customer?->mobile))<small class="text-muted">(+91 {{ $customer->mobile }})</small>@endif
+                                    </td>
+                                    <td>
+                                        <div>{{ $order->vendor?->business_name ?? '—' }}</div>
+                                        @if($order->vendor_id)<small class="text-muted">(V-{{ $order->vendor_id }})</small>@endif
+                                    </td>
+                                    <td>
+                                        <div>Total: ₹{{ number_format((float) $order->total_amount, 0) }}</div>
+                                        <small class="text-success">Comm: ₹{{ number_format($commission, 1) }}</small>
+                                    </td>
+                                    <td>{{ strtoupper($order->payment_method ?? '—') }}</td>
+                                    <td>
+                                        @if($driver)
+                                            <span class="fw-medium">{{ $driver->name }}</span>
+                                        @else
+                                            <button type="button" class="btn btn-sm btn-outline-warning assign-driver-btn"
+                                                data-bs-toggle="modal" data-bs-target="#assignDriverModal"
+                                                data-order-id="{{ $order->order_id }}"
+                                                data-order-number="{{ $order->order_number }}">Assign Driver</button>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        @php
+                                            $statusBadge = match (strtolower((string) $order->order_status)) {
+                                                'delivered', 'completed', 'success' => 'badge-soft-success',
+                                                'cancelled', 'rejected' => 'badge-soft-danger',
+                                                'out_for_delivery', 'shipped' => 'badge-soft-info',
+                                                default => 'badge-soft-warning',
+                                            };
+                                        @endphp
+                                        <span class="badge {{ $statusBadge }}">{{ \App\Models\Orders::statusLabel($order->order_status) }}</span>
+                                    </td>
+                                    <td>{{ optional($order->created_at)->format('d-m-Y') }}</td>
+                                    <td>
+                                        <div class="d-flex gap-1">
+                                            <a href="{{ route('admin.order-details', $order->order_id) }}" class="btn btn-sm btn-outline-primary" title="View"><i class="ri-eye-line"></i></a>
+                                            <a href="{{ route('admin.order-invoice-pdf', $order->order_id) }}" class="btn btn-sm btn-outline-secondary" title="Invoice"><i class="ri-download-line"></i></a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr><td colspan="10" class="text-center py-4 text-muted">No orders found.</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+
+                @if($allOrders->hasPages())
+                    <div class="mt-3">{{ $allOrders->withQueryString()->links('pagination::bootstrap-5') }}</div>
+                @endif
             </div>
         </div>
     </div>
+</div>
+
+<div class="modal fade" id="assignDriverModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="POST" id="assignDriverForm" action="">
+                @csrf
+                <div class="modal-header">
+                    <h5 class="modal-title">Assign Delivery Boy</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small mb-3">Order: <strong id="assignOrderLabel">—</strong></p>
+                    <label class="form-label">Assignment Mode</label>
+                    <div class="d-flex flex-column gap-2 mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input assignment-mode-input" type="radio" name="assignment_mode" id="assignment_mode_manual" value="manual" checked>
+                            <label class="form-check-label" for="assignment_mode_manual">Manual (admin selects driver)</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input assignment-mode-input" type="radio" name="assignment_mode" id="assignment_mode_broadcast" value="broadcast">
+                            <label class="form-check-label" for="assignment_mode_broadcast">Automatic (notify nearby drivers, first acceptance wins)</label>
+                        </div>
+                    </div>
+
+                    <div id="manualDriverSelectWrap">
+                        <label class="form-label">Select Driver</label>
+                        <select name="driver_id" id="manual_driver_id" class="form-select">
+                            <option value="">Choose driver...</option>
+                            @foreach($availableDrivers ?? [] as $d)
+                                <option value="{{ $d->user_id }}">{{ $d->name }} (+91 {{ $d->mobile }})</option>
+                            @endforeach
+                        </select>
+                        @if(empty($availableDrivers) || $availableDrivers->isEmpty())
+                            <small class="text-danger d-block mt-2">No approved drivers available. Add drivers from Delivery Management.</small>
+                        @endif
+                    </div>
+                    <small class="text-muted d-none" id="broadcastInfoText">All nearby online drivers will be notified. Once one driver accepts, others cannot accept.</small>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">Assign</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 @endsection
 
 @section('scripts')
-    <style>
-        .admin-pagination-wrap .pagination {
-            margin-bottom: 0;
-        }
-    </style>
-    <script>
-        function confirmDelete(id) {
-            var siteUrl = "{{ url('/') }}";
-            Swal.fire({
-                title: 'Are you sure?',
-                text: 'This will delete the order.',
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#d33',
-                cancelButtonColor: '#3085d6',
-                confirmButtonText: 'Yes, delete it!'
-            }).then((result) => {
-                if (result.value) {
-                    window.location.href = siteUrl + '/admin/delete-order/' + id;
-                }
-            });
-        }
-
-        document.addEventListener('DOMContentLoaded', function () {
-            document.querySelectorAll('.delete-order').forEach(function (element) {
-                element.addEventListener('click', function () {
-                    confirmDelete(this.dataset.orderId);
-                });
-            });
-
-            document.querySelectorAll('.order-status-select').forEach(function (selectElement) {
-                selectElement.dataset.lastValue = selectElement.value;
-
-                var applySelectStatusClass = function (element, status) {
-                    element.classList.remove(
-                        'status-pending',
-                        'status-accepted',
-                        'status-processing',
-                        'status-shipped',
-                        'status-out_for_delivery',
-                        'status-delivered',
-                        'status-rejected',
-                        'status-cancelled'
-                    );
-                    element.classList.add('status-' + status);
-                };
-
-                applySelectStatusClass(selectElement, selectElement.value);
-
-                selectElement.addEventListener('change', function () {
-                    var newStatus = this.value;
-                    var oldStatus = this.dataset.lastValue || this.dataset.currentStatus || '';
-                    var form = this.closest('form');
-                    var orderNumber = this.dataset.orderNumber || '';
-
-                    if (!form || newStatus === oldStatus) {
-                        return;
-                    }
-
-                    var humanize = function (status) {
-                        if (!status) return '';
-                        var labels = {
-                            processing: 'Processing',
-                            shipped: 'Shipped',
-                            delivered: 'Delivered',
-                            cancelled: 'Cancelled',
-                            pending: 'Pending',
-                            payment_pending: 'Payment pending',
-                            confirmed: 'Confirmed',
-                            accepted: 'Accepted',
-                            rejected: 'Rejected',
-                            out_for_delivery: 'Out for delivery'
-                        };
-                        if (labels[status]) return labels[status];
-                        return status.replace(/_/g, ' ').replace(/\b\w/g, function (char) { return char.toUpperCase(); });
-                    };
-
-                    applySelectStatusClass(this, newStatus);
-
-                    Swal.fire({
-                        title: 'Change Order Status?',
-                        html: 'Order <strong>' + orderNumber + '</strong><br>from <strong>' + humanize(oldStatus) + '</strong> to <strong>' + humanize(newStatus) + '</strong>.',
-                        icon: 'question',
-                        showCancelButton: true,
-                        confirmButtonColor: '#0d9488',
-                        cancelButtonColor: '#6b7280',
-                        confirmButtonText: 'Yes, Change Status',
-                        cancelButtonText: 'No, Keep Current'
-                    }).then((result) => {
-                        if (result.isConfirmed) {
-                            form.submit();
-                        } else {
-                            this.value = oldStatus;
-                            applySelectStatusClass(this, oldStatus);
-                        }
-                    });
-                });
-            });
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.assign-driver-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var orderId = btn.getAttribute('data-order-id');
+            var orderNumber = btn.getAttribute('data-order-number');
+            document.getElementById('assignDriverForm').action = '{{ url('admin/orders') }}/' + orderId + '/assign-driver';
+            document.getElementById('assignOrderLabel').textContent = orderNumber;
         });
-    </script>
+    });
+
+    var manualRadio = document.getElementById('assignment_mode_manual');
+    var broadcastRadio = document.getElementById('assignment_mode_broadcast');
+    var manualWrap = document.getElementById('manualDriverSelectWrap');
+    var manualSelect = document.getElementById('manual_driver_id');
+    var broadcastInfo = document.getElementById('broadcastInfoText');
+
+    function syncAssignmentModeUi() {
+        var isManual = manualRadio && manualRadio.checked;
+        if (manualWrap) manualWrap.classList.toggle('d-none', !isManual);
+        if (broadcastInfo) broadcastInfo.classList.toggle('d-none', isManual);
+        if (manualSelect) manualSelect.required = isManual;
+    }
+
+    [manualRadio, broadcastRadio].forEach(function (el) {
+        if (el) el.addEventListener('change', syncAssignmentModeUi);
+    });
+    syncAssignmentModeUi();
+});
+</script>
 @endsection

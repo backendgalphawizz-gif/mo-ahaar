@@ -4,11 +4,14 @@ namespace App\Http\Controllers\API\CustomerApp;
 
 use App\Http\Controllers\Controller;
 use App\Models\Banner;
+use App\Models\Customers;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\StoreSetting;
 use App\Models\Users;
+use App\Models\Vendor;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 class HomeController extends Controller
@@ -87,6 +90,9 @@ class HomeController extends Controller
             ])
             ->values();
 
+        $popularPicks = $featuredProducts;
+        $nearbyRestaurants = $this->nearbyRestaurantsForUser($user, $request);
+
         return response()->json([
             'status' => true,
             'message' => 'Customer home screen retrieved successfully',
@@ -96,8 +102,69 @@ class HomeController extends Controller
                 ],
                 'categories' => $categories,
                 'featured_products' => $featuredProducts,
+                'popular_picks' => $popularPicks,
+                'nearby_restaurants' => $nearbyRestaurants,
             ],
         ], 200);
+    }
+
+    private function nearbyRestaurantsForUser(Users $user, Request $request): array
+    {
+        if (!Schema::hasTable('vendors')) {
+            return [];
+        }
+
+        $customer = Customers::where('user_id', $user->user_id)->first();
+        $latitude = $request->filled('latitude') ? (float) $request->input('latitude') : $customer?->latitude;
+        $longitude = $request->filled('longitude') ? (float) $request->input('longitude') : $customer?->longitude;
+
+        if ($latitude === null || $longitude === null) {
+            return Vendor::query()
+                ->when(Schema::hasColumn('vendors', 'status'), fn ($q) => $q->where('status', '1'))
+                ->orderByDesc('vendor_id')
+                ->limit(10)
+                ->get()
+                ->map(fn ($vendor) => $this->mapNearbyRestaurant($vendor, null))
+                ->values()
+                ->all();
+        }
+
+        $radiusKm = (float) $request->input('radius_km', config('customer-app.nearby_radius_km', 15));
+        $distanceExpression = '(6371 * acos(cos(radians(?)) * cos(radians(v.latitude)) * cos(radians(v.longitude) - radians(?)) + sin(radians(?)) * sin(radians(v.latitude))))';
+
+        return DB::table('vendors as v')
+            ->select('v.*')
+            ->selectRaw($distanceExpression . ' as distance_km', [$latitude, $longitude, $latitude])
+            ->whereNotNull('v.latitude')
+            ->whereNotNull('v.longitude')
+            ->when(Schema::hasColumn('vendors', 'status'), fn ($q) => $q->where('v.status', '1'))
+            ->havingRaw('distance_km <= ?', [$radiusKm > 0 ? $radiusKm : 15])
+            ->orderBy('distance_km')
+            ->limit(10)
+            ->get()
+            ->map(fn ($row) => $this->mapNearbyRestaurant($row, (float) $row->distance_km))
+            ->values()
+            ->all();
+    }
+
+    private function mapNearbyRestaurant($vendor, ?float $distanceKm): array
+    {
+        $image = is_object($vendor)
+            ? ($vendor->business_banner ?? $vendor->shop_image ?? $vendor->business_logo)
+            : null;
+
+        return [
+            'vendor_id' => $vendor->vendor_id,
+            'restaurant_id' => $vendor->vendor_id,
+            'restaurant_name' => $vendor->business_name,
+            'name' => $vendor->business_name,
+            'location' => $vendor->address,
+            'distance_km' => $distanceKm !== null ? round($distanceKm, 1) : null,
+            'distance' => $distanceKm !== null ? round($distanceKm, 1) . ' km' : null,
+            'rating' => null,
+            'offer_badge' => !empty($vendor->discount) ? ((string) $vendor->discount . '% OFF') : null,
+            'image_url' => $image ? url('public/uploads/vendors/' . $image) : null,
+        ];
     }
 
     /**

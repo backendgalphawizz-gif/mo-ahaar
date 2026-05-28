@@ -1,184 +1,210 @@
 ﻿@extends('layouts.app')
 
 @section('content')
-<div class="page-wrapper compact-wrapper" id="pageWrapper">
-    <div class="page-body-wrapper">
-        <div class="page-body">
-            <div class="container-fluid">
-                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-                    <h5 class="mb-0">{{ $title ?? 'Order Details' }}</h5>
-                    <div class="d-flex flex-wrap gap-2">
-                        <a href="{{ route('admin.order-tracking', $order->order_id) }}" class="btn btn-outline-primary btn-sm">Tracking</a>
-                        <a href="{{ route('admin.order-invoice-pdf', $order->order_id) }}" class="btn btn-outline-secondary btn-sm">Invoice PDF</a>
-                        <a href="{{ route('admin.orders') }}" class="btn btn-outline-secondary btn-sm">Back to orders</a>
+@include('admin.partials.dashboard-ui')
+@php
+    $customer = $order->customer?->user;
+    $driver = $order->deliveryAssignment?->driver;
+    $shipAddr = is_string($order->shipping_address) ? json_decode($order->shipping_address, true) : $order->shipping_address;
+    $commission = $order->adminCommissionAmount();
+    $statusBadge = match (strtolower((string) $order->order_status)) {
+        'delivered', 'completed', 'success' => 'badge-soft-success',
+        'cancelled', 'rejected' => 'badge-soft-danger',
+        default => 'badge-soft-info',
+    };
+@endphp
+<div class="page-body">
+    <div class="container-fluid">
+        <div class="d-flex flex-wrap align-items-center gap-3 mb-4">
+            <a href="{{ route('admin.orders') }}" class="btn btn-outline-secondary btn-sm"><i class="ri-arrow-left-line"></i></a>
+            <div class="flex-grow-1">
+                <h5 class="mb-0">Order Details: {{ $order->order_number }}</h5>
+            </div>
+            <a href="{{ route('admin.order-invoice-pdf', $order->order_id) }}" class="btn btn-outline-secondary btn-sm">
+                <i class="ri-file-download-line me-1"></i>Download Invoice
+            </a>
+        </div>
+
+        @if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
+        @if(session('error'))<div class="alert alert-danger">{{ session('error') }}</div>@endif
+
+        <div class="row g-4 mb-4">
+            <div class="col-lg-6">
+                <div class="card dashboard-card h-100">
+                    <div class="card-body">
+                        <h6 class="mb-3">Food Information</h6>
+                        <p><strong>Foods:</strong> {{ $order->productSummary() }}</p>
+                        <p><strong>Order Date:</strong> {{ optional($order->created_at)->format('d-m-Y') }}</p>
+                        <p><strong>Order Status:</strong> <span class="badge {{ $statusBadge }}">{{ \App\Models\Orders::statusLabel($order->order_status) }}</span></p>
+                        <p class="mb-0"><strong>Active Status:</strong>
+                            <span class="badge {{ in_array($order->order_status, ['cancelled','rejected'], true) ? 'badge-soft-danger' : 'badge-soft-success' }}">
+                                {{ in_array($order->order_status, ['cancelled','rejected'], true) ? 'Inactive' : 'Active' }}
+                            </span>
+                        </p>
                     </div>
                 </div>
-
-                @if(session('success'))
-                    <div class="alert alert-success alert-dismissible fade show" role="alert">
-                        {{ session('success') }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            <div class="col-lg-6">
+                <div class="card dashboard-card h-100">
+                    <div class="card-body">
+                        <h6 class="mb-3">Payment Details</h6>
+                        <p><strong>Total Amount:</strong> ₹{{ number_format((float) $order->total_amount, 2) }}</p>
+                        <p><strong>Admin Commission:</strong> <span class="text-success fw-semibold">₹{{ number_format($commission, 2) }}</span></p>
+                        <p><strong>Payment Method:</strong> {{ strtoupper($order->payment_method ?? '—') }}</p>
+                        <p class="mb-0"><strong>Payment Status:</strong>
+                            <span class="badge {{ strtolower((string) $order->payment_status) === 'paid' ? 'badge-soft-success' : 'badge-soft-warning' }}">
+                                {{ ucfirst($order->payment_status ?? 'pending') }}
+                            </span>
+                        </p>
                     </div>
-                @endif
-
-                @if(session('error'))
-                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                        {{ session('error') }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card dashboard-card h-100">
+                    <div class="card-body">
+                        <h6 class="mb-3">Customer Information</h6>
+                        <p><strong>Name:</strong> {{ $customer->name ?? '—' }}</p>
+                        <p><strong>Phone:</strong> {{ !empty($customer?->mobile) ? '+91 ' . $customer->mobile : '—' }}</p>
+                        <p><strong>Email:</strong> {{ $customer->email ?? '—' }}</p>
+                        <p class="mb-0"><strong>Address:</strong>
+                            @if(is_array($shipAddr))
+                                {{ collect([$shipAddr['address_line'] ?? null, $shipAddr['city'] ?? null, $shipAddr['state'] ?? null, $shipAddr['pincode'] ?? null])->filter()->implode(', ') ?: '—' }}
+                            @else
+                                {{ $order->shipping_address ?: '—' }}
+                            @endif
+                        </p>
                     </div>
-                @endif
-
-                <div class="row g-3">
-                    <div class="col-lg-8">
-                        <div class="card mb-3">
-                            <div class="card-body">
-                                <h6 class="mb-3">Order #{{ $order->order_number }}</h6>
-                                <div class="table-responsive">
-                                    <table class="table table-bordered mb-0">
-                                        <tbody>
-                                            <tr>
-                                                <th style="width: 220px;">Order number</th>
-                                                <td>{{ $order->order_number }}</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Order status</th>
-                                                <td>{{ \App\Models\Orders::statusLabel($order->order_status) }}</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Payment method</th>
-                                                <td>{{ ucfirst($order->payment_method) }}</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Payment status</th>
-                                                <td>{{ ucfirst($order->payment_status) }}</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Shipping address</th>
-                                                <td>
-                                                    @php
-                                                $rawShippingAddress = $order->shipping_address ?? null;
-                                                $shipAddr = is_string($rawShippingAddress) ? json_decode($rawShippingAddress, true) : $rawShippingAddress;
-                                                $fallbackShippingAddress = is_string($rawShippingAddress) && trim($rawShippingAddress) !== ''
-                                                    ? $rawShippingAddress
-                                                    : 'N/A';
-                                            @endphp
-                                            @if(is_array($shipAddr))
-                                                @if(!empty($shipAddr['contact_name'])){{ $shipAddr['contact_name'] }}<br>@endif
-                                                @if(!empty($shipAddr['mobile'])){{ $shipAddr['mobile'] }}<br>@endif
-                                                @if(!empty($shipAddr['address_line'])){{ $shipAddr['address_line'] }}@endif
-                                                @if(!empty($shipAddr['landmark'])), {{ $shipAddr['landmark'] }}@endif
-                                                @if(!empty($shipAddr['city'])), {{ $shipAddr['city'] }}@endif
-                                                @if(!empty($shipAddr['state'])), {{ $shipAddr['state'] }}@endif
-                                                @if(!empty($shipAddr['pincode'])) - {{ $shipAddr['pincode'] }}@endif
-                                                @if(!empty($shipAddr['country']))<br>{{ $shipAddr['country'] }}@endif
-                                                @if(!empty($shipAddr['address_type']))<br><span class="text-muted" style="font-size:12px;">{{ ucfirst($shipAddr['address_type']) }}</span>@endif
-                                            @else
-                                                {{ $fallbackShippingAddress }}
-                                            @endif
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <th>Notes</th>
-                                                <td>{{ $order->notes ?: 'N/A' }}</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Created at</th>
-                                                <td>{{ optional($order->created_at)->format('d M Y, h:i A') }}</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="card">
-                            <div class="card-header d-flex justify-content-between align-items-center">
-                                <h6 class="mb-0">Line items</h6>
-                            </div>
-                            <div class="card-body p-0">
-                                <div class="table-responsive">
-                                    <table class="table table-striped table-modern mb-0">
-                                        <thead>
-                                            <tr>
-                                                <th>Product</th>
-                                                <th>SKU</th>
-                                                <th class="text-end">Price</th>
-                                                <th class="text-end">Qty</th>
-                                                <th class="text-end">Line total</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            @forelse($order->orderItems as $item)
-                                                <tr>
-                                                    <td>{{ $item->product_name ?? ('Item #' . $item->item_id) }}</td>
-                                                    <td>{{ $item->sku ?: '—' }}</td>
-                                                    <td class="text-end">₹{{ number_format((float) $item->unit_price, 2) }}</td>
-                                                    <td class="text-end">{{ (int) $item->quantity }}</td>
-                                                    <td class="text-end">₹{{ number_format((float) $item->line_total, 2) }}</td>
-                                                </tr>
-                                            @empty
-                                                <tr>
-                                                    <td colspan="5" class="text-center text-muted py-4">No line items for this order.</td>
-                                                </tr>
-                                            @endforelse
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card dashboard-card h-100">
+                    <div class="card-body">
+                        <h6 class="mb-3">Vendor Information</h6>
+                        <p><strong>Vendor Name:</strong> {{ $order->vendor?->business_name ?? '—' }}</p>
+                        <p><strong>Vendor ID:</strong> {{ $order->vendor_id ? 'V-' . $order->vendor_id : '—' }}</p>
+                        <p class="mb-0"><strong>Contact:</strong> {{ $order->vendor?->mobile ?? $order->vendor?->email ?? '—' }}</p>
                     </div>
-
-                    <div class="col-lg-4">
-                        <div class="card mb-3 border">
-                            <div class="card-body">
-                                <h6 class="mb-3">Update order status</h6>
-                                {{-- <p class="small text-muted mb-2">Set fulfillment to Processing, Shipped, Delivered, or Cancelled. Legacy statuses stay until you pick a new value.</p> --}}
-                                <p class="small text-muted mb-2">Set fulfillment to Ready to Dispatch, Out for Delivery, Delivered, or Cancelled. Legacy statuses stay until you pick a new value.</p>
-                                <form method="POST" action="{{ route('admin.update-order-status', $order->order_id) }}" class="d-flex flex-column gap-2">
-                                    @csrf
-                                    @include('admin.orders.partials.order-status-quick-select', [
-                                        'order' => $order,
-                                        'selectClass' => 'form-select',
-                                    ])
-                                    <button type="submit" class="btn btn-theme btn-sm">Save status</button>
-                                </form>
-                            </div>
+                </div>
+            </div>
+            <div class="col-12">
+                <div class="card dashboard-card">
+                    <div class="card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
+                        <div>
+                            <h6 class="mb-2">Delivery Information</h6>
+                            <p class="mb-0"><strong>Delivery Boy:</strong>
+                                @if($driver)
+                                    {{ $driver->name }} (+91 {{ $driver->mobile }})
+                                @else
+                                    <span class="text-muted">Not Assigned</span>
+                                @endif
+                            </p>
                         </div>
-
-                        <div class="card mb-3">
-                            <div class="card-body">
-                                <h6 class="mb-3">Customer</h6>
-                                <p class="mb-1"><strong>Name:</strong> {{ optional(optional($order->customer)->user)->name ?? 'N/A' }}</p>
-                                <p class="mb-1"><strong>Email:</strong> {{ optional(optional($order->customer)->user)->email ?? 'N/A' }}</p>
-                                <p class="mb-0"><strong>Customer ID:</strong> {{ $order->customer_id ?? 'N/A' }}</p>
-                            </div>
-                        </div>
-
-                        @if(!empty($order->vendor_id))
-                            <div class="card mb-3">
-                                <div class="card-body">
-                                    <h6 class="mb-3">Vendor</h6>
-                                    <p class="mb-1"><strong>Business:</strong> {{ optional($order->vendor)->business_name ?? 'N/A' }}</p>
-                                    <p class="mb-1"><strong>Owner:</strong> {{ optional($order->vendor)->owner_name ?? 'N/A' }}</p>
-                                    <p class="mb-1"><strong>Email:</strong> {{ optional($order->vendor)->email ?? 'N/A' }}</p>
-                                    <p class="mb-0"><strong>Vendor ID:</strong> {{ $order->vendor_id }}</p>
-                                </div>
-                            </div>
-                        @endif
-
-                        <div class="card">
-                            <div class="card-body">
-                                <h6 class="mb-3">Amount summary</h6>
-                                <p class="mb-1"><strong>Subtotal:</strong> ₹{{ number_format((float) $order->subtotal, 2) }}</p>
-                                <p class="mb-1"><strong>Tax:</strong> ₹{{ number_format((float) $order->tax_amount, 2) }}</p>
-                                <p class="mb-1"><strong>Shipping:</strong> ₹{{ number_format((float) $order->shipping_amount, 2) }}</p>
-                                <p class="mb-0"><strong>Total:</strong> ₹{{ number_format((float) $order->total_amount, 2) }}</p>
-                            </div>
-                        </div>
+                        @unless($driver)
+                            <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#assignDriverModalDetail">
+                                Assign Delivery Boy
+                            </button>
+                        @endunless
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card dashboard-card">
+            <div class="card-header bg-transparent"><h6 class="mb-0">Line Items</h6></div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-modern mb-0">
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th>SKU</th>
+                                <th class="text-end">Price</th>
+                                <th class="text-end">Qty</th>
+                                <th class="text-end">Line Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($order->orderItems as $item)
+                                <tr>
+                                    <td>{{ $item->product_name ?? ('Item #' . $item->item_id) }}</td>
+                                    <td>{{ $item->sku ?: '—' }}</td>
+                                    <td class="text-end">₹{{ number_format((float) $item->unit_price, 2) }}</td>
+                                    <td class="text-end">{{ (int) $item->quantity }}</td>
+                                    <td class="text-end">₹{{ number_format((float) $item->line_total, 2) }}</td>
+                                </tr>
+                            @empty
+                                <tr><td colspan="5" class="text-center py-3 text-muted">No items.</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="assignDriverModalDetail" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="POST" action="{{ route('admin.orders.assign-driver', $order->order_id) }}">
+                @csrf
+                <div class="modal-header">
+                    <h5 class="modal-title">Assign Delivery Boy</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <label class="form-label">Assignment Mode</label>
+                    <div class="d-flex flex-column gap-2 mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input detail-assignment-mode" type="radio" name="assignment_mode" id="detail_assignment_mode_manual" value="manual" checked>
+                            <label class="form-check-label" for="detail_assignment_mode_manual">Manual (admin selects driver)</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input detail-assignment-mode" type="radio" name="assignment_mode" id="detail_assignment_mode_broadcast" value="broadcast">
+                            <label class="form-check-label" for="detail_assignment_mode_broadcast">Automatic (notify nearby drivers, first acceptance wins)</label>
+                        </div>
+                    </div>
+                    <div id="detailManualDriverWrap">
+                        <label class="form-label">Select Driver</label>
+                        <select name="driver_id" id="detail_driver_id" class="form-select">
+                            <option value="">Choose driver...</option>
+                            @foreach($availableDrivers ?? [] as $d)
+                                <option value="{{ $d->user_id }}">{{ $d->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <small class="text-muted d-none" id="detailBroadcastInfo">All nearby online drivers will be notified. Once one accepts, others cannot accept.</small>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">Assign</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+@endsection
+
+@section('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var manualRadio = document.getElementById('detail_assignment_mode_manual');
+    var broadcastRadio = document.getElementById('detail_assignment_mode_broadcast');
+    var manualWrap = document.getElementById('detailManualDriverWrap');
+    var manualSelect = document.getElementById('detail_driver_id');
+    var info = document.getElementById('detailBroadcastInfo');
+
+    function syncMode() {
+        var isManual = manualRadio && manualRadio.checked;
+        if (manualWrap) manualWrap.classList.toggle('d-none', !isManual);
+        if (info) info.classList.toggle('d-none', isManual);
+        if (manualSelect) manualSelect.required = isManual;
+    }
+
+    [manualRadio, broadcastRadio].forEach(function (el) {
+        if (el) el.addEventListener('change', syncMode);
+    });
+    syncMode();
+});
+</script>
 @endsection

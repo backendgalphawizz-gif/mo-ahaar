@@ -14,6 +14,7 @@ use App\Models\Users;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class OrdersController extends Controller
 {
@@ -53,8 +54,12 @@ class OrdersController extends Controller
             $perPage = 15;
         }
 
-        $query = Orders::with('orderItems.product')
-            ->where('customer_id', $customer->customer_id);
+        $with = ['orderItems.product'];
+        if (Schema::hasTable('vendors')) {
+            $with[] = 'vendor';
+        }
+
+        $query = Orders::with($with)->where('customer_id', $customer->customer_id);
 
         if ($request->filled('status')) {
             $statusFilter = $this->normalizeStatus((string) $request->input('status'));
@@ -308,12 +313,24 @@ class OrdersController extends Controller
             return response()->json(['status' => false, 'message' => 'Order not found'], 404);
         }
 
-        $cancellableStatuses = ['pending', 'payment_pending'];
-        if (!in_array($order->order_status, $cancellableStatuses, true)) {
+        if (!$this->canCancelOrder($order)) {
             return response()->json([
                 'status'  => false,
-                'message' => 'This order cannot be cancelled. Only pending orders can be cancelled.',
+                'message' => 'This order cannot be cancelled at its current status.',
             ], 422);
+        }
+
+        $validated = $request->validate([
+            'reason' => ['nullable', 'string', 'max:1000'],
+            'cancellation_reason' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $cancelReason = trim((string) ($validated['reason'] ?? $validated['cancellation_reason'] ?? ''));
+        if ($cancelReason !== '') {
+            $existingNotes = trim((string) ($order->notes ?? ''));
+            $order->notes = $existingNotes !== ''
+                ? $existingNotes . "\nCancellation reason: " . $cancelReason
+                : 'Cancellation reason: ' . $cancelReason;
         }
 
         $refundAmount = 0.0;
@@ -382,28 +399,78 @@ class OrdersController extends Controller
             ];
         })->values();
 
+        $previewItems = $order->orderItems->take(2)->map(function (OrderItem $item) {
+            return [
+                'product_name' => $item->product_name,
+                'quantity' => $item->quantity,
+                'line_total' => number_format((float) $item->line_total, 2, '.', ''),
+                'is_vegetarian' => true,
+            ];
+        })->values();
+
+        $moreCount = max(0, $itemCount - $previewItems->count());
+
         return [
             'order_id'              => $order->order_id,
             'order_number'          => $order->order_number,
-            // 'order_status'          => $normalizedStatus,
-            // 'order_status_label'    => $this->humanizeStatus($normalizedStatus),
             'order_status'       => $statusLabel,
             'order_status_label' => $statusLabel,
+            'raw_order_status' => $normalizedStatus,
             'payment_method'        => $order->payment_method,
             'payment_status'        => $order->payment_status,
             'can_cancel'            => $this->canCancelOrder($order),
             'total_amount'          => number_format((float) $order->total_amount, 2, '.', ''),
+            'bill_total'            => number_format((float) $order->total_amount, 2, '.', ''),
             'items_count'           => $itemCount,
+            'items_preview'         => $previewItems,
+            'more_items_count'      => $moreCount,
+            'more_items_label'      => $moreCount > 0 ? '& ' . $moreCount . ' more' : null,
             'first_item_name'       => $firstItem?->product_name,
             'first_item_image_url'  => $firstItemImageUrl,
             'products'              => $productImages,
+            'vendor' => ($order->relationLoaded('vendor') && $order->vendor) ? [
+                'vendor_id' => $order->vendor->vendor_id,
+                'restaurant_name' => $order->vendor->business_name,
+                'location' => $order->vendor->address,
+            ] : null,
             'placed_at'             => $order->created_at ? $order->created_at->toDateTimeString() : null,
         ];
     }
 
+    public function invoice(Request $request, int $orderId)
+    {
+        /** @var Users $user */
+        $user = $request->user();
+        if (!$user || (int) $user->role_type !== self::CUSTOMER_ROLE_TYPE) {
+            return response()->json(['status' => false, 'message' => 'Unauthorized customer access'], 403);
+        }
+
+        $customer = Customers::where('user_id', $user->user_id)->first();
+        if (!$customer) {
+            return response()->json(['status' => false, 'message' => 'Customer profile not found'], 404);
+        }
+
+        $order = Orders::where('order_id', $orderId)
+            ->where('customer_id', $customer->customer_id)
+            ->first();
+
+        if (!$order) {
+            return response()->json(['status' => false, 'message' => 'Order not found'], 404);
+        }
+
+        return $this->downloadOrderInvoicePdf($orderId);
+    }
+
     private function canCancelOrder(Orders $order): bool
     {
-        return in_array((string) $order->order_status, ['pending', 'payment_pending'], true);
+        return in_array((string) $order->order_status, [
+            'pending',
+            'payment_pending',
+            'confirmed',
+            'order_placed',
+            'preparing',
+            'out_for_delivery',
+        ], true);
     }
 
     private function buildStatusFlow(Orders $order): array

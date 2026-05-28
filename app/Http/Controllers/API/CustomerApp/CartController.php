@@ -4,11 +4,13 @@ namespace App\Http\Controllers\API\CustomerApp;
 
 use App\Http\Controllers\Controller;
 use App\Models\CartItem;
+use App\Models\CustomerAddress;
 use App\Models\Customers;
 use App\Models\DiscountOffer;
 use App\Models\Product;
 use App\Models\Users;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 class CartController extends Controller
 {
@@ -270,6 +272,136 @@ class CartController extends Controller
         ]);
     }
 
+    public function updateCookingInstructions(Request $request)
+    {
+        $user = $request->user();
+        if (!$this->isAuthorizedCustomer($user)) {
+            return response()->json(['status' => false, 'message' => 'Unauthorized customer access'], 403);
+        }
+
+        $validated = $request->validate([
+            'cooking_instructions' => ['nullable', 'string', 'max:1000'],
+            'instructions' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $customer = $this->resolveCustomer($user);
+        if (!$customer) {
+            return response()->json(['status' => false, 'message' => 'Customer profile not found'], 404);
+        }
+
+        $instructions = $validated['cooking_instructions'] ?? $validated['instructions'] ?? null;
+        $customer->cart_cooking_instructions = $instructions;
+        $customer->save();
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Cooking instructions updated',
+            'data' => ['cart' => $this->buildCartPayloadForCustomer((int) $customer->customer_id)],
+        ]);
+    }
+
+    public function applyPromo(Request $request)
+    {
+        $user = $request->user();
+        if (!$this->isAuthorizedCustomer($user)) {
+            return response()->json(['status' => false, 'message' => 'Unauthorized customer access'], 403);
+        }
+
+        $validated = $request->validate([
+            'promo_code' => ['required', 'string', 'max:80'],
+        ]);
+
+        $customer = $this->resolveCustomer($user);
+        if (!$customer) {
+            return response()->json(['status' => false, 'message' => 'Customer profile not found'], 404);
+        }
+
+        $code = strtoupper(trim($validated['promo_code']));
+        $offer = DiscountOffer::active()
+            ->currentlyValid()
+            ->whereRaw('UPPER(title) = ?', [$code])
+            ->first();
+
+        if (!$offer) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Invalid or expired promo code',
+            ], 422);
+        }
+
+        $customer->cart_promo_code = $code;
+        $customer->cart_discount_offer_id = $offer->id;
+        $customer->save();
+
+        $cart = $this->buildCartPayloadForCustomer((int) $customer->customer_id);
+
+        return response()->json([
+            'status' => true,
+            'message' => "Code '{$code}' applied! You saved ₹" . ($cart['promo_discount'] ?? '0.00'),
+            'data' => ['cart' => $cart],
+        ]);
+    }
+
+    public function removePromo(Request $request)
+    {
+        $user = $request->user();
+        if (!$this->isAuthorizedCustomer($user)) {
+            return response()->json(['status' => false, 'message' => 'Unauthorized customer access'], 403);
+        }
+
+        $customer = $this->resolveCustomer($user);
+        if (!$customer) {
+            return response()->json(['status' => false, 'message' => 'Customer profile not found'], 404);
+        }
+
+        $customer->cart_promo_code = null;
+        $customer->cart_discount_offer_id = null;
+        $customer->save();
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Promo code removed',
+            'data' => ['cart' => $this->buildCartPayloadForCustomer((int) $customer->customer_id)],
+        ]);
+    }
+
+    public function selectAddress(Request $request)
+    {
+        $user = $request->user();
+        if (!$this->isAuthorizedCustomer($user)) {
+            return response()->json(['status' => false, 'message' => 'Unauthorized customer access'], 403);
+        }
+
+        $validated = $request->validate([
+            'customer_address_id' => ['required', 'integer'],
+            'address_id' => ['nullable', 'integer'],
+        ]);
+
+        $addressId = (int) ($validated['customer_address_id'] ?? $validated['address_id']);
+
+        $customer = Customers::with('addresses')->where('user_id', $user->user_id)->first();
+        if (!$customer) {
+            return response()->json(['status' => false, 'message' => 'Customer profile not found'], 404);
+        }
+
+        $address = $customer->addresses->firstWhere('customer_address_id', $addressId);
+        if (!$address) {
+            return response()->json(['status' => false, 'message' => 'Address not found'], 404);
+        }
+
+        $customer->cart_selected_address_id = $addressId;
+        $customer->save();
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Delivery address selected',
+            'data' => [
+                'delivery_address' => $this->transformAddress($address),
+                'cart' => $this->buildCartPayloadForCustomer((int) $customer->customer_id),
+            ],
+        ]);
+    }
+
     // -----------------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------------
@@ -306,34 +438,43 @@ class CartController extends Controller
 
     private function buildCartPayloadForCustomer(int $customerId): array
     {
+        $customerQuery = Customers::query()->where('customer_id', $customerId);
+        if (Schema::hasTable('customer_addresses')) {
+            $customerQuery->with([
+                'addresses' => fn ($q) => $q->orderByDesc('is_default')->orderByDesc('updated_at'),
+                'defaultAddress',
+            ]);
+        }
+        $customer = $customerQuery->first();
+
         $items = CartItem::with('product')
             ->where('customer_id', $customerId)
             ->get();
 
-        return $this->buildCartResponse($items);
+        return $this->buildCartResponse($items, $customer);
     }
 
-    private function buildCartResponse($items): array
+    private function buildCartResponse($items, ?Customers $customer = null): array
     {
-        // Load all currently valid & active offers once
-        $offers = DiscountOffer::active()->currentlyValid()->get();
+        $offers = Schema::hasTable('discount_offers')
+            ? DiscountOffer::active()->currentlyValid()->get()
+            : collect();
 
         $cartItems = $items->map(fn (CartItem $item) => $this->formatCartItem($item))->values();
 
         $subtotal = $cartItems->sum(fn ($i) => (float) $i['line_total']);
 
-        // --- Apply per-line discounts (quantity-based, product/category scoped) ---
         $totalOfferDiscount = 0.0;
-        $appliedOffers      = [];
+        $appliedOffers = [];
 
         foreach ($items as $item) {
-            $product  = $item->product;
+            $product = $item->product;
             if (!$product) {
                 continue;
             }
 
-            $unitPrice  = (float) ($item->sale_price ?: $item->unit_price);
-            $qty        = (int) $item->quantity;
+            $unitPrice = (float) ($item->sale_price ?: $item->unit_price);
+            $qty = (int) $item->quantity;
             $categoryId = $product->category_id ? (int) $product->category_id : null;
 
             foreach ($offers as $offer) {
@@ -348,33 +489,28 @@ class CartController extends Controller
 
                 $totalOfferDiscount += $lineDiscount;
                 $appliedOffers[$offer->id] = [
-                    'offer_id'   => $offer->id,
-                    'title'      => $offer->title,
-                    'type'       => $offer->discount_type,
-                    'value'      => number_format((float) $offer->discount_value, 2, '.', ''),
+                    'offer_id' => $offer->id,
+                    'title' => $offer->title,
+                    'type' => $offer->discount_type,
+                    'value' => number_format((float) $offer->discount_value, 2, '.', ''),
                 ];
             }
         }
 
-        // --- Apply cart-amount conditions (after per-line discounts were summed) ---
-        // Any offer that passes cart-amount gate but didn't already produce per-line
-        // discount (e.g. "all products" offers) are also evaluated here.
         foreach ($offers as $offer) {
             if (!$offer->cartAmountConditionMet($subtotal)) {
-                // Remove from applied if already counted
                 unset($appliedOffers[$offer->id]);
             }
         }
 
-        // Recalculate after filtering out cart-amount-failed offers
         $totalOfferDiscount = 0.0;
         foreach ($items as $item) {
             $product = $item->product;
             if (!$product) {
                 continue;
             }
-            $unitPrice  = (float) ($item->sale_price ?: $item->unit_price);
-            $qty        = (int) $item->quantity;
+            $unitPrice = (float) ($item->sale_price ?: $item->unit_price);
+            $qty = (int) $item->quantity;
             $categoryId = $product->category_id ? (int) $product->category_id : null;
 
             foreach ($offers as $offer) {
@@ -384,20 +520,116 @@ class CartController extends Controller
                 if (!$offer->appliesToProduct((int) $product->product_id, $categoryId)) {
                     continue;
                 }
-                $lineDiscount = $offer->calculateLineDiscount($qty, $unitPrice);
-                $totalOfferDiscount += $lineDiscount;
+                $totalOfferDiscount += $offer->calculateLineDiscount($qty, $unitPrice);
             }
         }
 
-        $grandTotal = max(0, $subtotal - $totalOfferDiscount);
+        $promoDiscount = 0.0;
+        $promoCode = null;
+        if ($customer && $customer->cart_discount_offer_id && Schema::hasTable('discount_offers')) {
+            $promoOffer = DiscountOffer::active()->currentlyValid()->find($customer->cart_discount_offer_id);
+            if ($promoOffer && $promoOffer->cartAmountConditionMet($subtotal)) {
+                $promoCode = $customer->cart_promo_code;
+                $base = max(0, $subtotal - $totalOfferDiscount);
+                if ($promoOffer->discount_type === DiscountOffer::TYPE_PERCENTAGE) {
+                    $promoDiscount = round($base * ((float) $promoOffer->discount_value / 100), 2);
+                } else {
+                    $promoDiscount = round(min((float) $promoOffer->discount_value, $base), 2);
+                }
+            }
+        }
+
+        $deliveryFee = $items->isEmpty() ? 0.0 : (float) config('customer-app.delivery_fee', 40);
+        $taxAmount = $this->estimateCartTaxAmount($items);
+        $totalAmount = max(0, $subtotal - $totalOfferDiscount - $promoDiscount + $deliveryFee + $taxAmount);
+
+        $selectedAddress = null;
+        if ($customer && Schema::hasTable('customer_addresses')) {
+            if ($customer->cart_selected_address_id) {
+                $selectedAddress = $customer->addresses
+                    ?->firstWhere('customer_address_id', (int) $customer->cart_selected_address_id);
+            }
+            $selectedAddress = $selectedAddress ?: $customer->defaultAddress ?: $customer->addresses?->first();
+        }
 
         return [
-            'items'               => $cartItems,
-            'items_count'         => $cartItems->count(),
-            'subtotal'            => number_format($subtotal, 2, '.', ''),
-            'offer_discount'      => number_format($totalOfferDiscount, 2, '.', ''),
-            'grand_total'         => number_format($grandTotal, 2, '.', ''),
-            'applied_offers'      => array_values($appliedOffers),
+            'items' => $cartItems,
+            'items_count' => $cartItems->count(),
+            'cooking_instructions' => $customer?->cart_cooking_instructions,
+            'promo_code' => $promoCode,
+            'promo_message' => $promoCode
+                ? "Code '{$promoCode}' applied! You saved ₹" . number_format($promoDiscount, 2, '.', '')
+                : null,
+            'delivery_address' => $selectedAddress ? $this->transformAddress($selectedAddress) : null,
+            'order_info' => [
+                'subtotal' => number_format($subtotal, 2, '.', ''),
+                'delivery_fee' => number_format($deliveryFee, 2, '.', ''),
+                'gst_and_other_charges' => number_format($taxAmount, 2, '.', ''),
+                'tax_amount' => number_format($taxAmount, 2, '.', ''),
+                'offer_discount' => number_format($totalOfferDiscount, 2, '.', ''),
+                'promo_discount' => number_format($promoDiscount, 2, '.', ''),
+                'total_amount' => number_format($totalAmount, 2, '.', ''),
+            ],
+            'subtotal' => number_format($subtotal, 2, '.', ''),
+            'delivery_fee' => number_format($deliveryFee, 2, '.', ''),
+            'tax_amount' => number_format($taxAmount, 2, '.', ''),
+            'offer_discount' => number_format($totalOfferDiscount, 2, '.', ''),
+            'promo_discount' => number_format($promoDiscount, 2, '.', ''),
+            'grand_total' => number_format($totalAmount, 2, '.', ''),
+            'total_amount' => number_format($totalAmount, 2, '.', ''),
+            'applied_offers' => array_values($appliedOffers),
+        ];
+    }
+
+    private function estimateCartTaxAmount($items): float
+    {
+        $totalTax = 0.0;
+
+        foreach ($items as $item) {
+            $product = $item->product;
+            if (!$product) {
+                continue;
+            }
+
+            $effectivePrice = (float) ($item->sale_price ?: $item->unit_price);
+            $gstPercentage = (float) ($product->gst_percentage ?? 0);
+            $gstType = $product->gst_calculation_type ?? Product::GST_EXCLUDED;
+
+            if ($gstType === Product::GST_INCLUDED) {
+                $baseUnitPrice = $gstPercentage > 0
+                    ? round($effectivePrice / (1 + $gstPercentage / 100), 2)
+                    : $effectivePrice;
+                $gstPerUnit = round($effectivePrice - $baseUnitPrice, 2);
+            } else {
+                $gstPerUnit = $gstPercentage > 0
+                    ? round($effectivePrice * $gstPercentage / 100, 2)
+                    : 0.0;
+            }
+
+            $totalTax += round($gstPerUnit * (int) $item->quantity, 2);
+        }
+
+        return round($totalTax, 2);
+    }
+
+    private function transformAddress(CustomerAddress $address): array
+    {
+        return [
+            'customer_address_id' => $address->customer_address_id,
+            'contact_name' => $address->contact_name,
+            'full_name' => $address->contact_name,
+            'mobile' => $address->mobile,
+            'mobile_number' => $address->mobile,
+            'address_line' => $address->address_line,
+            'landmark' => $address->landmark,
+            'city' => $address->city,
+            'state' => $address->state,
+            'country' => $address->country,
+            'pincode' => $address->pincode,
+            'address_type' => $address->address_type,
+            'delivery_type' => $address->address_type,
+            'is_default' => (bool) $address->is_default,
+            'formatted_address' => $address->formattedAddress(),
         ];
     }
 
