@@ -3,6 +3,8 @@
 @section('content')
 @include('admin.partials.dashboard-ui')
 @php
+    $isVendorPanel = (int) (session('role_type') ?? 0) === 3;
+    $driversList = collect($availableDrivers ?? []);
     $customer = $order->customer?->user;
     $driver = $order->deliveryAssignment?->driver;
     $shipAddr = is_string($order->shipping_address) ? json_decode($order->shipping_address, true) : $order->shipping_address;
@@ -16,13 +18,15 @@
 <div class="page-body">
     <div class="container-fluid">
         <div class="d-flex flex-wrap align-items-center gap-3 mb-4">
-            <a href="{{ route('admin.orders') }}" class="btn btn-outline-secondary btn-sm"><i class="ri-arrow-left-line"></i></a>
+            <a href="{{ route($isVendorPanel ? 'vendor.orders' : 'admin.orders') }}" class="btn btn-outline-secondary btn-sm"><i class="ri-arrow-left-line"></i></a>
             <div class="flex-grow-1">
                 <h5 class="mb-0">Order Details: {{ $order->order_number }}</h5>
             </div>
+            @if(!$isVendorPanel)
             <a href="{{ route('admin.order-invoice-pdf', $order->order_id) }}" class="btn btn-outline-secondary btn-sm">
                 <i class="ri-file-download-line me-1"></i>Download Invoice
             </a>
+            @endif
         </div>
 
         @if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
@@ -99,7 +103,7 @@
                                 @endif
                             </p>
                         </div>
-                        @unless($driver)
+                        @unless($driver || $isVendorPanel)
                             <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#assignDriverModalDetail">
                                 Assign Delivery Boy
                             </button>
@@ -143,6 +147,7 @@
     </div>
 </div>
 
+@if(!$isVendorPanel)
 <div class="modal fade" id="assignDriverModalDetail" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -156,7 +161,7 @@
                     <label class="form-label">Select Driver</label>
                     <select name="driver_id" class="form-select" required>
                         <option value="">Choose driver...</option>
-                        @foreach($availableDrivers ?? [] as $d)
+                        @foreach($driversList as $d)
                             <option value="{{ $d->user_id }}">{{ $d->name }}</option>
                         @endforeach
                     </select>
@@ -169,5 +174,6 @@
         </div>
     </div>
 </div>
+@endif
 @endsection
 

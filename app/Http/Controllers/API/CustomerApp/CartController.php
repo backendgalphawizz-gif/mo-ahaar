@@ -72,6 +72,29 @@ class CartController extends Controller
             return response()->json(['status' => false, 'message' => 'Product not found or unavailable'], 404);
         }
 
+        $existingVendorIds = CartItem::query()
+            ->where('customer_id', $customer->customer_id)
+            ->join('products', 'products.product_id', '=', 'cart_items.product_id')
+            ->whereNotNull('products.vendor_id')
+            ->distinct()
+            ->pluck('products.vendor_id')
+            ->map(fn ($id) => (string) $id)
+            ->values()
+            ->all();
+        $productVendorId = $product->vendor_id !== null ? (string) $product->vendor_id : null;
+
+        if (!empty($existingVendorIds) && $productVendorId !== null && !in_array($productVendorId, $existingVendorIds, true)) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Your cart contains products from another vendor. Please place separate orders for each vendor.',
+                'data' => [
+                    'reason' => 'mixed_vendor_cart',
+                    'existing_vendor_ids' => $existingVendorIds,
+                    'incoming_vendor_id' => $productVendorId,
+                ],
+            ], 422);
+        }
+
         $qty = (int) ($validated['quantity'] ?? 1);
         $minOrder = $this->minimumOrderQuantityForProduct($product);
 
@@ -408,7 +431,7 @@ class CartController extends Controller
     /**
      * Wholesaler products may require a minimum line quantity; others default to 1.
      */
-    private function minimumOrderQuantityForProduct(Product $product): int
+    private function minimumOrderQuantityForProduct($product): int
     {
         if ($product->target_user_type !== Product::TARGET_WHOLESALER) {
             return 1;

@@ -1,16 +1,17 @@
 @php
     $userRole = auth()->user()->role_type ?? null;
+    $isVendorPanel = (int) (session('role_type') ?? 0) === 3;
 @endphp
 
 <div class="sidebar-wrapper">
     <div id="sidebarEffect"></div>
     <div>
         <div class="logo-wrapper logo-wrapper-center">
-            <a href="{{ route('admin.dashboard') }}" data-bs-original-title="" title="">
+            <a href="{{ route($isVendorPanel ? 'vendor.dashboard' : 'admin.dashboard') }}" data-bs-original-title="" title="">
                 @php
                     $logoUrl = !empty($globalStoreSetting) && !empty($globalStoreSetting->logo)
                         ? asset('public/uploads/settings/' . $globalStoreSetting->logo)
-                        : asset('public/assets/images/logo/full-white.png');
+                        : asset('public/uploads/settings/moaahar-logo.png');
                 @endphp
                 <img class="img-fluid for-white" src="{{ $logoUrl }}" alt="logo">
             </a>
@@ -22,7 +23,7 @@
             </div>
         </div>
         <div class="logo-icon-wrapper">
-            <a href="{{ route('admin.dashboard') }}">
+            <a href="{{ route($isVendorPanel ? 'vendor.dashboard' : 'admin.dashboard') }}">
                 <img class="img-fluid main-logo main-white" src="{{ $logoUrl }}" alt="logo">
                 <img class="img-fluid main-logo main-dark" src="{{ $logoUrl }}" alt="logo">
             </a>
@@ -37,12 +38,13 @@
                     <li class="back-btn"></li>
 
                     <li class="sidebar-list">
-                        <a class="sidebar-link sidebar-title link-nav" href="{{ route('admin.dashboard') }}">
+                        <a class="sidebar-link sidebar-title link-nav" href="{{ route($isVendorPanel ? 'vendor.dashboard' : 'admin.dashboard') }}">
                             <i class="ri-dashboard-line"></i>
                             <span>Dashboard</span>
                         </a>
                     </li>
 
+                    @if(!$isVendorPanel)
                     <li class="sidebar-list">
                         <a class="sidebar-link sidebar-title link-nav" href="{{ route('admin.customers') }}">
                             <i class="ri-user-3-line"></i>
@@ -63,28 +65,23 @@
                             <span>Delivery Management</span>
                         </a>
                     </li>
+                    @endif
 
                     <li class="sidebar-list">
-                        <a class="sidebar-link sidebar-title link-nav" href="{{ route('admin.orders') }}">
+                        <a class="sidebar-link sidebar-title link-nav" href="{{ route($isVendorPanel ? 'vendor.orders' : 'admin.orders') }}">
                             <i class="ri-shopping-cart-2-line"></i>
-                            <span>Order Management</span>
+                            <span>{{ $isVendorPanel ? 'Orders' : 'Order Management' }}</span>
                         </a>
                     </li>
 
                     <li class="sidebar-list">
-                        <a class="linear-icon-link sidebar-link sidebar-title" href="javascript:void(0)">
+                        <a class="sidebar-link sidebar-title link-nav" href="{{ route($isVendorPanel ? 'vendor.products' : 'admin.products') }}">
                             <i class="ri-store-3-line"></i>
-                            <span>Product Management</span>
+                            <span>{{ $isVendorPanel ? 'Food Management' : 'Product Management' }}</span>
                         </a>
-                        <ul class="sidebar-submenu">
-                            <li><a href="{{ route('admin.products') }}">Food List</a></li>
-                            <li><a href="{{ route('admin.add-product') }}">Add Food</a></li>
-                            <li><a href="{{ route('admin.categories') }}">Categories</a></li>
-                            <li><a href="{{ route('admin.sub-category') }}">Sub Categories</a></li>
-                            <li><a href="{{ route('admin.product-reviews') }}">Product Reviews</a></li>
-                        </ul>
                     </li>
 
+                    @if(!$isVendorPanel)
                     <li class="sidebar-list">
                         <a class="sidebar-link sidebar-title link-nav" href="{{ route('admin.payments.status') }}">
                             <i class="ri-bank-card-line"></i>
@@ -126,20 +123,16 @@
                             <span>Notifications</span>
                         </a>
                     </li>
+                    @endif
 
                     <li class="sidebar-list">
-                        <a class="sidebar-link sidebar-title link-nav" href="{{ route('admin.static-pages.index') }}">
+                        <a class="sidebar-link sidebar-title link-nav" href="{{ $isVendorPanel ? route('vendor.dashboard') : route('admin.static-pages.index') }}">
                             <i class="ri-file-list-3-line"></i>
-                            <span>Static Pages</span>
+                            <span>{{ $isVendorPanel ? 'Pages' : 'Static Pages' }}</span>
                         </a>
                     </li>
 
-                    <li class="sidebar-list">
-                        <a class="sidebar-link sidebar-title link-nav" href="{{ route('admin.profile.edit') }}">
-                            <i class="ri-user-settings-line"></i>
-                            <span>Admin Profile</span>
-                        </a>
-                    </li>
+                    {{-- Admin Profile hidden as per latest menu design --}}
 
                     <li class="sidebar-list">
                         <a class="sidebar-link sidebar-title link-nav" href="{{ route('logout') }}">
@@ -158,12 +151,35 @@
 </div>
 
 <style>
+    .sidebar-wrapper { background: #ffffff; border-right: 1px solid #eceef2; width: 210px; }
+    .logo-wrapper-center { min-height: 56px; padding: 8px 10px !important; }
+    .logo-wrapper-center .for-white { max-height: 28px; width: auto; }
+    .logo-icon-wrapper { display: none; }
+    #sidebar-menu .sidebar-list { margin: 1px 8px; }
+    #sidebar-menu .sidebar-link.link-nav {
+        border-radius: 6px;
+        padding: 7px 9px !important;
+        color: #212529 !important;
+        font-size: 11px;
+        font-weight: 500;
+        min-height: 30px;
+        display: flex !important;
+        align-items: center;
+    }
+    #sidebar-menu .sidebar-link.link-nav i { color: #111827 !important; font-size: 13px; margin-right: 7px; }
     #sidebar-menu .sidebar-submenu li a.active,
     #sidebar-menu .sidebar-link.sidebar-title.active,
     #sidebar-menu .sidebar-link.link-nav.active {
-        color: #f7bf57 !important;
+        background: #ed1c24 !important;
+        color: #ffffff !important;
         font-weight: 600;
     }
+    #sidebar-menu .sidebar-link.link-nav.active i { color: #ffffff !important; }
+    #sidebar-menu .sidebar-list:hover .sidebar-link.link-nav:not(.active) {
+        background: #f6f7f9;
+        color: #111827 !important;
+    }
+    #sidebar-menu .sidebar-link.link-nav span { line-height: 1.1; }
 </style>
 
 <script>

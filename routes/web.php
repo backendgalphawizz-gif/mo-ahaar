@@ -29,6 +29,10 @@ use App\Http\Controllers\CommonController;
 Route::any('/',       [LoginController::class,'index']);
 Route::post("/checkLogin" ,   [LoginController::class, 'checkLogin'])->name('admin.login.submit');
 Route::any("/logout" ,     [LoginController::class, 'logout'])->name('logout');
+Route::get('/vendor/login', [LoginController::class, 'vendorLoginForm'])->name('vendor.login');
+Route::post('/vendor/login', [LoginController::class, 'vendorLogin'])->name('vendor.login.submit');
+Route::get('/vendor/register', [VendorManagementController::class, 'registerForm'])->name('vendor.register');
+Route::post('/vendor/register', [VendorManagementController::class, 'registerSubmit'])->name('vendor.register.submit');
 
 // Password Reset Routes
 Route::get('/forgot-password', [PasswordResetController::class, 'showForgotPasswordForm'])->name('forgot.password');
@@ -274,6 +278,24 @@ Route::middleware(['AdminAuth'])->prefix('admin')->group(function(){
         // Discount Offer Management
         Route::resource('discount-offers', DiscountOfferController::class)->names('admin.discount-offers');
         Route::post('/discount-offers/{discountOffer}/toggle-status', [DiscountOfferController::class, 'toggleStatus'])->name('admin.discount-offers.toggle-status');
+
+    });
+
+Route::middleware(['VendorAuth'])->prefix('vendor')->name('vendor.')->group(function () {
+        Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+        Route::get('/products',[ProductManagementController::class,'products'])->name('products');
+        Route::get('/add-product',[ProductManagementController::class,'addProduct'])->name('add-product');
+        Route::post('/store-product',[ProductManagementController::class,'storeProduct'])->name('store-product');
+        Route::get('/view-product/{id}',[ProductManagementController::class,'viewProduct'])->name('view-product');
+        Route::get('/edit-product/{id}',[ProductManagementController::class,'editProduct'])->name('edit-product');
+        Route::post('/update-product',[ProductManagementController::class,'updateProduct'])->name('update-product');
+        Route::get('/delete-product/{id}',[ProductManagementController::class,'deleteProduct'])->name('delete-product');
+        Route::post('/toggle-product-status/{id}',[ProductManagementController::class,'toggleStatus'])->name('products.toggle-status');
+
+        Route::get('/orders',[OrderManagementController::class,'orders'])->name('orders');
+        Route::get('/order-details/{id}',[OrderManagementController::class,'orderDetails'])->name('order-details');
+        Route::post('/update-order-status/{id}',[OrderManagementController::class,'updateOrderStatus'])->name('update-order-status');
 
     });
 

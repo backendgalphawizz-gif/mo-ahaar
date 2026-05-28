@@ -15,6 +15,27 @@ use App\Models\Users;
 
 class OrderManagementController extends Controller
 {
+   private function isVendorPanel(): bool
+   {
+      return (int) session('role_type') === 3;
+   }
+
+   private function currentVendorId(): ?int
+   {
+      $vendorId = session('vendor_id');
+      return $vendorId ? (int) $vendorId : null;
+   }
+
+   private function scopedOrdersQuery()
+   {
+      $query = Orders::query();
+      if ($this->isVendorPanel()) {
+         $query->where('vendor_id', $this->currentVendorId());
+      }
+
+      return $query;
+   }
+
    public static function orderStatusGroups(): array
    {
       return [
@@ -31,7 +52,7 @@ class OrderManagementController extends Controller
       public function orders(Request $request)
     {
       $title = 'Order Management';
-          $query = Orders::with([
+          $query = $this->scopedOrdersQuery()->with([
              'customer.user',
              'vendor',
              'orderItems',
@@ -64,7 +85,7 @@ class OrderManagementController extends Controller
 
          $statusCounts = [];
          foreach (self::orderStatusGroups() as $key => $statuses) {
-             $statusCounts[$key] = Orders::whereIn('order_status', $statuses)->count();
+             $statusCounts[$key] = $this->scopedOrdersQuery()->whereIn('order_status', $statuses)->count();
          }
 
          $availableDrivers = Users::where('role_type', Users::DRIVER_APP_ROLE_TYPE)
@@ -80,7 +101,7 @@ class OrderManagementController extends Controller
 
    public function assignDriver(Request $request, $id)
    {
-      $order = Orders::with(['vendor', 'customer.user'])->find($id);
+      $order = $this->scopedOrdersQuery()->with(['vendor', 'customer.user'])->find($id);
       if (!$order) {
          return back()->with('error', 'Order not found.');
       }
@@ -320,7 +341,7 @@ class OrderManagementController extends Controller
     public function orderDetails($id)
     {
       $title = 'Order Details';
-      $order = Orders::with(['customer.user', 'vendor', 'orderItems.product', 'deliveryAssignment.driver'])->find($id);
+      $order = $this->scopedOrdersQuery()->with(['customer.user', 'vendor', 'orderItems.product', 'deliveryAssignment.driver'])->find($id);
 
       if (!$order) {
          return back()->with('error', 'Order not found.');
@@ -338,7 +359,7 @@ class OrderManagementController extends Controller
     public function orderTracking($id)
     {
       $title = 'Order Tracking';
-      $order = Orders::with(['customer.user', 'orderItems', 'trackings'])->find($id);
+      $order = $this->scopedOrdersQuery()->with(['customer.user', 'orderItems', 'trackings'])->find($id);
 
       if (!$order) {
          return back()->with('error', 'Order not found.');
@@ -349,7 +370,7 @@ class OrderManagementController extends Controller
 
    public function updateOrderStatus(Request $request, $id)
    {
-      $order = Orders::find($id);
+      $order = $this->scopedOrdersQuery()->find($id);
 
       if (!$order) {
          return back()->with('error', 'Order not found.');
@@ -387,7 +408,7 @@ class OrderManagementController extends Controller
                'order_id' => $order->order_id,
                'status' => $order->order_status,
                'description' => $actionDescriptions[$order->order_status] ?? ('Order status changed from ' . $prevLabel . ' to ' . $newLabel . '.'),
-               'location' => 'Admin Panel',
+               'location' => $this->isVendorPanel() ? 'Vendor Panel' : 'Admin Panel',
                'tracked_at' => now(),
             ]);
          }
@@ -400,7 +421,7 @@ class OrderManagementController extends Controller
 
     public function addOrderTracking(Request $request, $id)
     {
-      $order = Orders::find($id);
+      $order = $this->scopedOrdersQuery()->find($id);
 
       if (!$order) {
          return back()->with('error', 'Order not found.');
@@ -455,7 +476,7 @@ class OrderManagementController extends Controller
      */
     public function updateDeliveryStatus(Request $request, $id)
     {
-      $order = Orders::find($id);
+      $order = $this->scopedOrdersQuery()->find($id);
 
       if (!$order) {
          return back()->with('error', 'Order not found.');

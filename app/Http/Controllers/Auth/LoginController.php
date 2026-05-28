@@ -24,10 +24,10 @@ class LoginController extends Controller
                 case 1:
                     $redirect = redirect('/admin/dashboard');
                     break;
-                case 2:
+                case 3:
                     $redirect = redirect('/vendor/dashboard');
                     break;
-                case 3:
+                case 2:
                     $redirect = redirect('/user/dashboard');
                     break;
             }

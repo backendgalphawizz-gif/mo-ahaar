@@ -4,8 +4,8 @@
 @include('admin.partials.dashboard-ui')
 <div class="page-body">
     <div class="container-fluid">
-        <h4 class="mb-1">Payment Requests</h4>
-        <p class="text-muted mb-4">Manage withdrawal requests from vendors and delivery personnel.</p>
+        <h4 class="mb-1" style="font-size:30px;font-weight:700;">Payment Requests</h4>
+        <p class="text-muted mb-4 small">Manage withdrawal requests from vendors and delivery personnel.</p>
 
         @if(session('success'))
             <div class="alert alert-success alert-dismissible fade show" role="alert">
@@ -78,7 +78,7 @@
                                     </td>
                                     <td class="small text-muted">{{ $item->admin_note ?: ($item->request_note ?: '-') }}</td>
                                     <td class="text-end">
-                                        <a href="{{ route('admin.payments.settlements.show', $item->settlement_id) }}" class="btn btn-sm btn-outline-primary">
+                                        <a href="{{ route('admin.payments.settlements.show', $item->settlement_id) }}" class="btn btn-sm btn-link text-decoration-none">
                                             <i class="ri-edit-2-line me-1"></i>Edit / View
                                         </a>
                                     </td>

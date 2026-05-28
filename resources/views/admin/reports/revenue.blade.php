@@ -22,7 +22,7 @@
                     <div class="d-flex gap-2">
                         <input type="date" name="start_date" value="{{ $startDate }}" class="form-control form-control-sm">
                         <input type="date" name="end_date" value="{{ $endDate }}" class="form-control form-control-sm">
-                        <button type="submit" class="btn btn-theme btn-sm"><i class="ri-download-2-line me-1"></i>Export Report</button>
+                        <button type="submit" class="btn btn-theme btn-sm px-3"><i class="ri-download-2-line me-1"></i>Export Report</button>
                     </div>
                 </form>
             </div>

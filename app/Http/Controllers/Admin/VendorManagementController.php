@@ -17,6 +17,42 @@ use Illuminate\Validation\Rule;
 
 class VendorManagementController extends Controller
 {
+    public function registerForm()
+    {
+        return view('auth.vendor-register');
+    }
+
+    public function registerSubmit(Request $request)
+    {
+        $validated = $this->validateVendor($request, null, true);
+
+        DB::beginTransaction();
+        try {
+            $user = Users::create([
+                'name' => $validated['owner_name'],
+                'email' => $validated['email'],
+                'mobile' => $validated['mobile'],
+                'password' => Hash::make($validated['password']),
+                'role_type' => 3,
+                'status' => '0',
+            ]);
+
+            $vendorData = $this->mapVendorPayload($request, $validated);
+            $vendorData['user_id'] = $user->user_id;
+            $vendorData['vendor_code'] = Vendor::generateVendorCode();
+            $vendorData['approval_status'] = 'pending';
+            $vendorData['status'] = '0';
+
+            Vendor::create($vendorData);
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return back()->withInput()->with('error', 'Failed to submit registration: ' . $e->getMessage());
+        }
+
+        return redirect()->route('vendor.login')->with('success', 'Registration submitted successfully. Please wait for admin approval.');
+    }
+
     private function uploadFile(Request $request, string $field, string $directory = 'vendors'): ?string
     {
         if (!$request->hasFile($field)) {
@@ -290,7 +326,7 @@ class VendorManagementController extends Controller
         return response()->stream($callback, 200, $headers);
     }
 
-    private function validateVendor(Request $request, ?Vendor $vendor, bool $isCreate): array
+    protected function validateVendor(Request $request, ?Vendor $vendor, bool $isCreate): array
     {
         $rules = [
             'owner_name' => 'required|string|max:100',
@@ -301,13 +337,23 @@ class VendorManagementController extends Controller
                 'max:255',
                 Rule::unique('users', 'email')->ignore($vendor?->user_id, 'user_id'),
             ],
+            'dob' => 'nullable|date',
+            'gender' => 'nullable|in:male,female,others',
             'business_name' => 'required|string|max:150',
+            'business_email' => 'nullable|email|max:255',
             'business_phone' => 'nullable|string|max:20',
+            'business_description' => 'nullable|string|max:2000',
+            'tax_name' => 'nullable|string|max:100',
+            'tax_number' => 'nullable|string|max:50',
+            'pan_number' => 'nullable|string|max:20',
             'gst_number' => 'nullable|string|max:15',
-            'address' => 'nullable|string|max:500',
+            'address' => 'required|string|max:500',
+            'latitude' => 'nullable|numeric',
+            'longitude' => 'nullable|numeric',
             'bank_name' => 'nullable|string|max:150',
             'branch_name' => 'nullable|string|max:150',
             'bank_account' => 'nullable|string|max:30',
+            'account_holder_name' => 'nullable|string|max:150',
             'ifsc_code' => 'nullable|string|max:11',
             'account_type' => 'nullable|string|max:50',
             'commission_percent' => 'nullable|numeric|min:0|max:100',
@@ -318,6 +364,11 @@ class VendorManagementController extends Controller
             'shop_image' => 'nullable|image|max:4096',
             'aadhaar_card' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:4096',
             'pan_card' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:4096',
+            'gst_file' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:4096',
+            'food_license_file' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:4096',
+            'bank_passbook_file' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:4096',
+            'address_proof_file' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:4096',
+            'national_identity_card_file' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:4096',
         ];
 
         if ($isCreate) {
@@ -327,11 +378,13 @@ class VendorManagementController extends Controller
         return $request->validate($rules);
     }
 
-    private function mapVendorPayload(Request $request, array $validated): array
+    protected function mapVendorPayload(Request $request, array $validated): array
     {
         $data = collect($validated)->only([
-            'owner_name', 'mobile', 'email', 'business_name', 'business_phone',
-            'gst_number', 'address', 'bank_name', 'branch_name', 'bank_account',
+            'owner_name', 'mobile', 'email', 'dob', 'gender',
+            'business_name', 'business_email', 'business_phone', 'business_description',
+            'tax_name', 'tax_number', 'pan_number', 'gst_number', 'address', 'latitude', 'longitude',
+            'bank_name', 'branch_name', 'bank_account', 'account_holder_name',
             'ifsc_code', 'account_type', 'commission_percent', 'approval_status',
         ])->toArray();
 
@@ -342,6 +395,11 @@ class VendorManagementController extends Controller
             'shop_image' => 'vendors',
             'aadhaar_card' => 'vendors/documents',
             'pan_card' => 'vendors/documents',
+            'gst_file' => 'vendors/documents',
+            'food_license_file' => 'vendors/documents',
+            'bank_passbook_file' => 'vendors/documents',
+            'address_proof_file' => 'vendors/documents',
+            'national_identity_card_file' => 'vendors/documents',
         ];
 
         foreach ($fileMap as $field => $dir) {

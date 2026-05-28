@@ -2,6 +2,10 @@
 
 @section('content')
 @include('admin.partials.dashboard-ui')
+@php
+    $isVendorPanel = (int) (session('role_type') ?? 0) === 3;
+    $driversList = collect($availableDrivers ?? []);
+@endphp
 <div class="page-body">
     <div class="container-fluid">
         <div class="d-flex flex-wrap align-items-center gap-3 mb-4">
@@ -27,7 +31,7 @@
         <div class="row g-3 mb-4">
             @foreach($kpis as $key => $kpi)
                 <div class="col-xxl col-lg-3 col-md-4 col-6">
-                    <a href="{{ route('admin.orders', array_filter(['status_filter' => $key, 'search' => $search ?? null])) }}"
+                    <a href="{{ route($isVendorPanel ? 'vendor.orders' : 'admin.orders', array_filter(['status_filter' => $key, 'search' => $search ?? null])) }}"
                        class="order-kpi-card {{ $activeFilter === $key ? 'active' : '' }} {{ $kpi['class'] }}">
                         <span class="kpi-icon"><i class="{{ $kpi['icon'] }}"></i></span>
                         <p class="kpi-count mb-0">{{ number_format($statusCounts[$key] ?? 0) }}</p>
@@ -40,7 +44,7 @@
         <div class="card dashboard-card">
             <div class="card-body">
                 <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-                    <form method="GET" action="{{ route('admin.orders') }}" class="d-flex flex-wrap gap-2 flex-grow-1">
+                    <form method="GET" action="{{ route($isVendorPanel ? 'vendor.orders' : 'admin.orders') }}" class="d-flex flex-wrap gap-2 flex-grow-1">
                         @if($activeFilter)<input type="hidden" name="status_filter" value="{{ $activeFilter }}">@endif
                         <div class="input-group" style="max-width:280px;">
                             <span class="input-group-text"><i class="ri-search-line"></i></span>
@@ -48,15 +52,15 @@
                         </div>
                         <button type="submit" class="btn btn-outline-secondary btn-sm">Search</button>
                         @if(request()->hasAny(['search', 'status_filter']))
-                            <a href="{{ route('admin.orders') }}" class="btn btn-outline-secondary btn-sm">Clear</a>
+                            <a href="{{ route($isVendorPanel ? 'vendor.orders' : 'admin.orders') }}" class="btn btn-outline-secondary btn-sm">Clear</a>
                         @endif
                     </form>
                     <div class="dropdown">
                         <button class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown">Filter</button>
                         <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item" href="{{ route('admin.orders') }}">All Orders</a></li>
+                            <li><a class="dropdown-item" href="{{ route($isVendorPanel ? 'vendor.orders' : 'admin.orders') }}">All Orders</a></li>
                             @foreach($kpis as $key => $kpi)
-                                <li><a class="dropdown-item" href="{{ route('admin.orders', ['status_filter' => $key]) }}">{{ $kpi['label'] }}</a></li>
+                                <li><a class="dropdown-item" href="{{ route($isVendorPanel ? 'vendor.orders' : 'admin.orders', ['status_filter' => $key]) }}">{{ $kpi['label'] }}</a></li>
                             @endforeach
                         </ul>
                     </div>
@@ -86,7 +90,7 @@
                                     $commission = $order->adminCommissionAmount();
                                 @endphp
                                 <tr>
-                                    <td><a href="{{ route('admin.order-details', $order->order_id) }}" class="fw-semibold text-primary">{{ $order->order_number }}</a></td>
+                                    <td><a href="{{ route($isVendorPanel ? 'vendor.order-details' : 'admin.order-details', $order->order_id) }}" class="fw-semibold text-primary">{{ $order->order_number }}</a></td>
                                     <td><small>{{ $order->productSummary() }}</small></td>
                                     <td>
                                         <div>{{ $customer->name ?? '—' }}</div>
@@ -104,6 +108,8 @@
                                     <td>
                                         @if($driver)
                                             <span class="fw-medium">{{ $driver->name }}</span>
+                                        @elseif($isVendorPanel)
+                                            <span class="text-muted">Not Assigned</span>
                                         @else
                                             <button type="button" class="btn btn-sm btn-outline-warning assign-driver-btn"
                                                 data-bs-toggle="modal" data-bs-target="#assignDriverModal"
@@ -125,8 +131,10 @@
                                     <td>{{ optional($order->created_at)->format('d-m-Y') }}</td>
                                     <td>
                                         <div class="d-flex gap-1">
-                                            <a href="{{ route('admin.order-details', $order->order_id) }}" class="btn btn-sm btn-outline-primary" title="View"><i class="ri-eye-line"></i></a>
+                                            <a href="{{ route($isVendorPanel ? 'vendor.order-details' : 'admin.order-details', $order->order_id) }}" class="btn btn-sm btn-outline-primary" title="View"><i class="ri-eye-line"></i></a>
+                                            @if(!$isVendorPanel)
                                             <a href="{{ route('admin.order-invoice-pdf', $order->order_id) }}" class="btn btn-sm btn-outline-secondary" title="Invoice"><i class="ri-download-line"></i></a>
+                                            @endif
                                         </div>
                                     </td>
                                 </tr>
@@ -145,6 +153,7 @@
     </div>
 </div>
 
+@if(!$isVendorPanel)
 <div class="modal fade" id="assignDriverModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -159,11 +168,11 @@
                     <label class="form-label">Select Driver</label>
                     <select name="driver_id" class="form-select" required>
                         <option value="">Choose driver...</option>
-                        @foreach($availableDrivers ?? [] as $d)
+                        @foreach($driversList as $d)
                             <option value="{{ $d->user_id }}">{{ $d->name }} (+91 {{ $d->mobile }})</option>
                         @endforeach
                     </select>
-                    @if(empty($availableDrivers) || $availableDrivers->isEmpty())
+                    @if($driversList->isEmpty())
                         <small class="text-danger d-block mt-2">No approved drivers available. Add drivers from Delivery Management.</small>
                     @endif
                 </div>
@@ -175,6 +184,7 @@
         </div>
     </div>
 </div>
+@endif
 @endsection
 
 @section('scripts')

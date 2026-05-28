@@ -5,6 +5,10 @@
  @include('layouts.head') 
 
 <body>
+    @php
+        $isVendorPanel = (int) (session('role_type') ?? 0) === 3;
+        $dashboardRoute = $isVendorPanel ? 'vendor.dashboard' : 'admin.dashboard';
+    @endphp
     <!-- tap on top start -->
     <div class="tap-top">
         <span class="lnr lnr-chevron-up"></span>
@@ -18,11 +22,11 @@
             <div class="header-wrapper m-0">
                 <div class="header-logo-wrapper p-0">
                     <div class="logo-wrapper">
-                        <a href="{{ route('admin.dashboard') }}">
+                        <a href="{{ route($dashboardRoute) }}">
                             @php
                                 $logoUrl = !empty($globalStoreSetting) && !empty($globalStoreSetting->logo)
                                     ? asset('public/uploads/settings/' . $globalStoreSetting->logo)
-                                    : asset('public/assets/images/logo/1.png');
+                                    : asset('public/uploads/settings/moaahar-logo.png');
                             @endphp
                             <img class="img-fluid main-logo" src="{{ $logoUrl }}" alt="logo">
                             <img class="img-fluid white-logo" src="{{ $logoUrl }}" alt="logo">
@@ -30,12 +34,13 @@
                     </div>
                     <div class="toggle-sidebar">
                         <i class="status_toggle middle sidebar-toggle" data-feather="align-center"></i>
-                        <!-- <a href="{{ route('admin.dashboard') }}">
+                        <!-- <a href="{{ route($dashboardRoute) }}">
                             <img src="{{ $logoUrl }}" class="img-fluid" alt="logo">
                         </a> -->
                     </div>
                 </div>
 
+                @if(!$isVendorPanel)
                 <form class="form-inline search-full" action="{{ route('admin.global-search') }}" method="get" data-suggest-url="{{ route('admin.global-search.suggestions') }}">
                     <div class="form-group w-100">
                         <div class="Typeahead Typeahead--twitterUsers">
@@ -52,6 +57,7 @@
                         </div>
                     </div>
                 </form>
+                @endif
                 <div class="nav-right col-6 pull-right right-header p-0">
                     <ul class="nav-menus">
                        
@@ -61,22 +67,25 @@
                                 <img class="user-profile rounded-circle" src="{{ session('profile_image') ? asset('public/uploads/admins/' . session('profile_image')) : asset('public/assets/images/users/4.jpg') }}" alt="{{ session('name', 'Admin') }}">
                                 <div class="user-name-hide media-body">
                                     <span>{{ session('name', 'Admin') }}</span>
-                                    <p class="mb-0 font-roboto">Admin<i class="middle ri-arrow-down-s-line"></i></p>
+                                    <p class="mb-0 font-roboto">{{ $isVendorPanel ? 'Vendor' : 'Admin' }}<i class="middle ri-arrow-down-s-line"></i></p>
                                 </div>
                             </div>
                             <ul class="profile-dropdown onhover-show-div">
+                                @if(!$isVendorPanel)
                                 <li>
                                     <a href="{{ route('admin.customers') }}">
                                         <i data-feather="users"></i>
                                         <span>Customers</span>
                                     </a>
                                 </li>
+                                @endif
                                 <li>
-                                    <a href="{{ route('admin.orders') }}">
+                                    <a href="{{ route($isVendorPanel ? 'vendor.orders' : 'admin.orders') }}">
                                         <i data-feather="archive"></i>
                                         <span>Orders</span>
                                     </a>
                                 </li>
+                                @if(!$isVendorPanel)
                                 <li>
                                     <a href="{{ route('admin.notifications.index') }}">
                                         <i data-feather="bell"></i>
@@ -89,10 +98,11 @@
                                         <span>Support Tickets</span>
                                     </a>
                                 </li>
+                                @endif
                                 <li>
-                                    <a href="{{ route('admin.profile.edit') }}">
+                                    <a href="{{ route($isVendorPanel ? 'vendor.dashboard' : 'admin.profile.edit') }}">
                                         <i data-feather="settings"></i>
-                                        <span>Settings</span>
+                                        <span>{{ $isVendorPanel ? 'Dashboard' : 'Settings' }}</span>
                                     </a>
                                 </li>
                                 <li>
@@ -139,6 +149,14 @@
             </div>
         </div>
     </div>
+<style>
+    .page-header { height: 56px; border-bottom: 1px solid #eceef2; }
+    .header-wrapper { min-height: 56px !important; padding: 0 10px !important; }
+    .header-logo-wrapper .logo-wrapper .main-logo,
+    .header-logo-wrapper .logo-wrapper .white-logo { max-height: 28px; width: auto; }
+    .profile-media .user-name-hide { display: none !important; }
+    .nav-menus .profile-nav .user-profile { width: 24px; height: 24px; }
+</style>
      @include('layouts.script') 
         @yield('scripts')
 </body>

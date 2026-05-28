@@ -1,19 +1,17 @@
 ﻿@extends('layouts.app')
 
 @section('content')
-<style>
-    #sidebar-menu .sidebar-submenu li a.active{
-        color:  #f7bf57 !important;
-        font-weight: 600;
-    }
-</style>
+@include('admin.partials.dashboard-ui')
+@php
+    $isVendorPanel = (int) (session('role_type') ?? 0) === 3;
+@endphp
 <div class="page-body">
     <div class="container-fluid">
         <div class="row">
             <div class="col-12">
                 <div class="title-header option-title d-flex flex-wrap align-items-center gap-2 mb-4">
-                    <h5 class="mb-0"><i class="ri-restaurant-line me-2"></i>Food Management</h5>
-                    <a class="btn btn-theme btn-sm ms-auto" href="{{ route('admin.add-product', array_filter(['segment' => $segmentFilter ?? null])) }}">
+                    <h5 class="mb-0">Food Management</h5>
+                    <a class="btn btn-danger btn-sm ms-auto" href="{{ route($isVendorPanel ? 'vendor.add-product' : 'admin.add-product') }}">
                         <i class="ri-add-line me-1"></i>Add Food
                     </a>
                 </div>
@@ -34,109 +32,36 @@
                     </div>
                 @endif
 
-                <div class="row g-3 mb-4">
-                    <div class="col-md-4">
-                        <div class="card border-0 product-stat product-stat-teal h-100">
-                            <div class="card-body d-flex align-items-center justify-content-between">
-                                <div class="stat-content">
-                                    <small class="stat-label">Approved</small>
-                                    <h3 class="stat-value">{{ $approved }}</h3>
-                                </div>
-                                <span class="stat-icon-box">
-                                    <i class="ri-checkbox-circle-line"></i>
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="card border-0 product-stat product-stat-amber h-100">
-                            <div class="card-body d-flex align-items-center justify-content-between">
-                                <div class="stat-content">
-                                    <small class="stat-label">Pending</small>
-                                    <h3 class="stat-value">{{ $pending }}</h3>
-                                </div>
-                                <span class="stat-icon-box">
-                                    <i class="ri-time-line"></i>
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="card border-0 product-stat product-stat-rose h-100">
-                            <div class="card-body d-flex align-items-center justify-content-between">
-                                <div class="stat-content">
-                                    <small class="stat-label">Rejected</small>
-                                    <h3 class="stat-value">{{ $rejected }}</h3>
-                                </div>
-                                <span class="stat-icon-box">
-                                    <i class="ri-close-circle-line"></i>
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card card-table">
-                      <div class="product-search-toolbar flex-wrap gap-2">
+                <div class="card dashboard-card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-end align-items-center gap-2 mb-3">
+                            <form method="GET" action="{{ route($isVendorPanel ? 'vendor.products' : 'admin.products') }}" class="d-flex align-items-center gap-2" style="max-width: 360px;">
+                                <i class="ri-search-line"></i>
+                                <input type="text" name="search" class="form-control form-control-sm" value="{{ $search ?? '' }}" placeholder="Search food items...">
+                                <button type="submit" class="btn btn-outline-secondary btn-sm">Search</button>
+                            </form>
                             <div class="dropdown">
-                                <button class="btn btn-theme dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                    <i class="ri-download-line"></i> Export
+                                <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                    <i class="ri-download-line me-1"></i>Export Data
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end">
-                                    <li>
-                                        <a class="dropdown-item" href="{{ route('admin.products.export-excel', array_filter(['search' => $search ?? '', 'segment' => $segmentFilter ?? ''])) }}">
-                                            <i class="ri-file-excel-line me-1 text-success"></i> Export Excel
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a class="dropdown-item" href="{{ route('admin.products.export-pdf', array_filter(['search' => $search ?? '', 'segment' => $segmentFilter ?? ''])) }}">
-                                            <i class="ri-file-pdf-line me-1 text-danger"></i> Export PDF
-                                        </a>
-                                    </li>
+                                    <li><a class="dropdown-item" href="{{ route('admin.products.export-excel', array_filter(['search' => $search ?? ''])) }}">Export Excel</a></li>
+                                    <li><a class="dropdown-item" href="{{ route('admin.products.export-pdf', array_filter(['search' => $search ?? ''])) }}">Export PDF</a></li>
                                 </ul>
                             </div>
                         </div>
-                    <div class="card-body">
-                        <div class="product-search-toolbar flex-wrap gap-2">
-                             <form method="GET" action="{{ route('admin.products') }}" class="product-search-form">
-                                @if(!empty($segmentFilter))
-                                    <input type="hidden" name="segment" value="{{ $segmentFilter }}">
-                                @endif
-                                <div class="product-search-field d-flex align-items-center gap-2" style="max-width: 350px !important;">
-                                    <i class="ri-search-line product-search-icon"></i>
-                                    <input type="text" name="search" class="form-control" style="font-size: 14px;" value="{{ $search ?? '' }}" placeholder="Search by product name, SKU, store, or category">
-                                    <button type="submit" class="btn btn-theme ">Search</button>
-                                </div>
-                                <a href="{{ route('admin.products', array_filter(['segment' => $segmentFilter ?? null])) }}" class="btn btn-outline-secondary">Reset</a>
-                                
-                            </form>
-
-                            <div class="d-flex align-items-center gap-2 flex-wrap">
-                                <span class="text-muted  me-1" style="font-size: 16px; ">Segment:</span>
-                                <a href="{{ route('admin.products', request()->except(['segment', 'page'])) }}" class="btn   {{ empty($segmentFilter) ? 'btn-theme' : 'btn-outline-secondary' }}" style="height: 40px !important;">All</a>
-                                <a href="{{ route('admin.products', array_merge(request()->except(['segment', 'page']), ['segment' => 'retailer'])) }}" class="btn {{ ($segmentFilter ?? '') === 'retailer' ? 'btn-theme' : 'btn-outline-secondary' }}" style="height: 40px !important;">Retailer</a>
-                                <a href="{{ route('admin.products', array_merge(request()->except(['segment', 'page']), ['segment' => 'wholesaler'])) }}" class="btn {{ ($segmentFilter ?? '') === 'wholesaler' ? 'btn-theme' : 'btn-outline-secondary' }}" style="height: 40px !important;">Wholesaler</a>
-                            </div>
-
-                           
-                        </div>
                       
                         <div class="table-responsive">
-                            <table class="table table table-modern align-middle" id="table_id">
+                            <table class="table table-modern align-middle" id="table_id">
                                 <thead>
                                     <tr>
-                                        <th>S.No.</th>
-                                        <th>Image</th>
-                                        <th>Product Name</th>
-
-                                        <th>Category</th>
-                                        <th>Segment</th>
-                                        <th>Pricing</th>
-                                        <th>Stock Qty</th>
-                                        <th>SKU</th>
-                                        <th>Approval Status</th>
-                                        <th class="text-center">Status</th>
-                                        <th>Actions</th>
+                                        <th>SR. NO.</th>
+                                        <th>FOOD ITEM</th>
+                                        <th>PRICE</th>
+                                        <th>TYPE</th>
+                                        <th>RATING</th>
+                                        <th>STATUS</th>
+                                        <th>ACTIONS</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -144,70 +69,28 @@
                                         <tr>
                                             <td>{{ $allProducts->firstItem() + $loop->index }}</td>
                                             <td>
-                                                <div class="table-image" style="float:none;">
-                                                    @if($product->product_image)
-                                                        <img src="{{ asset('public/uploads/products/' . $product->product_image) }}" class="img-fluid" alt="{{ $product->product_name }}">
-                                                    @else
-                                                        <img src="{{ asset('public/assets/images/product/1.png') }}" class="img-fluid" alt="No image">
-                                                    @endif
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <img src="{{ !empty($product->product_image) ? asset('public/uploads/products/' . $product->product_image) : asset('public/assets/images/product/1.png') }}" alt="food" style="width:34px;height:34px;border-radius:6px;object-fit:cover;">
+                                                    <div>
+                                                        <div class="fw-semibold">{{ $product->product_name }}</div>
+                                                        <small class="text-muted">{{ optional($product->created_at)->format('Y-m-d') }}</small>
+                                                    </div>
                                                 </div>
                                             </td>
+                                            <td>₹{{ number_format((float) ($product->price ?? 0), 0) }}</td>
                                             <td>
-                                                <div class="user-name">
-                                                    <span>{{ $product->product_name }}</span>
-                                                    <!-- <span>{{ $product->product_type ? ucwords(str_replace(['_', '-'], ' ', $product->product_type)) . ' Product' : 'Simple Product' }}</span> -->
-                                                </div>
-                                            </td>
-
-                                            <td>
-                                                <span class="d-block text-nowrap " >{{ $product->category_name ?: '-' }}</span>
-                                                @if(!empty($product->sub_cat_name))
-                                                    <small class="text-muted">{{ $product->sub_cat_name }}</small>
-                                                @endif
-                                            </td>
-                                            <td>
-                                                @if(!empty($product->target_user_type))
-                                                    @if($product->target_user_type === \App\Models\Product::TARGET_WHOLESALER)
-                                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle">Wholesaler</span>
-                                                    @elseif($product->target_user_type === \App\Models\Product::TARGET_RETAILER)
-                                                        <span class="badge bg-success-subtle text-success border border-success-subtle">Retailer</span>
-                                                    @else
-                                                        <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">{{ $product->target_user_type }}</span>
-                                                    @endif
+                                                @if(strtolower((string) $product->product_type) === 'veg')
+                                                    <span class="text-success small"><i class="ri-seedling-line me-1"></i>Veg</span>
                                                 @else
-                                                    <span class="text-muted">—</span>
+                                                    <span class="text-danger small"><i class="ri-fire-line me-1"></i>Non-Veg</span>
                                                 @endif
                                             </td>
                                             <td>
-                                                @php
-                                                    $mrpAmount = (float) ($product->mrp_price ?? $product->price ?? 0);
-                                                    $sellingAmount = (float) ($product->price ?? 0);
-                                                @endphp
-                                                @if($mrpAmount > $sellingAmount)
-                                                    <small class="d-block text-nowrap text-muted">MRP: <span class="text-decoration-line-through">₹{{ number_format($mrpAmount, 2) }}</span></small>
-                                                @else
-                                                    <small class="d-block text-nowrap text-muted">MRP: ₹{{ number_format($mrpAmount, 2) }}</small>
-                                                @endif
-                                                <span class="d-block fw-semibold text-nowrap text-success">Price: ₹{{ number_format($sellingAmount, 2) }}</span>
-                                            </td>
-                                            <td>{{ (int) $product->stock }}</td>
-                                            <td class="text-nowrap">{{ $product->sku ?: '-' }}</td>
-                                            <td class="approval-status-cell">
-                                                <form method="POST" action="{{ route('admin.products.update-approval-status', $product->product_id) }}" class="product-approval-form m-0">
-                                                    @csrf
-                                                    <select name="status" class="form-select form-select-sm product-approval-select status-pill-select"
-                                                        data-product-id="{{ $product->product_id }}"
-                                                        data-product-name="{{ $product->product_name }}"
-                                                        data-current-status="{{ (string) $product->status }}"
-                                                        aria-label="Change product approval status">
-                                                        <option value="1" {{ (int) $product->status === 1 ? 'selected' : '' }}>Approved</option>
-                                                        <option value="2" {{ (int) $product->status === 2 ? 'selected' : '' }}>Pending</option>
-                                                        <option value="3" {{ (int) $product->status === 3 ? 'selected' : '' }}>Rejected</option>
-                                                    </select>
-                                                </form>
+                                                {{ number_format((float) ($product->avg_rating ?? 0), 1) }}
+                                                <small class="text-warning">★</small>
                                             </td>
                                             <td class="text-center">
-                                                <form method="POST" action="{{ route('admin.products.toggle-status', $product->product_id) }}" class="status-toggle-form m-0">
+                                                <form method="POST" action="{{ route($isVendorPanel ? 'vendor.products.toggle-status' : 'admin.products.toggle-status', $product->product_id) }}" class="status-toggle-form m-0">
                                                     @csrf
                                                     @php
                                                         $isProductActive = (int) $product->is_active_status === 1;
@@ -221,12 +104,12 @@
                                             <td>
                                                 <ul class="d-flex gap-2 mb-0 list-unstyled">
                                                     <li>
-                                                        <a href="{{ route('admin.view-product', $product->product_id) }}" title="View">
+                                                        <a href="{{ route($isVendorPanel ? 'vendor.view-product' : 'admin.view-product', $product->product_id) }}" title="View">
                                                             <i class="ri-eye-line"></i>
                                                         </a>
                                                     </li>
                                                     <li>
-                                                        <a href="{{ route('admin.edit-product', array_merge(['id' => $product->product_id], array_filter(['segment' => $segmentFilter ?? null]))) }}" title="Edit">
+                                                        <a href="{{ route($isVendorPanel ? 'vendor.edit-product' : 'admin.edit-product', ['id' => $product->product_id]) }}" title="Edit">
                                                             <i class="ri-pencil-line"></i>
                                                         </a>
                                                     </li>
@@ -240,7 +123,7 @@
                                         </tr>
                                     @empty
                                         <tr>
-                                            <td colspan="11" class="text-center text-muted py-4">No products found.</td>
+                                            <td colspan="7" class="text-center text-muted py-4">No products found.</td>
                                         </tr>
                                     @endforelse
                                 </tbody>
@@ -288,115 +171,6 @@
 
 @section('scripts')
 <style>
-.product-stat {
-    border-radius: 12px;
-    border-left: 3px solid transparent;
-}
-.product-stat .card-body {
-    padding: 18px 14px 18px 12px;
-}
-.product-stat .stat-label {
-    display: block;
-    font-size: 15px;
-    font-weight: 500;
-    color: #5f6b7a;
-}
-.product-stat .stat-value {
-    margin: 6px 0 0;
-    font-size: 40px;
-    line-height: 1;
-    font-weight: 700;
-    color: #121f2d;
-}
-.product-stat .stat-icon-box {
-    width: 54px;
-    height: 54px;
-    border-radius: 8px;
-    color: #fff;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 24px;
-    flex-shrink: 0;
-}
-
-.product-stat-teal {
-    background: #dff1ed;
-    border-left-color: #1ca18c;
-}
-.product-stat-teal .stat-icon-box {
-    background: #1ca18c;
-}
-
-.product-stat-amber {
-    background: #f6efe2;
-    border-left-color: #f2a533;
-}
-.product-stat-amber .stat-icon-box {
-    background: #f2a533;
-}
-
-.product-stat-rose {
-    background: #f4e8e7;
-    border-left-color: #f06265;
-}
-.product-stat-rose .stat-icon-box {
-    background: #f06265;
-}
-
-.approval-status-cell {
-    min-width: 180px;
-}
-
-.status-pill-select {
-    width: 50px;
-    border-radius: 999px;
-    font-weight: 600;
-    font-size: 12px;
-    border-width: 1px;
-    transition: all 0.2s ease;
-    padding-right: 34px;
-}
-
-.status-pill-select.status-approved {
-    width: 120px;
-    background-color: #eaf8ef !important;
-    color: #3fb96b !important;
-    padding: 8px 12px;
-    border: 1px solid #7bffab;
-    border-radius: 4px;
-    font-size: 12px;
-    font-weight: 700;
-}
-
-.status-pill-select.status-pending {
-    width: 120px;
-    border-color: #fdba74;
-    color: #9a3412;
-}
-
-.status-pill-select.status-rejected {
-    width: 120px;
-    border-color: #fca5a5;
-    color: #991b1b;
-}
-
-.status-pill-select:focus {
-    box-shadow: 0 0 0 0.2rem rgba(13, 148, 136, 0.15);
-}
-.product-search-form{
-    justify-content: unset !important;
-}
-
-
-@media (max-width: 767px) {
-    .product-stat .stat-label {
-        font-size: 12px;
-    }
-    .product-stat .stat-value {
-        font-size: 30px;
-    }
-}
 .status-switch {
     position: relative;
     display: inline-block;
@@ -429,7 +203,7 @@
     box-shadow: 0 1px 3px rgba(0,0,0,.25);
 }
 .status-switch input:checked + .status-slider {
-    background-color: #0da487;
+    background-color: #22c55e;
 }
 .status-switch input:checked + .status-slider:before {
     transform: translateX(22px);
@@ -462,8 +236,8 @@
 }
 
 .product-pagination .page-item.active .page-link {
-    background: #0da487;
-    border-color: #0da487;
+    background: #ed1c24;
+    border-color: #ed1c24;
     color: #fff;
 }
 
@@ -503,7 +277,7 @@ document.addEventListener('DOMContentLoaded', function () {
             var productName = trigger.getAttribute('data-product-name') || 'this product';
 
             document.getElementById('deleteProductName').textContent = productName;
-            document.getElementById('confirmDeleteProductBtn').href = '{{ url('/admin/delete-product/') }}/' + productId;
+            document.getElementById('confirmDeleteProductBtn').href = '{{ $isVendorPanel ? url('/vendor/delete-product') : url('/admin/delete-product') }}/' + productId;
         });
     }
 

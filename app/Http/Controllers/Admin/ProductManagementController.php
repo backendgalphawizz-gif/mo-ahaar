@@ -10,6 +10,8 @@ use App\Models\Product;
 use App\Models\ProductDetails;
 use App\Models\ProductVariant;
 use App\Models\GstTax;
+use App\Models\DiscountOffer;
+use App\Models\ProductReview;
 use App\Models\StoreSetting;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Str;
@@ -20,6 +22,22 @@ use Illuminate\Validation\Rule;
 
 class ProductManagementController extends Controller
 {
+    private function isVendorPanel(): bool
+    {
+        return (int) session('role_type') === 3;
+    }
+
+    private function currentVendorId(): ?int
+    {
+        $vendorId = session('vendor_id');
+        return $vendorId ? (int) $vendorId : null;
+    }
+
+    private function panelRoute(string $adminRoute, string $vendorRoute, array $params = [])
+    {
+        return $this->isVendorPanel() ? route($vendorRoute, $params) : route($adminRoute, $params);
+    }
+
     public function products(Request $request)
     {
         $title = 'Products List';
@@ -30,13 +48,11 @@ class ProductManagementController extends Controller
         $segmentType = match ($segmentFilter) {
             'retailer' => Product::TARGET_RETAILER,
             'wholesaler' => Product::TARGET_WHOLESALER,
-           'discount.numeric' => 'Discount must be a number.',
-           'discount.min' => 'Discount must be at least 0.',
-           'discount.max' => 'Discount may not be greater than 100.',
             default => null,
-        }; 
+        };
 
         $statsQuery = Product::where('status', '!=', 0)
+            ->when($this->isVendorPanel(), fn ($q) => $q->where('vendor_id', $this->currentVendorId()))
             ->when($segmentType, fn ($q) => $q->where('target_user_type', $segmentType));
         $approved = (clone $statsQuery)->where('status', 1)->count();
         $pending = (clone $statsQuery)->where('status', 2)->count();
@@ -57,6 +73,7 @@ class ProductManagementController extends Controller
             })
             // ->leftJoin('vendors', 'vendors.vendor_id', '=', 'products.vendor_id')
             ->where('products.status', '!=', 0)
+            ->when($this->isVendorPanel(), fn ($q) => $q->where('products.vendor_id', $this->currentVendorId()))
             ->when($segmentType, fn ($q) => $q->where('products.target_user_type', $segmentType))
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($subQuery) use ($search) {
@@ -67,20 +84,27 @@ class ProductManagementController extends Controller
                         ->orWhere('sub_categories.sub_cat_name', 'like', '%' . $search . '%');
                 });
             })
-            ->select('products.*', 'product_details.product_description', 'product_categories.category_name', 'sub_categories.sub_cat_name')
+            ->select(
+                'products.*',
+                'product_details.product_description',
+                'product_categories.category_name',
+                'sub_categories.sub_cat_name'
+            )
+            ->selectRaw('(SELECT ROUND(AVG(pr.rating), 1) FROM product_reviews pr WHERE pr.product_id = products.product_id AND pr.status = 1) as avg_rating')
             ->orderByDesc('products.product_id')
             ->paginate(10)
-            ->withQueryString(); 
-        $categoryList = ProductCategory::where('status', '!=', 0)->get(); 
+            ->withQueryString();
+        $categoryList = ProductCategory::where('status', '!=', 0)->get();
         return view('admin.products.productList', compact('title', 'allProducts', 'approved', 'pending', 'rejected', 'search', 'categoryList', 'segmentFilter'));
     
     }
 
     public function addProduct(Request $request)
     {
-        $title = 'Add Product';
+        $title = 'Add New Food Item';
         $categoryList = ProductCategory::where('status', '!=', 0)->get();
         $gstTaxes = GstTax::active()->orderBy('percentage')->get();
+        $promoCodes = DiscountOffer::active()->currentlyValid()->orderBy('title')->get(['id', 'title']);
         $segment = in_array($request->query('segment'), ['retailer', 'wholesaler'], true)
             ? $request->query('segment')
             : null;
@@ -90,7 +114,7 @@ class ProductManagementController extends Controller
             default => null,
         };
 
-        return view('admin.products.addProduct', compact('title', 'categoryList', 'gstTaxes', 'segment', 'defaultTarget'));
+        return view('admin.products.addProduct', compact('title', 'categoryList', 'gstTaxes', 'segment', 'defaultTarget', 'promoCodes'));
     }
 
     public function storeProduct(Request $request)
@@ -108,7 +132,17 @@ class ProductManagementController extends Controller
             'short_description' => $shortFromDesc,
             'stock_status' => $request->input('stock_status', 'in_stock'),
             'gst_calculation_type' => $request->input('gst_calculation_type', Product::GST_EXCLUDED),
+            'target_user_type' => $request->input('target_user_type', Product::TARGET_RETAILER),
+            'stock' => $request->input('stock', 100),
+            'price' => $request->input('price', $request->input('mrp_price')),
         ]);
+
+        if (!$request->filled('category_id')) {
+            $firstCategoryId = ProductCategory::where('status', '!=', 0)->value('category_id');
+            if ($firstCategoryId) {
+                $request->merge(['category_id' => $firstCategoryId]);
+            }
+        }
 
         if ($request->input('target_user_type') !== Product::TARGET_WHOLESALER) {
             $request->merge(['min_quantity' => null]);
@@ -116,13 +150,13 @@ class ProductManagementController extends Controller
 
         $rules = [
             'product_name' => ['required', 'string', 'max:100', 'regex:/^[a-zA-Z0-9 &()\-\/.,]+$/', 'not_regex:/(.)(\1{3,})/'],
-            'stock_status' => ['required', Rule::in(['in_stock', 'out_of_stock', 'backorder'])],
-            'category_id' => ['required', 'exists:product_categories,category_id'],
-            'sub_category_id' => ['required', 'exists:sub_categories,sub_category_id'],
+            'stock_status' => ['nullable', Rule::in(['in_stock', 'out_of_stock', 'backorder'])],
+            'category_id' => ['nullable', 'exists:product_categories,category_id'],
+            'sub_category_id' => ['nullable', 'exists:sub_categories,sub_category_id'],
             'sku' => ['nullable', 'string', 'max:100', Rule::unique('products', 'sku')->whereNotNull('sku')],
             'mrp_price' => ['required', 'numeric', 'min:0', 'regex:/^\d{1,10}(\.\d{1,2})?$/'],
             'price' => ['required', 'numeric', 'min:0', 'lte:mrp_price', 'regex:/^\d{1,10}(\.\d{1,2})?$/'],
-            'stock' => ['required', 'integer', 'min:0', 'max:999999'],
+            'stock' => ['nullable', 'integer', 'min:0', 'max:999999'],
             'min_quantity' => [
                 'nullable',
                 'integer',
@@ -130,7 +164,7 @@ class ProductManagementController extends Controller
                 'lte:stock',
                 Rule::requiredIf($request->input('target_user_type') === Product::TARGET_WHOLESALER),
             ],
-            'target_user_type' => ['required', Rule::in(Product::targetUserTypeOptions())],
+            'target_user_type' => ['nullable', Rule::in(Product::targetUserTypeOptions())],
             'product_image' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
             'gallery_images' => ['nullable', 'array'],
             'gallery_images.*' => ['image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
@@ -140,6 +174,8 @@ class ProductManagementController extends Controller
             'gst_tax_id' => ['nullable', 'exists:gst_taxes,id'],
             'gst_calculation_type' => ['required', Rule::in(Product::gstCalculationTypeOptions())],
             'discount' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'product_type' => ['required', Rule::in(['veg', 'non-veg'])],
+            'tags' => ['nullable', 'string', 'max:100'],
         ];
 
         $messages = [
@@ -166,7 +202,6 @@ class ProductManagementController extends Controller
             'min_quantity.integer' => 'Minimum order quantity must be a whole number.',
             'min_quantity.min' => 'Minimum order quantity must be at least 1.',
             'min_quantity.lte' => 'Minimum order quantity cannot be greater than stock.',
-            'sub_category_id.required' => 'Sub-category is required.',
             'sub_category_id.exists' => 'Selected sub-category is invalid.',
             'product_image.required' => 'Please upload a product thumbnail image.',
             'product_image.image' => 'The product thumbnail must be an image file (jpg, jpeg, png, webp).',
@@ -183,7 +218,7 @@ class ProductManagementController extends Controller
         $product->product_name = $validated['product_name'];
         $product->short_description = $shortFromDesc;
         $product->product_slug = Str::slug($validated['product_name']) . '-' . time();
-        $product->product_type = 'simple';
+        $product->product_type = $validated['product_type'];
         $product->stock_status = $validated['stock_status'];
         $product->category_id = $validated['category_id'];
         $product->sub_category_id = $validated['sub_category_id'] ?? null;
@@ -196,9 +231,10 @@ class ProductManagementController extends Controller
         }
         $product->sale_price = null;
         $product->sku = $validated['sku'];
-        $product->stock = $validated['stock'];
+        $product->stock = $validated['stock'] ?? 100;
         $product->min_quantity = $validated['min_quantity'] ?? null;
         $product->video = $validated['video'] ?? null;
+        $product->tags = $validated['tags'] ?? null;
         $product->featured = (int) ($validated['featured'] ?? 0);
         // Set defaults for admin-added products
         $product->status = 1;
@@ -214,6 +250,9 @@ class ProductManagementController extends Controller
         $product->is_returnable = 0;
         $product->is_active_status = 1;
         $product->gst_calculation_type = $validated['gst_calculation_type'] ?? Product::GST_EXCLUDED;
+        if ($this->isVendorPanel()) {
+            $product->vendor_id = $this->currentVendorId();
+        }
         $gstTax = !empty($validated['gst_tax_id']) ? GstTax::find($validated['gst_tax_id']) : null;
         $product->gst_percentage = $gstTax ? number_format((float) $gstTax->percentage, 2) : null;
         $product->tax_name = $gstTax ? 'GST ' . number_format((float) $gstTax->percentage, 2) . '%' : null;
@@ -256,7 +295,7 @@ class ProductManagementController extends Controller
             'segment' => $listSegment,
         ], fn ($v) => $v !== null && $v !== '');
 
-        return redirect()->route('admin.products', $listQuery)->with('success', 'Product created successfully!');
+        return redirect($this->panelRoute('admin.products', 'vendor.products', $listQuery))->with('success', 'Product created successfully!');
     }
 
     public function viewProduct($id)
@@ -268,6 +307,7 @@ class ProductManagementController extends Controller
             ->leftJoin('sub_categories', 'sub_categories.sub_category_id', '=', 'products.sub_category_id')
             ->where('products.product_id', $id)
             ->where('products.status', '!=', 0)
+            ->when($this->isVendorPanel(), fn ($q) => $q->where('products.vendor_id', $this->currentVendorId()))
             ->select(
                 'products.*',
                 'product_details.product_description',
@@ -275,10 +315,11 @@ class ProductManagementController extends Controller
                 'product_categories.category_name',
                 'sub_categories.sub_cat_name'
             )
+            ->selectRaw('(SELECT ROUND(AVG(pr.rating), 1) FROM product_reviews pr WHERE pr.product_id = products.product_id AND pr.status = 1) as avg_rating')
             ->first();
 
         if (!$product) {
-            return redirect()->route('admin.products')->with('error', 'Product not found.');
+            return redirect($this->panelRoute('admin.products', 'vendor.products'))->with('error', 'Product not found.');
         }
 
         // Attribute/variant logic removed
@@ -287,32 +328,37 @@ class ProductManagementController extends Controller
 
     public function editProduct($id)
     {
-        $title = 'Edit Product';
+        $title = 'Edit Food Item';
 
         $product = Product::leftJoin('product_details', 'product_details.product_id', '=', 'products.product_id')
             ->where('products.product_id', $id)
             ->where('products.status', '!=', 0)
+            ->when($this->isVendorPanel(), fn ($q) => $q->where('products.vendor_id', $this->currentVendorId()))
             ->select('products.*', 'product_details.product_description', 'product_details.gallery_images', 'product_details.meta_title', 'product_details.meta_description', 'product_details.meta_keywords')
             ->first();
 
         if (!$product) {
-            return redirect()->route('admin.products')->with('error', 'Product not found.');
+            return redirect($this->panelRoute('admin.products', 'vendor.products'))->with('error', 'Product not found.');
         }
 
         $categoryList = ProductCategory::where('status', '!=', 0)->get();
         $gstTaxes = GstTax::active()->orderBy('percentage')->get();
+        $promoCodes = DiscountOffer::active()->currentlyValid()->orderBy('title')->get(['id', 'title']);
         $segment = in_array(request()->query('segment'), ['retailer', 'wholesaler'], true)
             ? request()->query('segment')
             : null;
 
-        return view('admin.products.editProduct', compact('title', 'product', 'categoryList', 'gstTaxes', 'segment'));
+        return view('admin.products.editProduct', compact('title', 'product', 'categoryList', 'gstTaxes', 'segment', 'promoCodes'));
     }
 
     public function updateProduct(Request $request)
     {
         $product = Product::where('product_id', (int) $request->input('product_id'))->first();
+        if ($product && $this->isVendorPanel() && (int) $product->vendor_id !== (int) $this->currentVendorId()) {
+            $product = null;
+        }
         if (!$product) {
-            return redirect()->route('admin.products')->with('error', 'Product not found.');
+            return redirect($this->panelRoute('admin.products', 'vendor.products'))->with('error', 'Product not found.');
         }
 
         $desc = (string) $request->input('product_description', '');
@@ -321,7 +367,13 @@ class ProductManagementController extends Controller
             'short_description' => Str::limit($plainDesc !== '' ? $plainDesc : (string) $request->input('product_name', $product->product_name), 300),
             'sub_category_id' => $request->filled('sub_category_id') ? $request->input('sub_category_id') : null,
             'gst_calculation_type' => $request->input('gst_calculation_type', $product->gst_calculation_type ?? Product::GST_EXCLUDED),
+            'target_user_type' => $request->input('target_user_type', $product->target_user_type ?: Product::TARGET_RETAILER),
+            'stock' => $request->input('stock', $product->stock ?: 100),
+            'price' => $request->input('price', $request->input('mrp_price', $product->price)),
         ]);
+        if (!$request->filled('category_id')) {
+            $request->merge(['category_id' => $product->category_id ?: ProductCategory::where('status', '!=', 0)->value('category_id')]);
+        }
         if ($request->input('target_user_type') !== Product::TARGET_WHOLESALER) {
             $request->merge(['min_quantity' => null]);
         }
@@ -332,13 +384,13 @@ class ProductManagementController extends Controller
 
             'short_description' => ['required', 'string', 'max:300'],
             'product_description' => ['required', 'string'],
-            'category_id' => ['required', 'exists:product_categories,category_id'],
-            'sub_category_id' => ['required', 'exists:sub_categories,sub_category_id'],
-            'target_user_type' => ['required', Rule::in(Product::targetUserTypeOptions())],
+            'category_id' => ['nullable', 'exists:product_categories,category_id'],
+            'sub_category_id' => ['nullable', 'exists:sub_categories,sub_category_id'],
+            'target_user_type' => ['nullable', Rule::in(Product::targetUserTypeOptions())],
             'mrp_price' => ['required', 'numeric', 'min:0', 'regex:/^\d{1,10}(\.\d{1,2})?$/'],
             'price' => ['required', 'numeric', 'min:0', 'lte:mrp_price', 'regex:/^\d{1,10}(\.\d{1,2})?$/'],
-            'stock' => ['required', 'integer', 'min:0', 'max:999999'],
-            'stock_status' => ['required', Rule::in(['in_stock', 'out_of_stock', 'backorder'])],
+            'stock' => ['nullable', 'integer', 'min:0', 'max:999999'],
+            'stock_status' => ['nullable', Rule::in(['in_stock', 'out_of_stock', 'backorder'])],
             'min_quantity' => [
                 'nullable',
                 'integer',
@@ -356,13 +408,14 @@ class ProductManagementController extends Controller
             'discount' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'gst_tax_id' => ['nullable', 'exists:gst_taxes,id'],
             'gst_calculation_type' => ['required', Rule::in(Product::gstCalculationTypeOptions())],
+            'product_type' => ['required', Rule::in(['veg', 'non-veg'])],
+            'tags' => ['nullable', 'string', 'max:100'],
         ], [
             'mrp_price.required' => 'MRP price is required.',
             'mrp_price.numeric' => 'MRP price must be a number.',
             'mrp_price.min' => 'MRP price must be at least 0.',
             'mrp_price.regex' => 'MRP price may not be greater than 10 digits.',
             'sku.unique' => 'This SKU is already in use.',
-            'sub_category_id.required' => 'Sub-category is required.',
             'sub_category_id.exists' => 'Selected sub-category is invalid.',
             'min_quantity.required' => 'Minimum order quantity is required for wholesaler products.',
             'min_quantity.lte' => 'Minimum order quantity cannot be greater than stock.',
@@ -391,6 +444,8 @@ class ProductManagementController extends Controller
         $product->is_active_status = $request->boolean('is_active_status') ? 1 : 0;
         $product->featured = (int) ($validated['featured'] ?? 0);
         $product->video = $validated['video'] ?? null;
+        $product->product_type = $validated['product_type'];
+        $product->tags = $validated['tags'] ?? null;
         $product->sale_status = ((float) $validated['price'] < (float) $validated['mrp_price']) ? 1 : 0;
         $product->gst_calculation_type = $validated['gst_calculation_type'] ?? Product::GST_EXCLUDED;
         $gstTaxUpdate = !empty($validated['gst_tax_id']) ? GstTax::find($validated['gst_tax_id']) : null;
@@ -508,25 +563,31 @@ class ProductManagementController extends Controller
             'segment' => $listSegment,
         ], fn ($v) => $v !== null && $v !== '');
 
-        return redirect()->route('admin.products', $listQuery)->with('success', 'Product updated successfully!');
+        return redirect($this->panelRoute('admin.products', 'vendor.products', $listQuery))->with('success', 'Product updated successfully!');
     }
 
     public function deleteProduct($id)
     {
         $product = Product::where('product_id', $id)->first();
+        if ($product && $this->isVendorPanel() && (int) $product->vendor_id !== (int) $this->currentVendorId()) {
+            $product = null;
+        }
         if (!$product) {
-            return redirect()->route('admin.products')->with('error', 'Product not found.');
+            return redirect($this->panelRoute('admin.products', 'vendor.products'))->with('error', 'Product not found.');
         }
 
         $product->status = 0;
         $product->save();
 
-        return redirect()->route('admin.products')->with('success', 'Product deleted successfully.');
+        return redirect($this->panelRoute('admin.products', 'vendor.products'))->with('success', 'Product deleted successfully.');
     }
 
     public function toggleStatus($id)
     {
         $product = Product::where('product_id', $id)->first();
+        if ($product && $this->isVendorPanel() && (int) $product->vendor_id !== (int) $this->currentVendorId()) {
+            $product = null;
+        }
         if (!$product) {
             return back()->with('error', 'Product not found.');
         }

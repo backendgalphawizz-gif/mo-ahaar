@@ -22,6 +22,17 @@ use Illuminate\Support\Collection;
 
 class DashboardController extends Controller
 {
+    private function isVendorPanel(): bool
+    {
+        return (int) session('role_type') === 3;
+    }
+
+    private function currentVendorId(): ?int
+    {
+        $vendorId = session('vendor_id');
+        return $vendorId ? (int) $vendorId : null;
+    }
+
     private function adminSearchLinks(): array
     {
         return [
@@ -237,6 +248,37 @@ class DashboardController extends Controller
         $salesChartData = [];
 
         try {
+            if ($this->isVendorPanel()) {
+                $vendorId = $this->currentVendorId();
+                if (!$vendorId) {
+                    return redirect('/vendor/login')->with('error', 'Vendor session is invalid. Please login again.');
+                }
+
+                if (Schema::hasTable('products')) {
+                    $totalProducts = (int) Product::where('vendor_id', $vendorId)->count();
+                }
+                if (Schema::hasTable('orders')) {
+                    $ordersQuery = Orders::where('vendor_id', $vendorId);
+                    $totalOrders = (int) (clone $ordersQuery)->count();
+                    $totalRevenue = (float) (clone $ordersQuery)->where('payment_status', 'paid')->sum('total_amount');
+                    $recentOrders = (clone $ordersQuery)->orderByDesc('order_id')->limit(5)->get();
+                }
+
+                return view('admin.dashboard', compact(
+                    'totalUsers',
+                    'totalVendors',
+                    'activeVendors',
+                    'activeUsers',
+                    'pendingApprovals',
+                    'totalProducts',
+                    'totalOrders',
+                    'totalRevenue',
+                    'recentOrders',
+                    'salesChartLabels',
+                    'salesChartData'
+                ));
+            }
+
             if (Schema::hasTable('customers')) {
                 $totalUsers = (int) Customers::count();
             }

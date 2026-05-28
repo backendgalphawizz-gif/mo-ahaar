@@ -4,7 +4,7 @@
 @include('admin.partials.dashboard-ui')
 <div class="page-body">
     <div class="container-fluid">
-        <div class="d-flex align-items-center mb-4">
+        <div class="d-flex align-items-center mb-3">
             <h5 class="mb-0">Static Pages</h5>
         </div>
 
@@ -51,7 +51,7 @@
                                 <textarea name="content" rows="4" class="form-control" placeholder="Privacy Policy Content">{{ $privacyPage?->content }}</textarea>
                             </div>
                             <div class="col-12 text-end">
-                                <button type="submit" class="btn btn-theme"><i class="ri-save-line me-1"></i>Save Privacy Policy</button>
+                                <button type="submit" class="btn btn-theme px-4"><i class="ri-save-line me-1"></i>Save Privacy Policy</button>
                             </div>
                         </form>
                     </div>
@@ -68,7 +68,7 @@
                                 <textarea name="content" rows="4" class="form-control" placeholder="Terms & Conditions Content">{{ $termsPage?->content }}</textarea>
                             </div>
                             <div class="col-12 text-end">
-                                <button type="submit" class="btn btn-theme"><i class="ri-save-line me-1"></i>Save Terms & Conditions</button>
+                                <button type="submit" class="btn btn-theme px-4"><i class="ri-save-line me-1"></i>Save Terms & Conditions</button>
                             </div>
                         </form>
                     </div>
@@ -83,13 +83,13 @@
 
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <label class="form-label mb-0">Manage FAQs</label>
-                                <button type="button" class="btn btn-theme btn-sm" id="addFaqRow">Add New FAQ</button>
+                                <button type="button" class="btn btn-theme btn-sm px-3" id="addFaqRow">Add New FAQ</button>
                             </div>
 
                             <div id="faqRows"></div>
 
                             <div class="text-end mt-3">
-                                <button type="submit" class="btn btn-theme"><i class="ri-save-line me-1"></i>Save FAQs</button>
+                                <button type="submit" class="btn btn-theme px-4"><i class="ri-save-line me-1"></i>Save FAQs</button>
                             </div>
                         </form>
                     </div>
