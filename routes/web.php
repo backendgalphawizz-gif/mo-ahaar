@@ -70,11 +70,31 @@ Route::middleware(['AdminAuth'])->prefix('admin')->group(function(){
 
         Route::get('/seed-driver-demo', function (\Illuminate\Http\Request $request) {
             try {
+                // $fresh = $request->boolean('fresh', false);
+                
+                // // Clean up existing demo data if fresh parameter is true
+                // if ($fresh) {
+                //     \Illuminate\Support\Facades\DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+                    
+                //     // Truncate demo-related tables
+                //     \Illuminate\Support\Facades\DB::table('driver_profiles')->truncate();
+                //     \Illuminate\Support\Facades\DB::table('driver_wallets')->truncate();
+                //     \Illuminate\Support\Facades\DB::table('driver_transactions')->truncate();
+                //     \Illuminate\Support\Facades\DB::table('driver_withdrawals')->truncate();
+                //     \Illuminate\Support\Facades\DB::table('driver_notifications')->truncate();
+                //     \Illuminate\Support\Facades\DB::table('delivery_assignments')->truncate();
+                //     \Illuminate\Support\Facades\DB::table('delivery_assignment_invites')->truncate();
+                //     \Illuminate\Support\Facades\DB::table('delivery_assignment_rejections')->truncate();
+                //     \Illuminate\Support\Facades\DB::table('tickets')->truncate();
+                    
+                //     \Illuminate\Support\Facades\DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+                // }
+
                 $seeders = [
-                    'AdminDeliveryPartnerSeeder',
-                    'DriverAppSeeder',
-                    'DriverDemoDataSeeder',
-                    'TicketSampleSeeder',
+                    // 'AdminDeliveryPartnerSeeder',
+                    // 'DriverAppSeeder',
+                    // 'DriverDemoDataSeeder',
+                    // 'TicketSampleSeeder',
                     'UserAppDemoDataSeeder',
                     'VendorSeeder',
                 ];
@@ -89,8 +109,10 @@ Route::middleware(['AdminAuth'])->prefix('admin')->group(function(){
 
                 return response()->json([
                     'success' => true,
+                    // 'message' => $fresh ? 'All seeders executed successfully (fresh)' : 'All seeders executed successfully',
                     'message' => 'All seeders executed successfully',
                     'seeders_run' => $seeders,
+                    // 'fresh' => $fresh,
                     'outputs' => $outputs,
                 ]);
             } catch (\Throwable $e) {
