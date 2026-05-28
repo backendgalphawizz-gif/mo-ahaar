@@ -1,73 +1,90 @@
-﻿<!-- This file has been disabled as Payment % earning feature is removed. -->
+﻿@extends('layouts.app')
 
-                    <div class="col-md-3">
-                        <label class="form-label">Period Start</label>
-                        <input type="date" name="period_start" class="form-control @error('period_start') is-invalid @enderror" value="{{ old('period_start') }}">
-                        @error('period_start')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                    </div>
+@section('content')
+@include('admin.partials.dashboard-ui')
+<div class="page-body">
+    <div class="container-fluid">
+        <h4 class="mb-1">Payment Requests</h4>
+        <p class="text-muted mb-4">Manage withdrawal requests from vendors and delivery personnel.</p>
 
-                    <div class="col-md-3">
-                        <label class="form-label">Period End</label>
-                        <input type="date" name="period_end" class="form-control @error('period_end') is-invalid @enderror" value="{{ old('period_end') }}">
-                        @error('period_end')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                    </div>
-
-                    <div class="col-md-2 d-grid align-self-end">
-                        <button type="submit" class="btn btn-theme">Request</button>
-                    </div>
-
-                    <div class="col-12">
-                        <label class="form-label">Request Note</label>
-                        <textarea name="request_note" rows="2" class="form-control @error('request_note') is-invalid @enderror" placeholder="Optional note for settlement request">{{ old('request_note') }}</textarea>
-                        @error('request_note')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                    </div>
-                </form>
+        @if(session('success'))
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                {{ session('success') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
-        </div>
+        @endif
 
-        <div class="card border-0 shadow-sm">
+        <div class="card dashboard-card">
             <div class="card-body">
-                <h6 class="mb-3">Payout Status Tracking</h6>
+                <h6 class="mb-3">All Requests</h6>
+                <div class="d-flex justify-content-end gap-2 mb-3 flex-wrap">
+                    <input type="text" class="form-control form-control-sm" style="max-width:240px;" placeholder="Search by ID, Name or Acc No...">
+                    <select class="form-select form-select-sm" style="max-width:120px;">
+                        <option>All Types</option>
+                    </select>
+                    <select class="form-select form-select-sm" style="max-width:120px;">
+                        <option>All Status</option>
+                    </select>
+                </div>
                 <div class="table-responsive">
-                    <table class="table table-hover align-middle text-start">
+                    <table class="table table-modern align-middle">
                         <thead>
                             <tr>
-                                <th>S.No.</th>
-                                <th>Vendor</th>
-                                <th>Settlement Period</th>
-                                <th>Gross Sales</th>
-                                <th>Commission Amount</th>
-                                <th>Payout Amount</th>
+                                <th>ID & Date</th>
+                                <th>User</th>
+                                <th>Payment Address</th>
+                                <th>Amount</th>
                                 <th>Status</th>
-                                <th>Requested Date</th>
-                                <th>Update Status</th>
+                                <th>Remark</th>
+                                <th class="text-end">Action</th>
                             </tr>
                         </thead>
                         <tbody>
                             @forelse($settlements as $item)
+                                @php
+                                    $vendor = optional($item->vendor);
+                                    $statusClass = match(strtolower((string) $item->status)) {
+                                        'approved', 'paid' => 'badge-soft-success',
+                                        'rejected' => 'badge-soft-danger',
+                                        default => 'badge-soft-warning',
+                                    };
+                                @endphp
                                 <tr>
-                                    <td>{{ $loop->iteration }}</td>
-                                    <td>{{ optional($item->vendor)->business_name ?? optional($item->vendor)->owner_name ?? 'N/A' }}</td>
-                                    <td>{{ optional($item->period_start)->format('d M Y') }} - {{ optional($item->period_end)->format('d M Y') }}</td>
-                                    <td>₹{{ number_format((float)$item->gross_sales, 2) }}</td>
-                                    <td>₹{{ number_format((float)$item->commission_amount, 2) }} ({{ number_format((float)$item->commission_rate, 2) }}%)</td>
-                                    <td>₹{{ number_format((float)$item->payout_amount, 2) }}</td>
-                                    <td>{{ ucfirst($item->status) }}</td>
-                                    <td>{{ optional($item->requested_at)->format('d M Y, h:i A') ?: '-' }}</td>
                                     <td>
-                                        <form method="POST" action="{{ route('admin.payments.settlements.status', $item->settlement_id) }}" class="d-flex gap-1">
+                                        <strong>PRQ-{{ $item->settlement_id }}</strong>
+                                        <div class="small text-muted">{{ optional($item->requested_at)->format('d/m/Y') ?: '-' }}</div>
+                                    </td>
+                                    <td>
+                                        {{ $vendor->owner_name ?: $vendor->business_name ?: 'N/A' }}
+                                        <div class="small text-muted">Vendor</div>
+                                    </td>
+                                    <td class="small">
+                                        {{ $vendor->business_name ?: '-' }}<br>
+                                        A/C: {{ $vendor->bank_account_number ?? 'N/A' }}<br>
+                                        IFSC: {{ $vendor->ifsc_code ?? 'N/A' }}
+                                    </td>
+                                    <td><strong>₹ {{ number_format((float) $item->payout_amount, 2) }}</strong></td>
+                                    <td>
+                                        <form method="POST" action="{{ route('admin.payments.settlements.update-status', $item->settlement_id) }}">
                                             @csrf
-                                            <select name="status" class="form-select form-select-sm">
-                                                @foreach(['pending','processing','approved','rejected','paid'] as $status)
-                                                    <option value="{{ $status }}" {{ $item->status === $status ? 'selected' : '' }}>{{ ucfirst($status) }}</option>
+                                            <select name="status" class="form-select form-select-sm {{ $statusClass }}" onchange="this.form.submit()">
+                                                @foreach(['approved', 'pending', 'rejected', 'processing', 'paid'] as $status)
+                                                    <option value="{{ $status }}" {{ strtolower((string) $item->status) === $status ? 'selected' : '' }}>
+                                                        {{ ucfirst($status) }}
+                                                    </option>
                                                 @endforeach
                                             </select>
-                                            <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
                                         </form>
+                                    </td>
+                                    <td class="small text-muted">{{ $item->admin_note ?: ($item->request_note ?: '-') }}</td>
+                                    <td class="text-end">
+                                        <a href="{{ route('admin.payments.settlements.show', $item->settlement_id) }}" class="btn btn-sm btn-outline-primary">
+                                            <i class="ri-edit-2-line me-1"></i>Edit / View
+                                        </a>
                                     </td>
                                 </tr>
                             @empty
-                                <tr><td colspan="9" class="text-center text-muted py-4">No settlement requests yet.</td></tr>
+                                <tr><td colspan="7" class="text-center text-muted py-4">No payment requests found.</td></tr>
                             @endforelse
                         </tbody>
                     </table>
@@ -77,4 +94,3 @@
     </div>
 </div>
 @endsection
-

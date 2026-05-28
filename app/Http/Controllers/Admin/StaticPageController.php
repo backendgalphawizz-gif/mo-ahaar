@@ -4,22 +4,31 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\StaticPage;
-use App\Models\VendorStaticPage;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class StaticPageController extends Controller
 {
     private array $allowedSlugs = ['privacy-policy', 'terms-and-conditions', 'faqs'];
+    private array $allowedAudiences = ['user', 'driver'];
 
     public function index(Request $request)
     {
         $title = 'Static Pages';
-        // Vendor logic removed
-        $pages = StaticPage::whereIn('slug', $this->allowedSlugs)
-            ->orderBy('title')
-            ->get();
-        return view('admin.static-pages.index', compact('title', 'pages'));
+        $selectedAudience = $request->query('audience', 'user');
+        if (!in_array($selectedAudience, $this->allowedAudiences, true)) {
+            $selectedAudience = 'user';
+        }
+
+        $pagesByAudience = [];
+        foreach ($this->allowedAudiences as $audience) {
+            $pagesByAudience[$audience] = [];
+            foreach ($this->allowedSlugs as $baseSlug) {
+                $pagesByAudience[$audience][$baseSlug] = $this->ensureAudiencePage($audience, $baseSlug);
+            }
+        }
+
+        return view('admin.static-pages.index', compact('title', 'pagesByAudience', 'selectedAudience'));
     }
 
     public function edit($id)
@@ -44,35 +53,81 @@ class StaticPageController extends Controller
         return redirect()->route('admin.static-pages.index')->with('success', 'Static page updated successfully.');
     }
 
-    public function view($vendorId, $slug)
+    public function saveByContext(Request $request)
     {
-        abort_unless(in_array($slug, $this->allowedSlugs, true), 404);
-        $vendor = Vendor::where('vendor_id', $vendorId)->firstOrFail();
+        $validated = $request->validate([
+            'audience' => ['required', Rule::in($this->allowedAudiences)],
+            'page_type' => ['required', Rule::in($this->allowedSlugs)],
+            'title' => ['nullable', 'string', 'max:160'],
+            'content' => ['nullable', 'string'],
+            'status' => ['required', Rule::in(['0', '1'])],
+            'faq_items' => ['nullable', 'array'],
+            'faq_items.*.question' => ['nullable', 'string', 'max:500'],
+            'faq_items.*.answer' => ['nullable', 'string', 'max:5000'],
+        ]);
 
-        $page = $this->ensureVendorPage($vendor->vendor_id, $slug);
+        $page = $this->ensureAudiencePage($validated['audience'], $validated['page_type']);
+        $content = trim((string) ($validated['content'] ?? ''));
 
-        return view('admin.static-pages.view', [
-            'title' => $page->title,
-            'page' => $page,
-            'vendor' => $vendor,
+        if ($validated['page_type'] === 'faqs') {
+            $content = $this->renderFaqHtml((array) ($validated['faq_items'] ?? []));
+        }
+
+        $page->title = $validated['title'] ?: $this->defaultTitle($validated['page_type']);
+        $page->content = $content;
+        $page->status = (int) $validated['status'];
+        $page->save();
+
+        return redirect()->route('admin.static-pages.index', ['audience' => $validated['audience']])
+            ->with('success', 'Static page updated successfully.');
+    }
+
+    protected function ensureAudiencePage(string $audience, string $baseSlug): StaticPage
+    {
+        $scopedSlug = $audience . '-' . $baseSlug;
+
+        $page = StaticPage::where('slug', $scopedSlug)->first();
+        if ($page) {
+            return $page;
+        }
+
+        $fallback = StaticPage::where('slug', $baseSlug)->first();
+
+        return StaticPage::create([
+            'slug' => $scopedSlug,
+            'title' => $fallback?->title ?? $this->defaultTitle($baseSlug),
+            'content' => $fallback?->content ?? '',
+            'status' => (int) ($fallback?->status ?? 1),
         ]);
     }
 
-    protected function ensureVendorPage(int $vendorId, string $slug): VendorStaticPage
+    private function defaultTitle(string $baseSlug): string
     {
-        $existing = VendorStaticPage::where('vendor_id', $vendorId)->where('slug', $slug)->first();
-        if ($existing) {
-            return $existing;
+        return match ($baseSlug) {
+            'privacy-policy' => 'Privacy Policy',
+            'terms-and-conditions' => 'Terms & Conditions',
+            default => 'FAQs',
+        };
+    }
+
+    /**
+     * @param array<int, array{question?: string, answer?: string}> $items
+     */
+    private function renderFaqHtml(array $items): string
+    {
+        $segments = [];
+        foreach ($items as $item) {
+            $question = trim((string) ($item['question'] ?? ''));
+            $answer = trim((string) ($item['answer'] ?? ''));
+            if ($question === '' && $answer === '') {
+                continue;
+            }
+
+            $q = e($question);
+            $a = nl2br(e($answer));
+            $segments[] = '<p><strong>' . $q . '</strong><br>' . $a . '</p>';
         }
 
-        $base = StaticPage::where('slug', $slug)->first();
-
-        return VendorStaticPage::create([
-            'vendor_id' => $vendorId,
-            'slug' => $slug,
-            'title' => $base->title ?? ucwords(str_replace('-', ' ', $slug)),
-            'content' => $base->content ?? '',
-            'status' => (int) ($base->status ?? 1),
-        ]);
+        return implode("\n", $segments);
     }
 }

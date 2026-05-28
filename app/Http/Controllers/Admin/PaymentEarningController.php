@@ -164,12 +164,17 @@ class PaymentEarningController extends Controller
 
     public function commissionSettlements()
     {
-        $title = 'Commission Settlements';
+        $title = 'Payment Requests';
         $vendors = Vendor::select('vendor_id', 'business_name', 'owner_name', 'commission_percent')->orderBy('business_name')->get();
-
         $settlements = CommissionSettlement::with('vendor')->orderByDesc('settlement_id')->get();
-
         return view('admin.payments.commissionSettlements', compact('title', 'vendors', 'settlements'));
+    }
+
+    public function commissionSettlementDetail($id)
+    {
+        $title = 'Payment Request';
+        $settlement = CommissionSettlement::with('vendor')->findOrFail($id);
+        return view('admin.payments.commissionSettlementDetail', compact('title', 'settlement'));
     }
 
     public function storeCommissionSettlement(Request $request)

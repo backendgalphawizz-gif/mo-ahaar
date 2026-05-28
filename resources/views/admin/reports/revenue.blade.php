@@ -1,51 +1,48 @@
 @extends('layouts.app')
 
 @section('content')
+@include('admin.partials.dashboard-ui')
 <div class="page-body">
     <div class="container-fluid">
-        <div class="title-header option-title d-flex align-items-center mb-4">
-            <h5><i class="ri-line-chart-line me-2"></i>Revenue Reports</h5>
+        <div class="d-flex align-items-center mb-4">
+            <h5 class="mb-0">Reports & Analytics</h5>
         </div>
 
-        <div class="row g-3 mb-4">
-            <div class="col-md-3"><div class="card border-0 report-metric report-metric-primary h-100"><div class="card-body"><small>Total Revenue</small><h3>₹{{ number_format((float) $summary['total_revenue'], 2) }}</h3></div></div></div>
-            <div class="col-md-3"><div class="card border-0 report-metric report-metric-success h-100"><div class="card-body"><small>Orders Revenue</small><h3>₹{{ number_format((float) $summary['order_revenue'], 2) }}</h3></div></div></div>
-            <div class="col-md-3"><div class="card border-0 report-metric report-metric-warning h-100"><div class="card-body"><small>Recharge Revenue</small><h3>₹{{ number_format((float) $summary['recharge_revenue'], 2) }}</h3></div></div></div>
-            <div class="col-md-3"><div class="card border-0 report-metric report-metric-danger h-100"><div class="card-body"><small>Venue Revenue</small><h3>₹{{ number_format((float) $summary['venue_revenue'], 2) }}</h3></div></div></div>
+        <div class="row g-3 mb-3">
+            <div class="col-lg-3 col-md-6"><div class="card dashboard-card h-100"><div class="card-body"><small class="text-muted">Total Revenue</small><h3>₹{{ number_format((float) $summary['total_revenue'], 0) }}</h3><small class="text-success">+12.5%</small></div></div></div>
+            <div class="col-lg-3 col-md-6"><div class="card dashboard-card h-100"><div class="card-body"><small class="text-muted">Total Orders</small><h3>{{ number_format((int) $summary['total_orders']) }}</h3><small class="text-success">+8.3%</small></div></div></div>
+            <div class="col-lg-3 col-md-6"><div class="card dashboard-card h-100"><div class="card-body"><small class="text-muted">Active Vendors</small><h3>{{ number_format((int) $summary['active_vendors']) }}</h3><small class="text-success">+5.2%</small></div></div></div>
+            <div class="col-lg-3 col-md-6"><div class="card dashboard-card h-100"><div class="card-body"><small class="text-muted">Total Users</small><h3>{{ number_format((int) $summary['total_users']) }}</h3><small class="text-success">+15.8%</small></div></div></div>
         </div>
 
-        <div class="card card-table">
+        <div class="card dashboard-card mb-3">
             <div class="card-body">
-                <form method="GET" action="{{ route('admin.reports.revenue') }}" class="report-filter-form mb-3 revenue-filter-form">
-                    <input type="date" name="start_date" value="{{ $startDate }}" class="form-control">
-                    <input type="date" name="end_date" value="{{ $endDate }}" class="form-control">
-                    <button type="submit" class="btn btn-theme btn-sm">Generate</button>
-                    <a href="{{ route('admin.reports.revenue') }}" class="btn btn-outline-secondary btn-sm">Reset</a>
+                <form method="GET" action="{{ route('admin.reports.revenue') }}" class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <div class="fw-semibold">Generate Reports</div>
+                    <div class="d-flex gap-2">
+                        <input type="date" name="start_date" value="{{ $startDate }}" class="form-control form-control-sm">
+                        <input type="date" name="end_date" value="{{ $endDate }}" class="form-control form-control-sm">
+                        <button type="submit" class="btn btn-theme btn-sm"><i class="ri-download-2-line me-1"></i>Export Report</button>
+                    </div>
                 </form>
+            </div>
+        </div>
 
-                <div class="table-responsive">
-                    <table class="table all-package theme-table table-product align-middle text-start">
-                        <thead>
-                            <tr>
-                                <th>S.No.</th>
-                                <th>Revenue Source</th>
-                                <th>Transaction Count</th>
-                                <th>Total Revenue</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse($sources as $source)
-                                <tr>
-                                    <td>{{ $loop->iteration }}</td>
-                                    <td>{{ $source['label'] }}</td>
-                                    <td>{{ $source['count'] }}</td>
-                                    <td>₹{{ number_format((float) $source['amount'], 2) }}</td>
-                                </tr>
-                            @empty
-                                <tr><td colspan="4" class="text-center text-muted py-4">No revenue data found.</td></tr>
-                            @endforelse
-                        </tbody>
-                    </table>
+        <div class="card dashboard-card">
+            <div class="card-body">
+                <h6 class="mb-3">Sales Overview</h6>
+                <div class="sales-bars">
+                    @php $maxValue = max($chartData->max() ?: 1, 1); @endphp
+                    @forelse($chartData as $idx => $value)
+                        <div class="bar-col">
+                            <div class="bar-track">
+                                <div class="bar-fill" style="height: {{ max(6, (int) (($value / $maxValue) * 100)) }}%;"></div>
+                            </div>
+                            <small>{{ $chartLabels[$idx] ?? '-' }}</small>
+                        </div>
+                    @empty
+                        <p class="text-muted mb-0">No monthly sales data available.</p>
+                    @endforelse
                 </div>
             </div>
         </div>
@@ -55,16 +52,9 @@
 
 @section('scripts')
 <style>
-.report-metric { border-radius: 12px; color: #fff; }
-.report-metric .card-body { padding: 16px 18px; }
-.report-metric small { text-transform: uppercase; letter-spacing: .05em; opacity: .9; }
-.report-metric h3 { margin: 8px 0 0; font-weight: 700; }
-.report-metric-primary { background: linear-gradient(135deg, #0f4c75, #3282b8); }
-.report-metric-success { background: linear-gradient(135deg, #198754, #146c43); }
-.report-metric-warning { background: linear-gradient(135deg, #fd7e14, #d0620a); }
-.report-metric-danger { background: linear-gradient(135deg, #dc3545, #a71d2a); }
-.report-filter-form { display:grid; gap:12px; align-items:center; }
-.revenue-filter-form { grid-template-columns: repeat(4, minmax(0, auto)); justify-content:start; }
-@media (max-width: 991px) { .revenue-filter-form { grid-template-columns: 1fr; } }
+.sales-bars { min-height: 260px; border: 1px solid #e5e7eb; border-radius: 8px; padding: 18px; display: flex; align-items: end; gap: 16px; overflow-x: auto; }
+.bar-col { min-width: 80px; text-align: center; }
+.bar-track { height: 180px; background: #f3f4f6; border-radius: 6px; display: flex; align-items: end; overflow: hidden; }
+.bar-fill { width: 100%; background: #22c55e; border-radius: 6px 6px 0 0; }
 </style>
 @endsection

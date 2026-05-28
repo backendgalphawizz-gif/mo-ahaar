@@ -1,10 +1,11 @@
 @extends('layouts.app')
 
 @section('content')
+@include('admin.partials.dashboard-ui')
 <div class="page-body">
     <div class="container-fluid">
-        <div class="title-header option-title d-flex align-items-center mb-4">
-            <h5><i class="ri-image-2-line me-2"></i>{{ $title }}</h5>
+        <div class="d-flex align-items-center mb-4">
+            <h5 class="mb-0">Banner Management</h5>
             <a href="{{ route('admin.banners.create') }}" class="btn btn-theme btn-sm ms-auto">
                 <i class="ri-add-line me-1"></i>Add Banner
             </a>
@@ -17,51 +18,29 @@
             </div>
         @endif
 
-        <div class="card card-table">
+        <div class="card dashboard-card">
             <div class="card-body">
                 <div class="table-responsive">
-                    <table class="table  table-modern align-middle">
+                    <table class="table table-modern align-middle">
                         <thead>
                             <tr>
-                                <th>S.No.</th>
-                                <th>Image</th>
+                                <th>Banner Image</th>
                                 <th>Title</th>
-                                @if(\Illuminate\Support\Facades\Schema::hasColumn('banners', 'banner_type'))
-                                <th>Section</th>
-                                @endif
-                                <th>Link</th>
-                                <th>Visible from</th>
-                                <th>Visible to</th>
                                 <th>Status</th>
-                                <th>Action</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             @forelse($banners as $banner)
                                 <tr>
-                                    <td>{{ $loop->iteration }}</td>
                                     <td>
-                                        <img src="{{ asset('public/uploads/banners/' . $banner->banner_image) }}" alt="banner" style="width:90px;height:54px;object-fit:cover;border-radius:8px;">
+                                        <img src="{{ asset('public/uploads/banners/' . $banner->banner_image) }}" alt="banner" class="banner-thumb">
                                     </td>
                                     <td>{{ $banner->title ?: '-' }}</td>
-                                    @if(\Illuminate\Support\Facades\Schema::hasColumn('banners', 'banner_type'))
-                                    <td><span class="badge bg-light text-dark text-capitalize">{{ $banner->banner_type ?: 'slider' }}</span></td>
-                                    @endif
                                     <td>
-                                        @if(!empty($banner->button_link))
-                                            <a href="{{ $banner->button_link }}" target="_blank" rel="noopener noreferrer" class="small text-truncate d-inline-block" style="max-width: 200px;">{{ $banner->button_link }}</a>
-                                        @else
-                                            <span class="text-muted">—</span>
-                                        @endif
-                                    </td>
-                                    <td class="text-nowrap">{{ $banner->visible_from ? \Illuminate\Support\Carbon::parse($banner->visible_from)->format('M j, Y') : '—' }}</td>
-                                    <td class="text-nowrap">{{ $banner->visible_to ? \Illuminate\Support\Carbon::parse($banner->visible_to)->format('M j, Y') : '—' }}</td>
-                                    <td>
-                                        @if((int) $banner->status === 1)
-                                            <span class="badge badge-soft-success">Active</span>
-                                        @else
-                                            <span class="badge badge-soft-warning">Inactive</span>
-                                        @endif
+                                        <div class="form-check form-switch m-0">
+                                            <input class="form-check-input" type="checkbox" disabled {{ (int) $banner->status === 1 ? 'checked' : '' }}>
+                                        </div>
                                     </td>
                                     <td>
                                         <ul class="d-flex gap-2 mb-0 list-unstyled">
@@ -82,9 +61,7 @@
                                     </td>
                                 </tr>
                             @empty
-                                <tr>
-                                    <td colspan="{{ \Illuminate\Support\Facades\Schema::hasColumn('banners', 'banner_type') ? 9 : 8 }}" class="text-center text-muted py-4">No banners found.</td>
-                                </tr>
+                                <tr><td colspan="4" class="text-center text-muted py-4">No banners found.</td></tr>
                             @endforelse
                         </tbody>
                     </table>
@@ -96,6 +73,9 @@
 @endsection
 
 @section('scripts')
+<style>
+.banner-thumb { width: 72px; height: 42px; object-fit: cover; border-radius: 8px; }
+</style>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('.delete-banner-btn').forEach(function (btn) {

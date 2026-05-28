@@ -6,10 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\AdminNotification;
 use App\Models\Customers;
 use App\Models\Users;
-use App\Models\Vendor;
 use App\Services\FirebaseService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 
 class NotificationManagementController extends Controller
 {
@@ -17,8 +17,11 @@ class NotificationManagementController extends Controller
     {
         $title = 'Notification Management';
         $notifications = AdminNotification::orderByDesc('id')->paginate(20);
+        $totalSent = AdminNotification::count();
+        $sentThisWeek = AdminNotification::where('created_at', '>=', Carbon::now()->startOfWeek())->count();
+        $sentToday = AdminNotification::whereDate('created_at', Carbon::today())->count();
 
-        return view('admin.notifications.index', compact('title', 'notifications'));
+        return view('admin.notifications.index', compact('title', 'notifications', 'totalSent', 'sentThisWeek', 'sentToday'));
     }
 
     public function recipients(Request $request): JsonResponse
@@ -38,13 +41,14 @@ class NotificationManagementController extends Controller
                 })
                 ->values()
                 ->all();
-        } elseif ($type === 'vendors') {
-            $items = Vendor::select('vendor_id as id', 'business_name', 'owner_name', 'email')
-                ->orderBy('business_name')
+        } elseif ($type === 'drivers') {
+            $items = Users::where('role_type', Users::DRIVER_APP_ROLE_TYPE)
+                ->where('status', '1')
+                ->select('user_id as id', 'name', 'email', 'mobile')
+                ->orderBy('name')
                 ->get()
                 ->map(function ($row) {
-                    $name = $row->business_name ?: $row->owner_name;
-                    $label = trim(($name ?: 'Vendor') . (!empty($row->email) ? ' (' . $row->email . ')' : ''));
+                    $label = trim(($row->name ?: 'Delivery Partner') . (!empty($row->mobile) ? ' (+91 ' . $row->mobile . ')' : ''));
 
                     return ['id' => (int) $row->id, 'label' => $label];
                 })
@@ -58,10 +62,10 @@ class NotificationManagementController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'target_type' => 'required|in:users,vendors',
+            'target_type' => 'required|in:users,drivers',
             'recipient_scope' => 'required|in:all,specific',
             'recipient_id' => 'nullable|integer',
-            'title' => 'required|string|max:190',
+            'title' => 'nullable|string|max:190',
             'message' => 'required|string|max:5000',
         ]);
 
@@ -75,7 +79,7 @@ class NotificationManagementController extends Controller
         if ($validated['recipient_scope'] === 'all') {
             $recipientName = match ($validated['target_type']) {
                 'users' => 'All Users',
-                'vendors' => 'All Vendors',
+                'drivers' => 'All Delivery Partners',
             };
         } else {
             $recipientName = $this->resolveRecipientName($validated['target_type'], $recipientId);
@@ -89,7 +93,7 @@ class NotificationManagementController extends Controller
             'recipient_scope' => $validated['recipient_scope'],
             'recipient_id' => $recipientId,
             'recipient_name' => $recipientName,
-            'title' => $validated['title'],
+            'title' => trim((string) ($validated['title'] ?? 'Admin Notification')),
             'message' => $validated['message'],
             'sent_by' => session('user_id'),
         ]);
@@ -98,7 +102,7 @@ class NotificationManagementController extends Controller
             $validated['target_type'],
             $validated['recipient_scope'],
             $recipientId,
-            $validated['title'],
+            trim((string) ($validated['title'] ?? 'Admin Notification')),
             $validated['message']
         );
 
@@ -135,8 +139,26 @@ class NotificationManagementController extends Controller
                     $firebase->sendToToken($user->fcm_id, $title, $body);
                 }
             }
+        } elseif ($targetType === 'drivers') {
+            if ($recipientScope === 'all') {
+                $tokens = Users::where('role_type', Users::DRIVER_APP_ROLE_TYPE)
+                    ->where('status', '1')
+                    ->whereNotNull('fcm_id')
+                    ->where('fcm_id', '!=', '')
+                    ->pluck('fcm_id')
+                    ->all();
+                $firebase->sendToTokens($tokens, $title, $body);
+            } else {
+                $driver = Users::where('user_id', $recipientId)
+                    ->where('role_type', Users::DRIVER_APP_ROLE_TYPE)
+                    ->whereNotNull('fcm_id')
+                    ->where('fcm_id', '!=', '')
+                    ->first(['fcm_id']);
+                if ($driver?->fcm_id) {
+                    $firebase->sendToToken($driver->fcm_id, $title, $body);
+                }
+            }
         }
-        // Vendor push notifications can be added here once vendors have fcm_id support.
     }
 
     protected function resolveRecipientName(string $type, int $id): ?string
@@ -154,14 +176,15 @@ class NotificationManagementController extends Controller
             return trim(($row->name ?: 'Customer') . (!empty($row->email) ? ' (' . $row->email . ')' : ''));
         }
 
-        if ($type === 'vendors') {
-            $row = Vendor::where('vendor_id', $id)->first(['business_name', 'owner_name', 'email']);
+        if ($type === 'drivers') {
+            $row = Users::where('user_id', $id)
+                ->where('role_type', Users::DRIVER_APP_ROLE_TYPE)
+                ->first(['name', 'mobile']);
             if (!$row) {
                 return null;
             }
 
-            $name = $row->business_name ?: $row->owner_name;
-            return trim(($name ?: 'Vendor') . (!empty($row->email) ? ' (' . $row->email . ')' : ''));
+            return trim(($row->name ?: 'Delivery Partner') . (!empty($row->mobile) ? ' (+91 ' . $row->mobile . ')' : ''));
         }
 
         return null;

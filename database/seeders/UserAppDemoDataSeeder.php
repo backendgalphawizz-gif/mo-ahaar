@@ -42,24 +42,17 @@ class UserAppDemoDataSeeder extends Seeder
     private function seedStaticPagesAndStoreSettings(): void
     {
         if (Schema::hasTable('static_pages')) {
-            $this->upsert('static_pages', ['slug' => 'privacy-policy'], [
-                'slug' => 'privacy-policy',
-                'title' => 'Privacy Policy',
-                'content' => '<p>Mo Ahaar privacy policy demo content for user app.</p>',
-                'status' => 1,
-            ]);
-            $this->upsert('static_pages', ['slug' => 'terms-and-conditions'], [
-                'slug' => 'terms-and-conditions',
-                'title' => 'Terms and Conditions',
-                'content' => '<p>Mo Ahaar terms and conditions demo content for user app.</p>',
-                'status' => 1,
-            ]);
-            $this->upsert('static_pages', ['slug' => 'faqs'], [
-                'slug' => 'faqs',
-                'title' => 'FAQs',
-                'content' => '<p><strong>How to place an order?</strong><br>Login, add items to cart, choose payment, and place order.</p>',
-                'status' => 1,
-            ]);
+            $pages = [
+                ['slug' => 'privacy-policy', 'title' => 'Privacy Policy', 'content' => '<p>Mo Ahaar privacy policy demo content for user app.</p>'],
+                ['slug' => 'terms-and-conditions', 'title' => 'Terms and Conditions', 'content' => '<p>Mo Ahaar terms and conditions demo content for user app.</p>'],
+                ['slug' => 'faqs', 'title' => 'FAQs', 'content' => '<p><strong>How to place an order?</strong><br>Login, add items to cart, choose payment, and place order.</p>'],
+                ['slug' => 'user-privacy-policy', 'title' => 'Privacy Policy', 'content' => '<p>Mo Ahaar privacy policy demo content for user app.</p>'],
+                ['slug' => 'user-terms-and-conditions', 'title' => 'Terms and Conditions', 'content' => '<p>Mo Ahaar terms and conditions demo content for user app.</p>'],
+                ['slug' => 'user-faqs', 'title' => 'FAQs', 'content' => '<p><strong>How to place an order?</strong><br>Login, add items to cart, choose payment, and place order.</p>'],
+            ];
+            foreach ($pages as $page) {
+                $this->upsert('static_pages', ['slug' => $page['slug']], $page + ['status' => 1]);
+            }
         }
 
         if (Schema::hasTable('store_settings')) {

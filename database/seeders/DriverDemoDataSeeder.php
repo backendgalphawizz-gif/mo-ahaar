@@ -215,21 +215,12 @@ class DriverDemoDataSeeder extends Seeder
         }
 
         $pages = [
-            [
-                'slug' => 'privacy-policy',
-                'title' => 'Privacy Policy',
-                'content' => '<p>Mo Aahar driver app privacy policy demo content.</p>',
-            ],
-            [
-                'slug' => 'terms-and-conditions',
-                'title' => 'Terms and Conditions',
-                'content' => '<p>Mo Aahar driver app terms and conditions demo content.</p>',
-            ],
-            [
-                'slug' => 'faqs',
-                'title' => 'FAQs',
-                'content' => '<p><strong>How do I accept a delivery?</strong><br>Go to Home and tap Accept on a new delivery.</p>',
-            ],
+            ['slug' => 'privacy-policy', 'title' => 'Privacy Policy', 'content' => '<p>Mo Aahar driver app privacy policy demo content.</p>'],
+            ['slug' => 'terms-and-conditions', 'title' => 'Terms and Conditions', 'content' => '<p>Mo Aahar driver app terms and conditions demo content.</p>'],
+            ['slug' => 'faqs', 'title' => 'FAQs', 'content' => '<p><strong>How do I accept a delivery?</strong><br>Go to Home and tap Accept on a new delivery.</p>'],
+            ['slug' => 'driver-privacy-policy', 'title' => 'Privacy Policy', 'content' => '<p>Mo Aahar driver app privacy policy demo content.</p>'],
+            ['slug' => 'driver-terms-and-conditions', 'title' => 'Terms and Conditions', 'content' => '<p>Mo Aahar driver app terms and conditions demo content.</p>'],
+            ['slug' => 'driver-faqs', 'title' => 'FAQs', 'content' => '<p><strong>How do I accept a delivery?</strong><br>Go to Home and tap Accept on a new delivery.</p>'],
         ];
 
         foreach ($pages as $page) {

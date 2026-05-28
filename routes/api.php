@@ -27,7 +27,6 @@ use App\Http\Controllers\API\DriverApp\DeliveryController as DriverDeliveryContr
 use App\Http\Controllers\API\DriverApp\HomeController as DriverHomeController;
 use App\Http\Controllers\API\DriverApp\NotificationController as DriverNotificationController;
 use App\Http\Controllers\API\DriverApp\OrderController as DriverOrderController;
-use App\Http\Controllers\API\DriverApp\LocationController as DriverLocationController;
 use App\Http\Controllers\API\DriverApp\PaymentController as DriverPaymentController;
 use App\Http\Controllers\API\DriverApp\ProfileController as DriverProfileController;
 use App\Http\Controllers\API\DriverApp\SettingsController as DriverSettingsController;
@@ -202,11 +201,6 @@ Route::prefix('driver-app')->name('driver-app.')->group(function () {
 
     Route::middleware(['inject.bearer', 'auth:sanctum', 'driver'])->group(function () {
         Route::post('/auth/logout', [DriverAuthController::class, 'logout'])->name('auth.logout');
-
-        Route::prefix('location')->group(function () {
-            Route::post('/update', [DriverLocationController::class, 'update'])->name('location.update');
-            Route::post('/online-status', [DriverLocationController::class, 'setOnlineStatus'])->name('location.online-status');
-        });
 
         Route::prefix('home')->group(function () {
             Route::get('/dashboard', [DriverHomeController::class, 'dashboard'])->name('home.dashboard');

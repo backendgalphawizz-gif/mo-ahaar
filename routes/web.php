@@ -222,6 +222,7 @@ Route::middleware(['AdminAuth'])->prefix('admin')->group(function(){
         Route::get('/payments/status', [PaymentEarningController::class, 'paymentStatusTracking'])->name('admin.payments.status');
         Route::get('/payments/vendor-transactions', [PaymentEarningController::class, 'vendorTransactions'])->name('admin.payments.vendor-transactions');
         Route::get('/payments/settlements', [PaymentEarningController::class, 'commissionSettlements'])->name('admin.payments.settlements');
+        Route::get('/payments/settlements/{id}', [PaymentEarningController::class, 'commissionSettlementDetail'])->name('admin.payments.settlements.show');
         Route::post('/payments/settlements', [PaymentEarningController::class, 'storeCommissionSettlement'])->name('admin.payments.settlements.store');
         Route::post('/payments/settlements/{id}/status', [PaymentEarningController::class, 'updateCommissionSettlementStatus'])->name('admin.payments.settlements.update-status');
 
@@ -234,6 +235,7 @@ Route::middleware(['AdminAuth'])->prefix('admin')->group(function(){
 
         // Static Pages Management
         Route::get('/static-pages', [AdminStaticPageController::class, 'index'])->name('admin.static-pages.index');
+        Route::post('/static-pages/save', [AdminStaticPageController::class, 'saveByContext'])->name('admin.static-pages.save');
         Route::get('/static-pages/edit/{id}', [AdminStaticPageController::class, 'edit'])->name('admin.static-pages.edit');
         Route::post('/static-pages/update/{id}', [AdminStaticPageController::class, 'update'])->name('admin.static-pages.update');
 

@@ -17,7 +17,6 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Razorpay\Api\Api;
 use Razorpay\Api\Errors\BadRequestError;
-use Razorpay\Api\Errors\SignatureVerificationError;
 
 class CheckoutController extends Controller
 {
@@ -321,7 +320,7 @@ class CheckoutController extends Controller
 
     // -----------------------------------------------------------------------
     // POST /api/customer-app/checkout/place-order
-    // Finalize order after Razorpay payment response
+    // Place order for COD or online (single-step flow from app)
     // Body: {
     //   order_id             (int, required),
     //   razorpay_order_id    (string, required),
@@ -353,22 +352,18 @@ class CheckoutController extends Controller
             'address_id' => ['nullable', 'integer'],
             'shipping_address' => ['nullable', 'string', 'max:1000'],
             'notes' => ['nullable', 'string', 'max:500'],
-            'razorpay_order_id' => ['nullable', 'string'],
-            'razorpay_payment_id' => ['nullable', 'string'],
-            'razorpay_signature' => ['nullable', 'string'],
+            'razorpay_order_id' => ['nullable', 'string', 'max:255'],
+            'razorpay_payment_id' => ['nullable', 'string', 'max:255'],
+            'razorpay_signature' => ['nullable', 'string', 'max:255'],
+            'transaction_id' => ['nullable', 'string', 'max:255'],
+            'payment_gateway' => ['nullable', 'string', 'max:50'],
+            'payment_status' => ['nullable', Rule::in(['pending', 'paid', 'failed', 'cancelled', 'refunded'])],
+            'payment_response' => ['nullable', 'array'],
         ]);
 
         $paymentMethod = $this->normalizePaymentMethod($validated['payment_method']);
         $isCod = in_array($paymentMethod, ['cod', 'cash_on_delivery'], true);
         $isOnline = !$isCod;
-
-        if ($isOnline) {
-            $request->validate([
-                'razorpay_order_id' => ['required', 'string'],
-                'razorpay_payment_id' => ['required', 'string'],
-                'razorpay_signature' => ['required', 'string'],
-            ]);
-        }
 
         $customerQuery = Customers::query()->where('user_id', $user->user_id);
         if (\Illuminate\Support\Facades\Schema::hasTable('customer_addresses')) {
@@ -395,27 +390,15 @@ class CheckoutController extends Controller
         }
 
         $totals = $this->calculateCheckoutTotals($items, $customer);
-        $notes = trim((string) ($validated['notes'] ?? $customer->cart_cooking_instructions ?? ''));
+        $notes = $this->composeOrderNotes(
+            trim((string) ($validated['notes'] ?? $customer->cart_cooking_instructions ?? '')),
+            $validated
+        );
 
         DB::beginTransaction();
         try {
-            if ($isOnline) {
-                $keyId = config('services.razorpay.key_id');
-                $keySecret = config('services.razorpay.key_secret');
-                if (empty($keyId) || empty($keySecret)) {
-                    return response()->json([
-                        'status' => false,
-                        'message' => 'Razorpay credentials are not configured',
-                    ], 500);
-                }
-
-                $api = new Api($keyId, $keySecret);
-                $api->utility->verifyPaymentSignature([
-                    'razorpay_order_id' => $validated['razorpay_order_id'],
-                    'razorpay_payment_id' => $validated['razorpay_payment_id'],
-                    'razorpay_signature' => $validated['razorpay_signature'],
-                ]);
-            }
+            $onlinePaymentStatus = $validated['payment_status'] ?? 'paid';
+            $onlineOrderStatus = $onlinePaymentStatus === 'paid' ? 'confirmed' : 'payment_pending';
 
             $order = $this->persistOrder(
                 $customer,
@@ -423,17 +406,19 @@ class CheckoutController extends Controller
                 $shippingAddressJson,
                 $totals,
                 $paymentMethod,
-                $isCod ? 'pending' : 'paid',
-                $isCod ? 'pending' : 'confirmed',
+                $isCod ? 'pending' : $onlinePaymentStatus,
+                $isCod ? 'pending' : $onlineOrderStatus,
                 $notes
             );
 
             if ($isOnline) {
-                $order->razorpay_order_id = $validated['razorpay_order_id'];
-                $order->razorpay_payment_id = $validated['razorpay_payment_id'];
-                $order->razorpay_signature = $validated['razorpay_signature'];
+                $order->razorpay_order_id = $validated['razorpay_order_id'] ?? ($validated['transaction_id'] ?? null);
+                $order->razorpay_payment_id = $validated['razorpay_payment_id'] ?? ($validated['transaction_id'] ?? null);
+                $order->razorpay_signature = $validated['razorpay_signature'] ?? null;
                 $order->save();
-                OrderItem::where('order_id', $order->order_id)->update(['item_status' => 'confirmed']);
+                OrderItem::where('order_id', $order->order_id)->update([
+                    'item_status' => $onlineOrderStatus === 'confirmed' ? 'confirmed' : 'payment_pending',
+                ]);
             }
 
             $this->decrementStockForOrder($order);
@@ -476,13 +461,6 @@ class CheckoutController extends Controller
                     'track_order_url' => url('/api/customer-app/orders/' . $order->order_id . '/tracking'),
                 ],
             ], 201);
-        } catch (SignatureVerificationError $e) {
-            DB::rollBack();
-
-            return response()->json([
-                'status' => false,
-                'message' => 'Invalid Razorpay signature',
-            ], 422);
         } catch (\Throwable $e) {
             DB::rollBack();
             report($e);
@@ -969,5 +947,39 @@ class CheckoutController extends Controller
                 $product->decrement('stock', $orderItem->quantity);
             }
         }
+    }
+
+    /**
+     * Store app-side payment/transaction context in order notes safely.
+     *
+     * @param  array<string,mixed>  $validated
+     */
+    private function composeOrderNotes(string $baseNotes, array $validated): string
+    {
+        $paymentMeta = array_filter([
+            'payment_gateway' => $validated['payment_gateway'] ?? null,
+            'transaction_id' => $validated['transaction_id'] ?? null,
+            'razorpay_order_id' => $validated['razorpay_order_id'] ?? null,
+            'razorpay_payment_id' => $validated['razorpay_payment_id'] ?? null,
+            'razorpay_signature' => $validated['razorpay_signature'] ?? null,
+            'payment_status' => $validated['payment_status'] ?? null,
+            'payment_response' => $validated['payment_response'] ?? null,
+        ], static fn ($v) => $v !== null && $v !== '');
+
+        if (empty($paymentMeta)) {
+            return $baseNotes;
+        }
+
+        $json = json_encode($paymentMeta, JSON_UNESCAPED_UNICODE);
+        if ($json === false) {
+            return $baseNotes;
+        }
+
+        $paymentLine = 'Payment Meta: ' . $json;
+        if ($baseNotes === '') {
+            return $paymentLine;
+        }
+
+        return $baseNotes . "\n" . $paymentLine;
     }
 }

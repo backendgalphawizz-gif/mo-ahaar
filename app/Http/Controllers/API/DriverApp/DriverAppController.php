@@ -4,7 +4,6 @@ namespace App\Http\Controllers\API\DriverApp;
 
 use App\Http\Controllers\Controller;
 use App\Models\DeliveryAssignment;
-use App\Models\DeliveryAssignmentInvite;
 use App\Models\Orders;
 use App\Models\Users;
 use App\Models\Vendor;
@@ -174,17 +173,6 @@ abstract class DriverAppController extends Controller
             ->with(['order.customer.user'])
             ->where('status', DeliveryAssignment::STATUS_NEW)
             ->whereNull('driver_id')
-            ->where(function ($q) use ($driverId) {
-                $q->whereNull('assignment_mode')
-                    ->orWhere('assignment_mode', DeliveryAssignment::MODE_MANUAL)
-                    ->orWhere(function ($broadcast) use ($driverId) {
-                        $broadcast->where('assignment_mode', DeliveryAssignment::MODE_BROADCAST)
-                            ->whereHas('invites', function ($inviteQuery) use ($driverId) {
-                                $inviteQuery->where('driver_id', $driverId)
-                                    ->where('status', DeliveryAssignmentInvite::STATUS_PENDING);
-                            });
-                    });
-            })
             ->when($rejectedIds->isNotEmpty(), fn ($q) => $q->whereNotIn('assignment_id', $rejectedIds))
             ->orderByDesc('assignment_id');
     }

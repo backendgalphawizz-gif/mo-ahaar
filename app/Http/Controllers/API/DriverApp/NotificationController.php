@@ -255,8 +255,6 @@ class NotificationController extends DriverAppController
             'order_delivered' => ['variant' => 'success', 'name' => 'check'],
             'order_cancelled' => ['variant' => 'danger', 'name' => 'close'],
             'new_delivery_assigned' => ['variant' => 'warning', 'name' => 'bag'],
-            'delivery_request_broadcast' => ['variant' => 'warning', 'name' => 'notification'],
-            'delivery_request_taken' => ['variant' => 'danger', 'name' => 'close'],
             default => ['variant' => 'warning', 'name' => 'bag'],
         };
     }

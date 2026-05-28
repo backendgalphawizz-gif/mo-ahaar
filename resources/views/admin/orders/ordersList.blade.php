@@ -1,4 +1,4 @@
-﻿@extends('layouts.app')
+@extends('layouts.app')
 
 @section('content')
 @include('admin.partials.dashboard-ui')
@@ -156,31 +156,16 @@
                 </div>
                 <div class="modal-body">
                     <p class="text-muted small mb-3">Order: <strong id="assignOrderLabel">—</strong></p>
-                    <label class="form-label">Assignment Mode</label>
-                    <div class="d-flex flex-column gap-2 mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input assignment-mode-input" type="radio" name="assignment_mode" id="assignment_mode_manual" value="manual" checked>
-                            <label class="form-check-label" for="assignment_mode_manual">Manual (admin selects driver)</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input assignment-mode-input" type="radio" name="assignment_mode" id="assignment_mode_broadcast" value="broadcast">
-                            <label class="form-check-label" for="assignment_mode_broadcast">Automatic (notify nearby drivers, first acceptance wins)</label>
-                        </div>
-                    </div>
-
-                    <div id="manualDriverSelectWrap">
-                        <label class="form-label">Select Driver</label>
-                        <select name="driver_id" id="manual_driver_id" class="form-select">
-                            <option value="">Choose driver...</option>
-                            @foreach($availableDrivers ?? [] as $d)
-                                <option value="{{ $d->user_id }}">{{ $d->name }} (+91 {{ $d->mobile }})</option>
-                            @endforeach
-                        </select>
-                        @if(empty($availableDrivers) || $availableDrivers->isEmpty())
-                            <small class="text-danger d-block mt-2">No approved drivers available. Add drivers from Delivery Management.</small>
-                        @endif
-                    </div>
-                    <small class="text-muted d-none" id="broadcastInfoText">All nearby online drivers will be notified. Once one driver accepts, others cannot accept.</small>
+                    <label class="form-label">Select Driver</label>
+                    <select name="driver_id" class="form-select" required>
+                        <option value="">Choose driver...</option>
+                        @foreach($availableDrivers ?? [] as $d)
+                            <option value="{{ $d->user_id }}">{{ $d->name }} (+91 {{ $d->mobile }})</option>
+                        @endforeach
+                    </select>
+                    @if(empty($availableDrivers) || $availableDrivers->isEmpty())
+                        <small class="text-danger d-block mt-2">No approved drivers available. Add drivers from Delivery Management.</small>
+                    @endif
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -204,23 +189,6 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    var manualRadio = document.getElementById('assignment_mode_manual');
-    var broadcastRadio = document.getElementById('assignment_mode_broadcast');
-    var manualWrap = document.getElementById('manualDriverSelectWrap');
-    var manualSelect = document.getElementById('manual_driver_id');
-    var broadcastInfo = document.getElementById('broadcastInfoText');
-
-    function syncAssignmentModeUi() {
-        var isManual = manualRadio && manualRadio.checked;
-        if (manualWrap) manualWrap.classList.toggle('d-none', !isManual);
-        if (broadcastInfo) broadcastInfo.classList.toggle('d-none', isManual);
-        if (manualSelect) manualSelect.required = isManual;
-    }
-
-    [manualRadio, broadcastRadio].forEach(function (el) {
-        if (el) el.addEventListener('change', syncAssignmentModeUi);
-    });
-    syncAssignmentModeUi();
 });
 </script>
 @endsection

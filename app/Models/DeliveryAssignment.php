@@ -22,10 +22,6 @@ class DeliveryAssignment extends Model
 
     public const STATUS_CANCELLED = 'cancelled';
 
-    public const MODE_MANUAL = 'manual';
-
-    public const MODE_BROADCAST = 'broadcast';
-
     protected $table = 'delivery_assignments';
 
     protected $primaryKey = 'assignment_id';
@@ -43,15 +39,12 @@ class DeliveryAssignment extends Model
         'reject_reason',
         'assigned_at',
         'completed_at',
-        'assignment_mode',
-        'broadcast_at',
     ];
 
     protected $casts = [
         'payout_amount' => 'decimal:2',
         'assigned_at' => 'datetime',
         'completed_at' => 'datetime',
-        'broadcast_at' => 'datetime',
     ];
 
     public function order(): BelongsTo
@@ -67,11 +60,6 @@ class DeliveryAssignment extends Model
     public function rejections(): HasMany
     {
         return $this->hasMany(DeliveryAssignmentRejection::class, 'assignment_id', 'assignment_id');
-    }
-
-    public function invites(): HasMany
-    {
-        return $this->hasMany(DeliveryAssignmentInvite::class, 'assignment_id', 'assignment_id');
     }
 
     public static function statusLabel(string $status, bool $forDriverOrders = false): string

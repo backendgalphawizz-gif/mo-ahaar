@@ -12,15 +12,9 @@ use App\Models\OrderTracking;
 use App\Models\PaymentGateway;
 use App\Models\StoreSetting;
 use App\Models\Users;
-use App\Services\DriverAssignmentService;
 
 class OrderManagementController extends Controller
 {
-   public function __construct(
-      private readonly DriverAssignmentService $driverAssignmentService
-   ) {
-   }
-
    public static function orderStatusGroups(): array
    {
       return [
@@ -92,37 +86,53 @@ class OrderManagementController extends Controller
       }
 
       $validated = $request->validate([
-         'assignment_mode' => ['nullable', Rule::in([DriverAssignmentService::MODE_MANUAL, DriverAssignmentService::MODE_BROADCAST])],
-         'driver_id' => ['nullable', 'integer', Rule::exists('users', 'user_id')->where('role_type', Users::DRIVER_APP_ROLE_TYPE)],
+         'driver_id' => ['required', 'integer', Rule::exists('users', 'user_id')->where('role_type', Users::DRIVER_APP_ROLE_TYPE)],
       ]);
 
-      $mode = $validated['assignment_mode'] ?? DriverAssignmentService::MODE_MANUAL;
+      $driver = Users::where('user_id', $validated['driver_id'])
+         ->where('role_type', Users::DRIVER_APP_ROLE_TYPE)
+         ->where('approval_status', 'approved')
+         ->first();
+
+      if (!$driver) {
+         return back()->with('error', 'Selected driver is not available for assignment.');
+      }
 
       try {
-         if ($mode === DriverAssignmentService::MODE_BROADCAST) {
-            $result = $this->driverAssignmentService->broadcastToNearbyDrivers($order);
-            return back()->with('success', 'Broadcast sent to nearby drivers. Notified ' . ($result['drivers_notified'] ?? 0) . ' driver(s). First accepted driver will be assigned automatically.');
+         $shipAddr = is_string($order->shipping_address)
+            ? json_decode($order->shipping_address, true)
+            : $order->shipping_address;
+
+         $deliveryAddress = is_array($shipAddr)
+            ? trim(implode(', ', array_filter([
+               $shipAddr['address_line'] ?? null,
+               $shipAddr['city'] ?? null,
+               $shipAddr['pincode'] ?? null,
+            ])))
+            : (string) ($order->shipping_address ?? '');
+
+         $assignment = \App\Models\DeliveryAssignment::firstOrNew(['order_id' => $order->order_id]);
+         $assignment->driver_id = $driver->user_id;
+         $assignment->status = \App\Models\DeliveryAssignment::STATUS_ASSIGNED;
+         $assignment->assigned_at = now();
+         $assignment->store_name = $order->vendor?->business_name;
+         $assignment->delivery_address = $deliveryAddress ?: $assignment->delivery_address;
+         $assignment->payout_amount = $assignment->payout_amount ?: round((float) $order->total_amount * 0.05, 2);
+         $assignment->save();
+
+         if (in_array($order->order_status, ['pending', 'accepted', 'confirmed', 'processing'], true)) {
+            $order->update(['order_status' => 'processing']);
          }
 
-         if (empty($validated['driver_id'])) {
-            return back()->with('error', 'Please select a driver for manual assignment.');
-         }
-
-         $driver = Users::where('user_id', $validated['driver_id'])
-            ->where('role_type', Users::DRIVER_APP_ROLE_TYPE)
-            ->where('approval_status', 'approved')
-            ->where('status', '1')
-            ->first();
-
-         if (!$driver) {
-            return back()->with('error', 'Selected driver is not available for assignment.');
-         }
-
-         $this->driverAssignmentService->assignManually($order, $driver);
+         OrderTracking::create([
+            'order_id' => $order->order_id,
+            'status' => $order->order_status,
+            'description' => 'Delivery partner ' . $driver->name . ' assigned by admin.',
+            'location' => 'Admin Panel',
+            'tracked_at' => now(),
+         ]);
 
          return back()->with('success', 'Delivery partner assigned successfully.');
-      } catch (\InvalidArgumentException $e) {
-         return back()->with('error', $e->getMessage());
       } catch (\Exception $e) {
          return back()->with('error', 'Failed to assign driver: ' . $e->getMessage());
       }

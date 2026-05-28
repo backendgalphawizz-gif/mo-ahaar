@@ -24,10 +24,7 @@ class SettingsController extends Controller
 
         $visibility = $this->customerBusinessPageVisibility();
 
-        $rows = StaticPage::whereIn('slug', array_values($slugMap))
-            ->where('status', 1)
-            ->get()
-            ->keyBy('slug');
+        $rows = $this->scopedStaticPages('user', $slugMap);
 
         $pages = [];
         foreach ($slugMap as $key => $slug) {
@@ -53,6 +50,33 @@ class SettingsController extends Controller
                 'support' => $this->supportContact(),
             ],
         ], 200);
+    }
+
+    /**
+     * @param array{privacy_policy: string, terms_and_conditions: string, faq: string} $slugMap
+     */
+    private function scopedStaticPages(string $audience, array $slugMap)
+    {
+        $scoped = [];
+        foreach ($slugMap as $legacySlug) {
+            $scoped[] = $audience . '-' . $legacySlug;
+            $scoped[] = $legacySlug;
+        }
+
+        $rows = StaticPage::whereIn('slug', array_values(array_unique($scoped)))
+            ->where('status', 1)
+            ->get()
+            ->keyBy('slug');
+
+        $resolved = collect();
+        foreach ($slugMap as $legacySlug) {
+            $resolved->put(
+                $legacySlug,
+                $rows->get($audience . '-' . $legacySlug) ?: $rows->get($legacySlug)
+            );
+        }
+
+        return $resolved;
     }
 
     /**

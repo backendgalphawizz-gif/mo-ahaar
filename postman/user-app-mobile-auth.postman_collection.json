@@ -420,13 +420,13 @@
           }
         },
         {
-          "name": "Place Order (Online - after Razorpay)",
+          "name": "Place Order (Online - Single Step)",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"payment_method\": \"online\",\n  \"customer_address_id\": {{address_id}},\n  \"razorpay_order_id\": \"{{razorpay_order_id}}\",\n  \"razorpay_payment_id\": \"{{razorpay_payment_id}}\",\n  \"razorpay_signature\": \"{{razorpay_signature}}\"\n}"
+              "raw": "{\n  \"payment_method\": \"online\",\n  \"customer_address_id\": {{address_id}},\n  \"payment_gateway\": \"razorpay\",\n  \"payment_status\": \"paid\",\n  \"transaction_id\": \"{{transaction_id}}\",\n  \"razorpay_order_id\": \"{{razorpay_order_id}}\",\n  \"razorpay_payment_id\": \"{{razorpay_payment_id}}\",\n  \"razorpay_signature\": \"{{razorpay_signature}}\",\n  \"payment_response\": {\n    \"status\": \"captured\",\n    \"method\": \"upi\",\n    \"source\": \"app\"\n  }\n}"
             },
             "url": "{{base_url}}/customer-app/checkout/place-order"
           }
@@ -508,6 +508,7 @@
     { "key": "promo_code", "value": "TRIVAGO" },
     { "key": "search_query", "value": "pizza" },
     { "key": "shipping_address", "value": "G-14 1st Sabari Nagar, Sukhliya, Indore" },
+    { "key": "transaction_id", "value": "" },
     { "key": "razorpay_order_id", "value": "" },
     { "key": "razorpay_payment_id", "value": "" },
     { "key": "razorpay_signature", "value": "" }

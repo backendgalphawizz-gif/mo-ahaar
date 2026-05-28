@@ -8,6 +8,8 @@ use App\Models\GasBooking;
 use App\Models\MobileRecharge;
 use App\Models\Orders;
 use App\Models\StoreSetting;
+use App\Models\Users;
+use App\Models\Vendor;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -258,9 +260,20 @@ class ReportsAnalyticsController extends Controller
             'order_revenue' => $orderRevenue,
             'recharge_revenue' => (float) ($mobileRevenue + $fastagRevenue),
             'venue_revenue' => $venueRevenue,
+            'total_orders' => (int) Orders::count(),
+            'active_vendors' => (int) Vendor::whereIn('status', ['1', 1])->count(),
+            'total_users' => (int) Users::where('role_type', Users::CUSTOMER_APP_ROLE_TYPE)->count(),
         ];
 
-        return view('admin.reports.revenue', compact('sources', 'summary', 'startDate', 'endDate'));
+        $monthlySales = Orders::selectRaw('MONTH(created_at) as month_no, SUM(total_amount) as total_sales')
+            ->whereYear('created_at', now()->year)
+            ->groupBy('month_no')
+            ->orderBy('month_no')
+            ->get();
+        $chartLabels = $monthlySales->map(fn ($item) => Carbon::create()->month((int) $item->month_no)->format('F'))->values();
+        $chartData = $monthlySales->map(fn ($item) => round((float) $item->total_sales, 2))->values();
+
+        return view('admin.reports.revenue', compact('sources', 'summary', 'startDate', 'endDate', 'chartLabels', 'chartData'));
     }
 
     public function exportOrderReportExcel(Request $request)

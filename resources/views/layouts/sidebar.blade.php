@@ -73,7 +73,7 @@
 
                     <li class="sidebar-list">
                         <a class="linear-icon-link sidebar-link sidebar-title" href="javascript:void(0)">
-                            <i class="ri-box-3-line"></i>
+                            <i class="ri-store-3-line"></i>
                             <span>Product Management</span>
                         </a>
                         <ul class="sidebar-submenu">
@@ -114,14 +114,10 @@
                     </li>
 
                     <li class="sidebar-list">
-                        <a class="linear-icon-link sidebar-link sidebar-title" href="javascript:void(0)">
+                        <a class="sidebar-link sidebar-title link-nav" href="{{ route('admin.reports.revenue') }}">
                             <i class="ri-bar-chart-box-line"></i>
                             <span>Reports & Analytics</span>
                         </a>
-                        <ul class="sidebar-submenu">
-                            <li><a href="{{ route('admin.reports.orders') }}">Order Reports</a></li>
-                            <li><a href="{{ route('admin.reports.revenue') }}">Revenue Reports</a></li>
-                        </ul>
                     </li>
 
                     <li class="sidebar-list">

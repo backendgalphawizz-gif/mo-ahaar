@@ -40,8 +40,8 @@ class BannerController extends Controller
         $link = isset($validated['link']) ? trim((string) $validated['link']) : '';
         $banner->button_link = $link !== '' ? $link : null;
         $banner->sort_order = 0;
-        if (Schema::hasColumn('banners', 'banner_type') && isset($validated['banner_type'])) {
-            $banner->banner_type = $validated['banner_type'];
+        if (Schema::hasColumn('banners', 'banner_type')) {
+            $banner->banner_type = $validated['banner_type'] ?? Banner::BANNER_TYPE_SLIDER;
         }
         $banner->visible_from = $validated['visible_from'] ?? null;
         $banner->visible_to = $validated['visible_to'] ?? null;
@@ -81,8 +81,8 @@ class BannerController extends Controller
         $banner->visible_from = $validated['visible_from'] ?? null;
         $banner->visible_to = $validated['visible_to'] ?? null;
         $banner->status = (int) $validated['status'];
-        if (Schema::hasColumn('banners', 'banner_type') && isset($validated['banner_type'])) {
-            $banner->banner_type = $validated['banner_type'];
+        if (Schema::hasColumn('banners', 'banner_type')) {
+            $banner->banner_type = $validated['banner_type'] ?? ($banner->banner_type ?: Banner::BANNER_TYPE_SLIDER);
         }
 
         if ($request->hasFile('banner_image')) {
@@ -139,7 +139,7 @@ class BannerController extends Controller
         }
 
         return [
-            'banner_type' => ['required', 'string', Rule::in(Banner::homeBannerTypeOptions())],
+            'banner_type' => ['nullable', 'string', Rule::in(Banner::homeBannerTypeOptions())],
         ];
     }
 }

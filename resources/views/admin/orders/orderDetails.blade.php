@@ -1,4 +1,4 @@
-﻿@extends('layouts.app')
+@extends('layouts.app')
 
 @section('content')
 @include('admin.partials.dashboard-ui')
@@ -153,27 +153,13 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <label class="form-label">Assignment Mode</label>
-                    <div class="d-flex flex-column gap-2 mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input detail-assignment-mode" type="radio" name="assignment_mode" id="detail_assignment_mode_manual" value="manual" checked>
-                            <label class="form-check-label" for="detail_assignment_mode_manual">Manual (admin selects driver)</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input detail-assignment-mode" type="radio" name="assignment_mode" id="detail_assignment_mode_broadcast" value="broadcast">
-                            <label class="form-check-label" for="detail_assignment_mode_broadcast">Automatic (notify nearby drivers, first acceptance wins)</label>
-                        </div>
-                    </div>
-                    <div id="detailManualDriverWrap">
-                        <label class="form-label">Select Driver</label>
-                        <select name="driver_id" id="detail_driver_id" class="form-select">
-                            <option value="">Choose driver...</option>
-                            @foreach($availableDrivers ?? [] as $d)
-                                <option value="{{ $d->user_id }}">{{ $d->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <small class="text-muted d-none" id="detailBroadcastInfo">All nearby online drivers will be notified. Once one accepts, others cannot accept.</small>
+                    <label class="form-label">Select Driver</label>
+                    <select name="driver_id" class="form-select" required>
+                        <option value="">Choose driver...</option>
+                        @foreach($availableDrivers ?? [] as $d)
+                            <option value="{{ $d->user_id }}">{{ $d->name }}</option>
+                        @endforeach
+                    </select>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -185,26 +171,3 @@
 </div>
 @endsection
 
-@section('scripts')
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    var manualRadio = document.getElementById('detail_assignment_mode_manual');
-    var broadcastRadio = document.getElementById('detail_assignment_mode_broadcast');
-    var manualWrap = document.getElementById('detailManualDriverWrap');
-    var manualSelect = document.getElementById('detail_driver_id');
-    var info = document.getElementById('detailBroadcastInfo');
-
-    function syncMode() {
-        var isManual = manualRadio && manualRadio.checked;
-        if (manualWrap) manualWrap.classList.toggle('d-none', !isManual);
-        if (info) info.classList.toggle('d-none', isManual);
-        if (manualSelect) manualSelect.required = isManual;
-    }
-
-    [manualRadio, broadcastRadio].forEach(function (el) {
-        if (el) el.addEventListener('change', syncMode);
-    });
-    syncMode();
-});
-</script>
-@endsection
