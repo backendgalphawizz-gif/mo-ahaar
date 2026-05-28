@@ -68,26 +68,118 @@
     display: none !important;
 }
 
-/* Sidebar link colors (override theme dark gradient white text) */
-.admin-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper.moa-sidebar .sidebar-main .sidebar-links > li > a,
-.admin-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper.moa-sidebar .sidebar-main .sidebar-links .sidebar-link {
+/* ── MoA sidebar: active, hover (override Fastkart gold / dark theme) ── */
+.admin-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper.moa-sidebar .sidebar-main .sidebar-links,
+.vendor-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper.moa-sidebar .sidebar-main .sidebar-links {
+    height: calc(100vh - 64px) !important;
+}
+
+.admin-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper.moa-sidebar .sidebar-link::before,
+.admin-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper.moa-sidebar .sidebar-link.active::before,
+.admin-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper.moa-sidebar .sidebar-link.sidebar-title.active::before,
+.vendor-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper.moa-sidebar .sidebar-link::before,
+.vendor-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper.moa-sidebar .sidebar-link.active::before {
+    display: none !important;
+    opacity: 0 !important;
+    background: none !important;
+    content: none !important;
+}
+
+.admin-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper.moa-sidebar #sidebar-menu .sidebar-link,
+.vendor-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper.moa-sidebar #sidebar-menu .sidebar-link {
+    color: #374151 !important;
+    background: transparent !important;
+    background-image: none !important;
+    border-radius: 8px;
+}
+
+.admin-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper.moa-sidebar #sidebar-menu .sidebar-link > i:first-of-type,
+.vendor-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper.moa-sidebar #sidebar-menu .sidebar-link > i:first-of-type {
+    color: #4b5563 !important;
+}
+
+/* Hover — main menu */
+.admin-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper.moa-sidebar #sidebar-menu .sidebar-link.link-nav:hover,
+.admin-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper.moa-sidebar #sidebar-menu .sidebar-link.has-submenu:hover,
+.admin-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper.moa-sidebar .sidebar-links .sidebar-link:hover,
+.vendor-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper.moa-sidebar #sidebar-menu .sidebar-link.link-nav:hover,
+.vendor-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper.moa-sidebar #sidebar-menu .sidebar-link.has-submenu:hover {
+    background: #f3f4f6 !important;
+    background-image: none !important;
+    color: #111827 !important;
+}
+
+.admin-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper.moa-sidebar #sidebar-menu .sidebar-link.link-nav:hover > i:first-of-type,
+.admin-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper.moa-sidebar #sidebar-menu .sidebar-link.has-submenu:hover > i:first-of-type,
+.vendor-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper.moa-sidebar #sidebar-menu .sidebar-link.link-nav:hover > i:first-of-type {
     color: #374151 !important;
 }
 
-.admin-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper.moa-sidebar .sidebar-main .sidebar-links .sidebar-link svg,
-.admin-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper.moa-sidebar .sidebar-main .sidebar-links .sidebar-link > i {
-    color: #4b5563 !important;
-    stroke: #4b5563 !important;
-}
-
-.admin-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper.moa-sidebar .sidebar-main .sidebar-links .sidebar-link.link-nav.active,
-.admin-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper.moa-sidebar .sidebar-main .sidebar-links .sidebar-link.link-nav.active > i {
+/* Active — top-level single links (Dashboard, Orders, etc.) */
+.admin-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper.moa-sidebar #sidebar-menu .sidebar-link.link-nav.active,
+.admin-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper.moa-sidebar .sidebar-links .sidebar-list .sidebar-link.sidebar-title.link-nav.active,
+.vendor-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper.moa-sidebar #sidebar-menu .sidebar-link.link-nav.active {
+    background: #ed1c24 !important;
+    background-image: none !important;
     color: #fff !important;
-    stroke: #fff !important;
+    font-weight: 600;
 }
 
-.admin-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper .sidebar-main .sidebar-links {
-    height: calc(100vh - 64px) !important;
+.admin-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper.moa-sidebar #sidebar-menu .sidebar-link.link-nav.active > i:first-of-type,
+.admin-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper.moa-sidebar #sidebar-menu .sidebar-link.link-nav.active .submenu-arrow,
+.vendor-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper.moa-sidebar #sidebar-menu .sidebar-link.link-nav.active > i:first-of-type {
+    color: #fff !important;
+}
+
+.admin-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper.moa-sidebar #sidebar-menu .sidebar-link.link-nav.active:hover,
+.vendor-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper.moa-sidebar #sidebar-menu .sidebar-link.link-nav.active:hover {
+    background: #d9161d !important;
+    color: #fff !important;
+}
+
+/* Active — open parent with submenu */
+.admin-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper.moa-sidebar #sidebar-menu .sidebar-list.submenu-open > .sidebar-link.has-submenu.open,
+.vendor-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper.moa-sidebar #sidebar-menu .sidebar-list.submenu-open > .sidebar-link.has-submenu.open {
+    background: #fef2f2 !important;
+    background-image: none !important;
+    color: #ed1c24 !important;
+    font-weight: 600;
+}
+
+.admin-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper.moa-sidebar #sidebar-menu .sidebar-list.submenu-open > .sidebar-link.has-submenu.open > i:first-of-type,
+.vendor-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper.moa-sidebar #sidebar-menu .sidebar-list.submenu-open > .sidebar-link.has-submenu.open > i:first-of-type {
+    color: #ed1c24 !important;
+}
+
+/* Submenu items */
+.admin-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper.moa-sidebar #sidebar-menu .sidebar-submenu li a,
+.vendor-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper.moa-sidebar #sidebar-menu .sidebar-submenu li a {
+    color: #6b7280 !important;
+    background: transparent !important;
+}
+
+.admin-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper.moa-sidebar #sidebar-menu .sidebar-submenu li a:hover,
+.vendor-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper.moa-sidebar #sidebar-menu .sidebar-submenu li a:hover {
+    background: #f9fafb !important;
+    color: #111827 !important;
+}
+
+.admin-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper.moa-sidebar #sidebar-menu .sidebar-submenu li a.active,
+.vendor-panel .page-wrapper.compact-wrapper .page-body-wrapper div.sidebar-wrapper.moa-sidebar #sidebar-menu .sidebar-submenu li a.active {
+    color: #ed1c24 !important;
+    background: #fef2f2 !important;
+    font-weight: 600;
+    border-left: 3px solid #ed1c24;
+    padding-left: 9px;
+}
+
+/* Kill theme gold overrides at end of style.css */
+.admin-panel .sidebar-links .sidebar-list .sidebar-link.sidebar-title.active,
+.admin-panel #sidebar-menu .sidebar-link.sidebar-title.active,
+.admin-panel #sidebar-menu .sidebar-link.link-nav.active,
+.vendor-panel .sidebar-links .sidebar-list .sidebar-link.sidebar-title.active,
+.vendor-panel #sidebar-menu .sidebar-link.link-nav.active {
+    background-image: none !important;
 }
 
 /* Header */

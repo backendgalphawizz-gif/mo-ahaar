@@ -241,3 +241,25 @@ p.small.text-muted {
         justify-content: center;
     }
 }
+
+/* MoA sidebar — override Fastkart gold active (style.css end) */
+body.admin-panel .sidebar-wrapper.moa-sidebar #sidebar-menu .sidebar-link.link-nav.active,
+body.admin-panel .sidebar-wrapper.moa-sidebar .sidebar-links .sidebar-list .sidebar-link.sidebar-title.link-nav.active,
+body.vendor-panel .sidebar-wrapper.moa-sidebar #sidebar-menu .sidebar-link.link-nav.active {
+    background: #ed1c24 !important;
+    background-image: none !important;
+    color: #fff !important;
+}
+
+body.admin-panel .sidebar-wrapper.moa-sidebar #sidebar-menu .sidebar-submenu li a.active,
+body.vendor-panel .sidebar-wrapper.moa-sidebar #sidebar-menu .sidebar-submenu li a.active {
+    color: #ed1c24 !important;
+    background: #fef2f2 !important;
+}
+
+body.admin-panel .sidebar-wrapper.moa-sidebar #sidebar-menu .sidebar-link.link-nav:hover,
+body.admin-panel .sidebar-wrapper.moa-sidebar #sidebar-menu .sidebar-link.has-submenu:hover,
+body.vendor-panel .sidebar-wrapper.moa-sidebar #sidebar-menu .sidebar-link.link-nav:hover {
+    background: #f3f4f6 !important;
+    color: #111827 !important;
+}
