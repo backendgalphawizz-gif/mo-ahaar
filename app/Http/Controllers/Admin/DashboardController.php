@@ -262,9 +262,24 @@ class DashboardController extends Controller
                     $totalOrders = (int) (clone $ordersQuery)->count();
                     $totalRevenue = (float) (clone $ordersQuery)->where('payment_status', 'paid')->sum('total_amount');
                     $recentOrders = (clone $ordersQuery)->orderByDesc('order_id')->limit(5)->get();
+
+                    $monthlySales = Orders::selectRaw('MONTH(created_at) as month_num, SUM(total_amount) as total')
+                        ->where('vendor_id', $vendorId)
+                        ->where('payment_status', 'paid')
+                        ->whereYear('created_at', now()->year)
+                        ->groupBy('month_num')
+                        ->orderBy('month_num')
+                        ->get()
+                        ->keyBy('month_num');
+
+                    $monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+                    for ($m = 1; $m <= 4; $m++) {
+                        $salesChartLabels[] = $monthNames[$m - 1];
+                        $salesChartData[] = (float) ($monthlySales[$m]->total ?? 0);
+                    }
                 }
 
-                return view('admin.dashboard', compact(
+                return view('vendor.dashboard', compact(
                     'totalUsers',
                     'totalVendors',
                     'activeVendors',

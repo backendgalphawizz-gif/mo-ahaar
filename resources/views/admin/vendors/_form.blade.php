@@ -33,6 +33,19 @@
                     @csrf
                     <input type="hidden" name="tab" value="{{ $tab }}">
 
+                    @if($isEdit && $tab !== 'personal')
+                        {{-- Include required fields from personal tab as hidden inputs when on other tabs --}}
+                        <input type="hidden" name="owner_name" value="{{ $vendor->owner_name ?? '' }}">
+                        <input type="hidden" name="mobile" value="{{ $vendor->mobile ?? '' }}">
+                        <input type="hidden" name="email" value="{{ $vendor->email ?? '' }}">
+                        <input type="hidden" name="address" value="{{ $vendor->address ?? '' }}">
+                    @endif
+
+                    @if($isEdit && $tab !== 'business')
+                        {{-- Include required fields from business tab as hidden inputs when on other tabs --}}
+                        <input type="hidden" name="business_name" value="{{ $vendor->business_name ?? '' }}">
+                    @endif
+
                     @if($tab === 'personal')
                         <div class="form-section">
                             <h6>Personal Information</h6>

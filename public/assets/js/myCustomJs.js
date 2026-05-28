@@ -1,4 +1,14 @@
 $(document).ready(function () {
+    if (!document.getElementById('global-image-preview-style')) {
+        var styleTag = document.createElement('style');
+        styleTag.id = 'global-image-preview-style';
+        styleTag.textContent = '' +
+            '.global-image-preview-wrap{margin-top:8px;display:inline-flex;flex-direction:column;gap:4px;}' +
+            '.global-image-preview-label{font-size:11px;color:#6b7280;}' +
+            '.global-image-preview{max-width:140px;max-height:140px;border:1px solid #d1d5db;border-radius:8px;object-fit:cover;background:#f9fafb;padding:2px;}';
+        document.head.appendChild(styleTag);
+    }
+
 
     $('.numberonly').keypress(function (e) {
         var charCode = (e.which) ? e.which : event.keyCode
@@ -13,6 +23,71 @@ $(document).ready(function () {
             $(this).val(value.slice(0, -1));
         }
     });
+
+    // Global image preview for all add/edit forms in admin/vendor panels.
+    $(document).on('change', 'input[type="file"]', function () {
+        var input = this;
+        if (!input || !input.files || !input.files.length) {
+            removePreview(input);
+            return;
+        }
+
+        var file = input.files[0];
+        if (!file || !file.type || file.type.indexOf('image/') !== 0) {
+            removePreview(input);
+            return;
+        }
+
+        var reader = new FileReader();
+        reader.onload = function (event) {
+            renderPreview(input, event.target.result);
+        };
+        reader.readAsDataURL(file);
+    });
+
+    function renderPreview(input, imageSrc) {
+        if (!input) return;
+
+        var $input = $(input);
+        var previewId = 'img-preview-' + ensureInputId($input);
+        var $existing = $('#' + previewId);
+
+        if ($existing.length === 0) {
+            var $wrapper = $('<div/>', {
+                id: previewId,
+                class: 'global-image-preview-wrap'
+            });
+            var $label = $('<small/>', {
+                class: 'global-image-preview-label',
+                text: 'Preview'
+            });
+            var $img = $('<img/>', {
+                class: 'global-image-preview',
+                alt: 'Selected image preview'
+            });
+            $wrapper.append($label).append($img);
+            $input.after($wrapper);
+            $existing = $wrapper;
+        }
+
+        $existing.find('img.global-image-preview').attr('src', imageSrc);
+    }
+
+    function removePreview(input) {
+        if (!input) return;
+        var $input = $(input);
+        var previewId = 'img-preview-' + ensureInputId($input);
+        $('#' + previewId).remove();
+    }
+
+    function ensureInputId($input) {
+        var existingId = $input.attr('id');
+        if (existingId) return existingId;
+
+        var generated = 'file-' + Math.random().toString(36).substring(2, 10);
+        $input.attr('id', generated);
+        return generated;
+    }
 
 });
 
