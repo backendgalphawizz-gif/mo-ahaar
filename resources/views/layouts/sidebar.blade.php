@@ -5,27 +5,59 @@
         ? asset('public/uploads/settings/' . $globalStoreSetting->logo)
         : $defaultLogoUrl;
 
-    $pathMatch = function (string $pattern) {
-        $path = request()->path();
-        if ($pattern === $path) {
+    /** Route name + URI match (works with XAMPP subfolder / index.php) */
+    $routeActive = function (...$patterns): bool {
+        if (request()->route() && request()->routeIs(...$patterns)) {
             return true;
         }
-        return str_starts_with($path, rtrim($pattern, '/') . '/');
-    };
-
-    $isActive = function (array $patterns) use ($pathMatch) {
         foreach ($patterns as $pattern) {
-            if ($pathMatch($pattern)) {
+            if (! is_string($pattern) || str_contains($pattern, '.')) {
+                continue;
+            }
+            if (request()->is($pattern, $pattern . '/*')) {
+                return true;
+            }
+            $needle = trim($pattern, '/');
+            $path = trim(request()->path(), '/');
+            $uri = trim((string) parse_url(request()->getRequestUri(), PHP_URL_PATH), '/');
+            if ($path === $needle || str_ends_with($path, '/' . $needle)
+                || str_starts_with($path, $needle . '/')
+                || str_ends_with($uri, $needle) || str_contains($uri, '/' . $needle . '/')) {
                 return true;
             }
         }
         return false;
     };
 
-    $userMenuOpen = $isActive(['admin/customers', 'admin/add-customer', 'admin/view-customer', 'admin/edit-customer', 'admin/customers/transactions']);
-    $restaurantMenuOpen = $isActive(['admin/vendors', 'admin/add-vendor', 'admin/view-vendor', 'admin/edit-vendor', 'admin/payments/settlements']);
-    $deliveryMenuOpen = $isActive(['admin/delivery', 'admin/delivery/wallet-transactions']);
-    $productMenuOpen = $isActive(['admin/products', 'admin/add-product', 'admin/edit-product', 'admin/view-product', 'admin/categories', 'admin/sub-category', 'admin/add-category', 'admin/edit-category']);
+    $dashActive = $routeActive('admin.dashboard', 'vendor.dashboard', 'admin/dashboard', 'vendor/dashboard');
+    $ordersActive = $routeActive('admin.orders*', 'admin.order-*', 'vendor.orders*', 'admin/orders', 'vendor/orders');
+    $usersListActive = $routeActive(
+        'admin.customers', 'admin.add-customer', 'admin.view-customer', 'admin.edit-customer',
+        'admin.store-customer', 'admin.update-customer',
+        'admin/customers', 'admin/add-customer', 'admin/view-customer', 'admin/edit-customer'
+    );
+    $usersTxActive = $routeActive('admin.customers.transactions', 'admin/customers/transactions');
+    $userMenuOpen = $usersListActive || $usersTxActive;
+    $restaurantsActive = $routeActive('admin.vendors*', 'admin/add-vendor', 'admin/view-vendor', 'admin/edit-vendor');
+    $settlementsActive = $routeActive('admin.payments.settlements*', 'admin/payments/settlements');
+    $restaurantMenuOpen = $restaurantsActive || $settlementsActive;
+    $walletTxActive = $routeActive('admin.delivery.wallet-transactions', 'admin/delivery/wallet-transactions');
+    $driversActive = ! $walletTxActive && $routeActive(
+        'admin.delivery.index', 'admin.delivery.add', 'admin.delivery.edit', 'admin.delivery.view',
+        'admin/delivery', 'admin/delivery/add', 'admin/delivery/edit', 'admin/delivery/view'
+    );
+    $deliveryMenuOpen = $driversActive || $walletTxActive;
+    $categoriesActive = $routeActive('admin.categories*', 'admin.add-category', 'admin.edit-category', 'admin/categories', 'admin/add-category', 'admin/edit-category');
+    $productsActive = $routeActive('admin.products*', 'admin.add-product', 'admin.edit-product', 'admin.view-product', 'admin/products', 'admin/add-product', 'admin/edit-product', 'admin/view-product');
+    $subCatActive = $routeActive('admin.sub-category*', 'admin.add-sub-category', 'admin.edit-sub-category', 'admin/sub-category', 'admin/add-sub-category', 'admin/edit-sub-category');
+    $productMenuOpen = $categoriesActive || $productsActive || $subCatActive;
+    $paymentsActive = $routeActive('admin.payments.status', 'admin/payments/status');
+    $promoActive = $routeActive('admin.discount-offers*', 'admin/discount-offers*');
+    $bannersActive = $routeActive('admin.banners*', 'admin/banners*');
+    $reportsActive = $routeActive('admin.reports*', 'admin/reports*');
+    $notificationsActive = $routeActive('admin.notifications*', 'admin/notifications*');
+    $staticPagesActive = $routeActive('admin.static-pages*', 'admin/static-pages*');
+    $vendorProductsActive = $routeActive('vendor.products*', 'vendor/products');
 @endphp
 
 <div class="sidebar-wrapper moa-sidebar">
@@ -45,8 +77,8 @@
                 <ul class="sidebar-links" id="simple-bar">
                     <li class="back-btn"></li>
 
-                    <li class="sidebar-list">
-                        <a class="sidebar-link sidebar-title link-nav {{ $isActive(['admin/dashboard', 'vendor/dashboard']) ? 'active' : '' }}"
+                    <li class="sidebar-list {{ $dashActive ? 'active' : '' }}">
+                        <a class="sidebar-link sidebar-title link-nav {{ $dashActive ? 'active' : '' }}"
                            href="{{ route($isVendorPanel ? 'vendor.dashboard' : 'admin.dashboard') }}">
                             <i class="ri-dashboard-line"></i><span>Dashboard</span>
                         </a>
@@ -56,39 +88,39 @@
                     <li class="sidebar-list {{ $userMenuOpen ? 'submenu-open' : '' }}">
                         <a class="sidebar-link sidebar-title has-submenu {{ $userMenuOpen ? 'open' : '' }}" href="javascript:void(0)">
                             <i class="ri-user-3-line"></i><span>User Management</span>
-                            <i class="ri-arrow-down-s-line submenu-arrow"></i>
+                            {{-- <i class="ri-arrow-down-s-line submenu-arrow"></i> --}}
                         </a>
                         <ul class="sidebar-submenu" @if($userMenuOpen) style="display:block" @endif>
-                            <li><a href="{{ route('admin.customers') }}" class="{{ $isActive(['admin/customers', 'admin/view-customer', 'admin/edit-customer', 'admin/add-customer']) && !$isActive(['admin/customers/transactions']) ? 'active' : '' }}">View Users</a></li>
-                            <li><a href="{{ route('admin.customers.transactions') }}" class="{{ $isActive(['admin/customers/transactions']) ? 'active' : '' }}">Transactions</a></li>
+                            <li><a href="{{ route('admin.customers') }}" class="{{ $usersListActive ? 'active' : '' }}">View Users</a></li>
+                            <li><a href="{{ route('admin.customers.transactions') }}" class="{{ $usersTxActive ? 'active' : '' }}">Transactions</a></li>
                         </ul>
                     </li>
 
                     <li class="sidebar-list {{ $restaurantMenuOpen ? 'submenu-open' : '' }}">
                         <a class="sidebar-link sidebar-title has-submenu {{ $restaurantMenuOpen ? 'open' : '' }}" href="javascript:void(0)">
                             <i class="ri-store-2-line"></i><span>Restaurant Management</span>
-                            <i class="ri-arrow-down-s-line submenu-arrow"></i>
+                            {{-- <i class="ri-arrow-down-s-line submenu-arrow"></i> --}}
                         </a>
                         <ul class="sidebar-submenu" @if($restaurantMenuOpen) style="display:block" @endif>
-                            <li><a href="{{ route('admin.vendors') }}" class="{{ $isActive(['admin/vendors', 'admin/add-vendor', 'admin/view-vendor', 'admin/edit-vendor']) ? 'active' : '' }}">View Restaurants</a></li>
-                            <li><a href="{{ route('admin.payments.settlements') }}" class="{{ $isActive(['admin/payments/settlements']) ? 'active' : '' }}">Payment Request</a></li>
+                            <li><a href="{{ route('admin.vendors') }}" class="{{ $restaurantsActive ? 'active' : '' }}">View Restaurants</a></li>
+                            <li><a href="{{ route('admin.payments.settlements') }}" class="{{ $settlementsActive ? 'active' : '' }}">Payment Request</a></li>
                         </ul>
                     </li>
 
                     <li class="sidebar-list {{ $deliveryMenuOpen ? 'submenu-open' : '' }}">
                         <a class="sidebar-link sidebar-title has-submenu {{ $deliveryMenuOpen ? 'open' : '' }}" href="javascript:void(0)">
                             <i class="ri-truck-line"></i><span>Delivery Management</span>
-                            <i class="ri-arrow-down-s-line submenu-arrow"></i>
+                            {{-- <i class="ri-arrow-down-s-line submenu-arrow"></i> --}}
                         </a>
                         <ul class="sidebar-submenu" @if($deliveryMenuOpen) style="display:block" @endif>
-                            <li><a href="{{ route('admin.delivery.index') }}" class="{{ $isActive(['admin/delivery']) && !$isActive(['admin/delivery/wallet-transactions']) ? 'active' : '' }}">View Drivers</a></li>
-                            <li><a href="{{ route('admin.delivery.wallet-transactions') }}" class="{{ $isActive(['admin/delivery/wallet-transactions']) ? 'active' : '' }}">Wallet Transactions</a></li>
+                            <li><a href="{{ route('admin.delivery.index') }}" class="{{ $driversActive ? 'active' : '' }}">View Drivers</a></li>
+                            <li><a href="{{ route('admin.delivery.wallet-transactions') }}" class="{{ $walletTxActive ? 'active' : '' }}">Wallet Transactions</a></li>
                         </ul>
                     </li>
                     @endif
 
-                    <li class="sidebar-list">
-                        <a class="sidebar-link sidebar-title link-nav {{ $isActive(['admin/orders', 'vendor/orders']) ? 'active' : '' }}"
+                    <li class="sidebar-list {{ $ordersActive ? 'active' : '' }}">
+                        <a class="sidebar-link sidebar-title link-nav {{ $ordersActive ? 'active' : '' }}"
                            href="{{ route($isVendorPanel ? 'vendor.orders' : 'admin.orders') }}">
                             <i class="ri-shopping-cart-2-line"></i><span>Order Management</span>
                         </a>
@@ -105,50 +137,50 @@
 
                     <li class="sidebar-list {{ $productMenuOpen ? 'submenu-open' : '' }}">
                         @if($isVendorPanel)
-                        <a class="sidebar-link sidebar-title link-nav {{ $isActive(['vendor/products']) ? 'active' : '' }}" href="{{ route('vendor.products') }}">
+                        <a class="sidebar-link sidebar-title link-nav {{ $vendorProductsActive ? 'active' : '' }}" href="{{ route('vendor.products') }}">
                             <i class="ri-restaurant-line"></i><span>Food Management</span>
                         </a>
                         @else
                         <a class="sidebar-link sidebar-title has-submenu {{ $productMenuOpen ? 'open' : '' }}" href="javascript:void(0)">
                             <i class="ri-restaurant-line"></i><span>Product Management</span>
-                            <i class="ri-arrow-down-s-line submenu-arrow"></i>
+                            {{-- <i class="ri-arrow-down-s-line submenu-arrow"></i> --}}
                         </a>
                         <ul class="sidebar-submenu" @if($productMenuOpen) style="display:block" @endif>
-                            <li><a href="{{ route('admin.categories') }}" class="{{ $isActive(['admin/categories', 'admin/add-category', 'admin/edit-category']) ? 'active' : '' }}">Categories</a></li>
-                            <li><a href="{{ route('admin.products') }}" class="{{ $isActive(['admin/products', 'admin/add-product', 'admin/edit-product', 'admin/view-product']) ? 'active' : '' }}">Products</a></li>
-                            <li><a href="{{ route('admin.sub-category') }}" class="{{ $isActive(['admin/sub-category']) ? 'active' : '' }}">Sub Category</a></li>
+                            <li><a href="{{ route('admin.categories') }}" class="{{ $categoriesActive ? 'active' : '' }}">Categories</a></li>
+                            <li><a href="{{ route('admin.products') }}" class="{{ $productsActive ? 'active' : '' }}">Products</a></li>
+                            <li><a href="{{ route('admin.sub-category') }}" class="{{ $subCatActive ? 'active' : '' }}">Sub Category</a></li>
                         </ul>
                         @endif
                     </li>
 
                     @if(!$isVendorPanel)
-                    <li class="sidebar-list">
-                        <a class="sidebar-link sidebar-title link-nav {{ $isActive(['admin/payments/status']) ? 'active' : '' }}" href="{{ route('admin.payments.status') }}">
+                    <li class="sidebar-list {{ $paymentsActive ? 'active' : '' }}">
+                        <a class="sidebar-link sidebar-title link-nav {{ $paymentsActive ? 'active' : '' }}" href="{{ route('admin.payments.status') }}">
                             <i class="ri-bank-card-line"></i><span>Payment Management</span>
                         </a>
                     </li>
-                    <li class="sidebar-list">
-                        <a class="sidebar-link sidebar-title link-nav {{ $isActive(['admin/discount-offers']) ? 'active' : '' }}" href="{{ route('admin.discount-offers.index') }}">
+                    <li class="sidebar-list {{ $promoActive ? 'active' : '' }}">
+                        <a class="sidebar-link sidebar-title link-nav {{ $promoActive ? 'active' : '' }}" href="{{ route('admin.discount-offers.index') }}">
                             <i class="ri-coupon-3-line"></i><span>Promo Code</span>
                         </a>
                     </li>
-                    <li class="sidebar-list">
-                        <a class="sidebar-link sidebar-title link-nav {{ $isActive(['admin/banners']) ? 'active' : '' }}" href="{{ route('admin.banners.index') }}">
+                    <li class="sidebar-list {{ $bannersActive ? 'active' : '' }}">
+                        <a class="sidebar-link sidebar-title link-nav {{ $bannersActive ? 'active' : '' }}" href="{{ route('admin.banners.index') }}">
                             <i class="ri-image-2-line"></i><span>Banner Management</span>
                         </a>
                     </li>
-                    <li class="sidebar-list">
-                        <a class="sidebar-link sidebar-title link-nav {{ $isActive(['admin/reports']) ? 'active' : '' }}" href="{{ route('admin.reports.revenue') }}">
+                    <li class="sidebar-list {{ $reportsActive ? 'active' : '' }}">
+                        <a class="sidebar-link sidebar-title link-nav {{ $reportsActive ? 'active' : '' }}" href="{{ route('admin.reports.revenue') }}">
                             <i class="ri-bar-chart-box-line"></i><span>Reports &amp; Analytics</span>
                         </a>
                     </li>
-                    <li class="sidebar-list">
-                        <a class="sidebar-link sidebar-title link-nav {{ $isActive(['admin/notifications']) ? 'active' : '' }}" href="{{ route('admin.notifications.index') }}">
+                    <li class="sidebar-list {{ $notificationsActive ? 'active' : '' }}">
+                        <a class="sidebar-link sidebar-title link-nav {{ $notificationsActive ? 'active' : '' }}" href="{{ route('admin.notifications.index') }}">
                             <i class="ri-notification-3-line"></i><span>Notifications</span>
                         </a>
                     </li>
-                    <li class="sidebar-list">
-                        <a class="sidebar-link sidebar-title link-nav {{ $isActive(['admin/static-pages']) ? 'active' : '' }}" href="{{ route('admin.static-pages.index') }}">
+                    <li class="sidebar-list {{ $staticPagesActive ? 'active' : '' }}">
+                        <a class="sidebar-link sidebar-title link-nav {{ $staticPagesActive ? 'active' : '' }}" href="{{ route('admin.static-pages.index') }}">
                             <i class="ri-file-list-3-line"></i><span>Static Pages</span>
                         </a>
                     </li>
@@ -201,6 +233,69 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    function normalizeSidebarPath(path) {
+        if (!path) return '';
+        try {
+            path = new URL(path, window.location.origin).pathname;
+        } catch (e) {}
+        return path.replace(/\/index\.php\/?/gi, '/').replace(/\/+/g, '/').replace(/\/$/, '') || '/';
+    }
+
+    function markSidebarActiveFromUrl() {
+        var current = normalizeSidebarPath(window.location.pathname);
+        var bestLink = null;
+        var bestScore = -1;
+
+        document.querySelectorAll('.moa-sidebar a.sidebar-link[href], .moa-sidebar .sidebar-submenu a[href]').forEach(function (link) {
+            var href = link.getAttribute('href');
+            if (!href || href.indexOf('javascript') === 0) return;
+
+            var linkPath = normalizeSidebarPath(href);
+            if (!linkPath) return;
+
+            var score = -1;
+            var isDashboard = /\/dashboard$/i.test(linkPath);
+            var isTop = link.classList.contains('link-nav');
+
+            if (current === linkPath || current.endsWith(linkPath)) {
+                score = linkPath.length + 1000;
+            } else if (!isDashboard && isTop && current.indexOf(linkPath + '/') === 0) {
+                score = linkPath.length + 500;
+            } else if (!isTop && (current.indexOf(linkPath + '/') === 0)) {
+                score = linkPath.length + 100;
+            }
+
+            if (score > bestScore) {
+                bestScore = score;
+                bestLink = link;
+            }
+        });
+
+        if (!bestLink) return;
+
+        document.querySelectorAll('.moa-sidebar a.active').forEach(function (el) { el.classList.remove('active'); });
+        document.querySelectorAll('.moa-sidebar .sidebar-list.active').forEach(function (el) {
+            if (!el.querySelector('.sidebar-submenu a.active')) el.classList.remove('active');
+        });
+
+        bestLink.classList.add('active');
+        var list = bestLink.closest('.sidebar-list');
+        if (list) list.classList.add('active');
+
+        var submenu = bestLink.closest('.sidebar-submenu');
+        if (submenu) {
+            var parentList = submenu.closest('.sidebar-list');
+            if (parentList) {
+                parentList.classList.add('submenu-open', 'active');
+                var parentToggle = parentList.querySelector('.has-submenu');
+                if (parentToggle) parentToggle.classList.add('open');
+                submenu.style.display = 'block';
+            }
+        }
+    }
+
+    markSidebarActiveFromUrl();
+
     document.querySelectorAll('.moa-sidebar .sidebar-link.has-submenu').forEach(function (toggle) {
         toggle.addEventListener('click', function (e) {
             e.preventDefault();
