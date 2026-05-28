@@ -62102,7 +62102,7 @@ body[class*="dark-"] .main-white {
   letter-spacing: 0.7px;
   font-family: "Public Sans", sans-serif;
   text-transform: capitalize;
-  color: #4b5563 ;
+  color: #4b5563 !important;
 }
 
 .page-wrapper.compact-wrapper
