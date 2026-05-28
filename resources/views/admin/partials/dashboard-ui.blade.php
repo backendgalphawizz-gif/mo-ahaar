@@ -34,4 +34,24 @@
 .admin-profile-tabs .nav-link.active { color: #2563eb; border-bottom-color: #2563eb; font-weight: 600; }
 .form-section h6 { font-weight: 600; margin-bottom: 4px; }
 .form-section p.text-muted { font-size: 13px; margin-bottom: 12px; }
+
+/* Vendor panel pixel-tuning */
+.vendor-panel .page-body { background: #ffffff; padding: 12px 8px 16px; }
+.vendor-panel .container-fluid { max-width: 1220px; }
+.vendor-panel .dashboard-card { border: 1px solid #eceff3; border-radius: 10px; box-shadow: none; }
+.vendor-panel .dashboard-card .card-body { padding: 14px; }
+.vendor-panel h5 { font-size: 22px; font-weight: 700; color: #0f172a; }
+.vendor-panel h6 { font-size: 15px; font-weight: 700; color: #0f172a; }
+.vendor-panel .table-modern thead th { font-size: 10px; padding: 9px 10px; color: #6b7280; }
+.vendor-panel .table-modern tbody td { font-size: 12px; padding: 9px 10px; color: #111827; }
+.vendor-panel .form-control, .vendor-panel .form-select { min-height: 38px; font-size: 12px; border-radius: 8px; }
+.vendor-panel .btn { border-radius: 8px !important; min-height: 34px; font-size: 12px; font-weight: 600; padding: 6px 12px; }
+.vendor-panel .btn-danger { background: #ed1c24; border-color: #ed1c24; }
+.vendor-panel .btn-danger:hover { background: #d9161d; border-color: #d9161d; }
+.vendor-panel .btn-brown { background: #8a3f00; border-color: #8a3f00; color: #fff; }
+.vendor-panel .btn-brown:hover { background: #733400; border-color: #733400; color: #fff; }
+.vendor-panel .btn-outline-secondary { border-color: #d1d5db; color: #475569; }
+.vendor-panel .nav-tabs .nav-link { border: 0; color: #64748b; font-size: 12px; padding: 8px 10px; }
+.vendor-panel .nav-tabs .nav-link.active { border: 0; border-bottom: 2px solid #ef4444; color: #111827; font-weight: 600; }
+.vendor-panel .badge { border-radius: 999px; padding: 4px 8px; font-size: 10px; font-weight: 600; }
 </style>

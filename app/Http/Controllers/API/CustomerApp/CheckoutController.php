@@ -60,9 +60,7 @@ class CheckoutController extends Controller
             return response()->json(['status' => false, 'message' => 'Customer profile not found'], 404);
         }
 
-        $items = CartItem::with('product')
-            ->where('customer_id', $customer->customer_id)
-            ->get();
+        $items = $this->activeCartItems((int) $customer->customer_id);
 
         if ($items->isEmpty()) {
             return response()->json(['status' => false, 'message' => 'Your cart is empty'], 422);
@@ -169,9 +167,7 @@ class CheckoutController extends Controller
         //     return response()->json(['status' => false, 'message' => 'Shipping address not found'], 404);
         // }
 
-        $items = CartItem::with('product')
-            ->where('customer_id', $customer->customer_id)
-            ->get();
+        $items = $this->activeCartItems((int) $customer->customer_id);
 
         if ($items->isEmpty()) {
             return response()->json(['status' => false, 'message' => 'Your cart is empty'], 422);
@@ -380,7 +376,7 @@ class CheckoutController extends Controller
             return response()->json(['status' => false, 'message' => 'Shipping address not found'], 404);
         }
 
-        $items = CartItem::with('product')->where('customer_id', $customer->customer_id)->get();
+        $items = $this->activeCartItems((int) $customer->customer_id);
         if ($items->isEmpty()) {
             return response()->json(['status' => false, 'message' => 'Your cart is empty'], 422);
         }
@@ -422,7 +418,10 @@ class CheckoutController extends Controller
             }
 
             $this->decrementStockForOrder($order);
-            CartItem::where('customer_id', $customer->customer_id)->delete();
+            $orderedProductIds = $items->pluck('product_id')->unique()->values()->all();
+            CartItem::where('customer_id', $customer->customer_id)
+                ->whereIn('product_id', $orderedProductIds)
+                ->delete();
             if (\Illuminate\Support\Facades\Schema::hasColumn('customers', 'cart_promo_code')) {
                 $customer->cart_promo_code = null;
             }
@@ -947,6 +946,25 @@ class CheckoutController extends Controller
                 $product->decrement('stock', $orderItem->quantity);
             }
         }
+    }
+
+    private function activeCartItems(int $customerId)
+    {
+        $activeVendorId = CartItem::query()
+            ->join('products', 'products.product_id', '=', 'cart_items.product_id')
+            ->where('cart_items.customer_id', $customerId)
+            ->whereNotNull('products.vendor_id')
+            ->orderByDesc('cart_items.updated_at')
+            ->orderByDesc('cart_items.cart_item_id')
+            ->value('products.vendor_id');
+
+        return CartItem::with('product')
+            ->where('customer_id', $customerId)
+            ->when(
+                $activeVendorId !== null,
+                fn ($q) => $q->whereHas('product', fn ($p) => $p->where('vendor_id', (int) $activeVendorId))
+            )
+            ->get();
     }
 
     /**

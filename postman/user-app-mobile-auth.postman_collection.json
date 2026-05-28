@@ -530,6 +530,66 @@
       ]
     },
     {
+      "name": "Multi Vendor Flow Demo",
+      "item": [
+        {
+          "name": "1) Add Vendor A Item",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_id\": {{vendor_a_product_id}},\n  \"quantity\": 1\n}"
+            },
+            "url": "{{base_url}}/customer-app/cart/add",
+            "description": "Adds item from vendor A."
+          }
+        },
+        {
+          "name": "2) Add Vendor B Item (becomes active cart)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_id\": {{vendor_b_product_id}},\n  \"quantity\": 1\n}"
+            },
+            "url": "{{base_url}}/customer-app/cart/add",
+            "description": "Latest vendor group becomes active."
+          }
+        },
+        {
+          "name": "3) Get Cart (shows only active vendor group)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/customer-app/cart",
+            "description": "Response includes active_vendor_id and other_vendor_groups."
+          }
+        },
+        {
+          "name": "4) Place Order for Active Vendor (COD)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payment_method\": \"cod\",\n  \"customer_address_id\": {{address_id}},\n  \"notes\": \"Multi vendor demo order\"\n}"
+            },
+            "url": "{{base_url}}/customer-app/checkout/place-order",
+            "description": "Only active vendor items are ordered and removed."
+          }
+        },
+        {
+          "name": "5) Get Cart Again (remaining vendor group visible)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/customer-app/cart",
+            "description": "Previously hidden vendor cart should now be visible."
+          }
+        }
+      ]
+    },
+    {
       "name": "Notifications",
       "item": [
         {
@@ -551,6 +611,8 @@
     { "key": "latitude", "value": "22.7196" },
     { "key": "longitude", "value": "75.8577" },
     { "key": "product_id", "value": "1" },
+    { "key": "vendor_a_product_id", "value": "1" },
+    { "key": "vendor_b_product_id", "value": "3" },
     { "key": "category_id", "value": "1" },
     { "key": "vendor_id", "value": "1" },
     { "key": "cart_item_id", "value": "" },

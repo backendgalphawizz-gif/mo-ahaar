@@ -23,6 +23,7 @@ class Customers extends Model
         'cart_promo_code',
         'cart_discount_offer_id',
         'cart_selected_address_id',
+        'active_cart_vendor_id',
    ];
 
     public $timestamps = false;

@@ -2,6 +2,9 @@
 
 @section('content')
 @include('admin.partials.dashboard-ui')
+@php
+    $isVendorPanel = (int) (session('role_type') ?? 0) === 3;
+@endphp
 <div class="page-body">
     <div class="container-fluid">
         <div class="d-flex align-items-center mb-4">
@@ -12,7 +15,7 @@
             <div class="card-body p-3">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h6 class="mb-0">Food Details</h6>
-                    <a href="{{ route('admin.products') }}" class="small">Back to List</a>
+                    <a href="{{ route($isVendorPanel ? 'vendor.products' : 'admin.products') }}" class="small">Back to List</a>
                 </div>
 
                 <div class="d-flex align-items-start gap-3">

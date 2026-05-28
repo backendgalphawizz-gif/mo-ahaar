@@ -32,7 +32,7 @@
                         <input type="text" name="product_name" class="form-control @error('product_name') is-invalid @enderror" value="{{ old('product_name', $product->product_name) }}" required>
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label">Price ($)</label>
+                        <label class="form-label">Price (₹)</label>
                         <input type="number" step="0.01" min="0" name="mrp_price" id="mrp_price" class="form-control @error('mrp_price') is-invalid @enderror" value="{{ old('mrp_price', $product->mrp_price ?? $product->price) }}" required>
                     </div>
 

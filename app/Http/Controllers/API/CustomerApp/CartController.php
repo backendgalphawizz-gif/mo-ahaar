@@ -72,29 +72,6 @@ class CartController extends Controller
             return response()->json(['status' => false, 'message' => 'Product not found or unavailable'], 404);
         }
 
-        $existingVendorIds = CartItem::query()
-            ->where('customer_id', $customer->customer_id)
-            ->join('products', 'products.product_id', '=', 'cart_items.product_id')
-            ->whereNotNull('products.vendor_id')
-            ->distinct()
-            ->pluck('products.vendor_id')
-            ->map(fn ($id) => (string) $id)
-            ->values()
-            ->all();
-        $productVendorId = $product->vendor_id !== null ? (string) $product->vendor_id : null;
-
-        if (!empty($existingVendorIds) && $productVendorId !== null && !in_array($productVendorId, $existingVendorIds, true)) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Your cart contains products from another vendor. Please place separate orders for each vendor.',
-                'data' => [
-                    'reason' => 'mixed_vendor_cart',
-                    'existing_vendor_ids' => $existingVendorIds,
-                    'incoming_vendor_id' => $productVendorId,
-                ],
-            ], 422);
-        }
-
         $qty = (int) ($validated['quantity'] ?? 1);
         $minOrder = $this->minimumOrderQuantityForProduct($product);
 
@@ -284,7 +261,12 @@ class CartController extends Controller
             return response()->json(['status' => false, 'message' => 'Customer profile not found'], 404);
         }
 
-        CartItem::where('customer_id', $customer->customer_id)->delete();
+        $activeVendorId = $this->resolveActiveVendorIdByRecentItem((int) $customer->customer_id);
+        $query = CartItem::where('customer_id', $customer->customer_id);
+        if ($activeVendorId !== null) {
+            $query->whereHas('product', fn ($q) => $q->where('vendor_id', $activeVendorId));
+        }
+        $query->delete();
 
         return response()->json([
             'status'  => true,
@@ -449,8 +431,14 @@ class CartController extends Controller
 
     private function findCartItemForCustomer(int $customerId, array $validated): ?CartItem
     {
+        $activeVendorId = $this->resolveActiveVendorIdByRecentItem($customerId);
+
         return CartItem::with('product')
             ->where('customer_id', $customerId)
+            ->when(
+                $activeVendorId !== null,
+                fn ($query) => $query->whereHas('product', fn ($p) => $p->where('vendor_id', $activeVendorId))
+            )
             ->when(
                 !empty($validated['cart_item_id']),
                 fn ($query) => $query->where('cart_item_id', (int) $validated['cart_item_id']),
@@ -470,14 +458,20 @@ class CartController extends Controller
         }
         $customer = $customerQuery->first();
 
+        $activeVendorId = $this->resolveActiveVendorIdByRecentItem($customerId);
+
         $items = CartItem::with('product')
             ->where('customer_id', $customerId)
+            ->when(
+                $activeVendorId !== null,
+                fn ($q) => $q->whereHas('product', fn ($p) => $p->where('vendor_id', $activeVendorId))
+            )
             ->get();
 
-        return $this->buildCartResponse($items, $customer);
+        return $this->buildCartResponse($items, $customer, $activeVendorId);
     }
 
-    private function buildCartResponse($items, ?Customers $customer = null): array
+    private function buildCartResponse($items, ?Customers $customer = null, ?int $activeVendorId = null): array
     {
         $offers = Schema::hasTable('discount_offers')
             ? DiscountOffer::active()->currentlyValid()->get()
@@ -575,9 +569,31 @@ class CartController extends Controller
             $selectedAddress = $selectedAddress ?: $customer->defaultAddress ?: $customer->addresses?->first();
         }
 
+        $otherVendorGroups = collect();
+        if ($customer) {
+            $otherVendorGroups = CartItem::query()
+                ->join('products', 'products.product_id', '=', 'cart_items.product_id')
+                ->where('cart_items.customer_id', $customer->customer_id)
+                ->whereNotNull('products.vendor_id')
+                ->when(
+                    $activeVendorId !== null,
+                    fn ($q) => $q->where('products.vendor_id', '!=', $activeVendorId)
+                )
+                ->groupBy('products.vendor_id')
+                ->selectRaw('products.vendor_id as vendor_id, COUNT(*) as items_count')
+                ->get()
+                ->map(fn ($row) => [
+                    'vendor_id' => (int) $row->vendor_id,
+                    'items_count' => (int) $row->items_count,
+                ])
+                ->values();
+        }
+
         return [
+            'active_vendor_id' => $activeVendorId,
             'items' => $cartItems,
             'items_count' => $cartItems->count(),
+            'other_vendor_groups' => $otherVendorGroups,
             'cooking_instructions' => $customer?->cart_cooking_instructions,
             'promo_code' => $promoCode,
             'promo_message' => $promoCode
@@ -602,6 +618,19 @@ class CartController extends Controller
             'total_amount' => number_format($totalAmount, 2, '.', ''),
             'applied_offers' => array_values($appliedOffers),
         ];
+    }
+
+    private function resolveActiveVendorIdByRecentItem(int $customerId): ?int
+    {
+        $vendorId = CartItem::query()
+            ->join('products', 'products.product_id', '=', 'cart_items.product_id')
+            ->where('cart_items.customer_id', $customerId)
+            ->whereNotNull('products.vendor_id')
+            ->orderByDesc('cart_items.updated_at')
+            ->orderByDesc('cart_items.cart_item_id')
+            ->value('products.vendor_id');
+
+        return $vendorId !== null ? (int) $vendorId : null;
     }
 
     private function estimateCartTaxAmount($items): float

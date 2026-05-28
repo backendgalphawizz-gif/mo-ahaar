@@ -4,7 +4,7 @@
 <!-- Mirrored from themes.pixelstrap.com/fastkart/back-end/index.html by HTTrack Website Copier/3.x [XR&CO'2014], Thu, 02 Apr 2026 08:04:38 GMT -->
  @include('layouts.head') 
 
-<body>
+<body class="{{ (int) (session('role_type') ?? 0) === 3 ? 'vendor-panel' : 'admin-panel' }}">
     @php
         $isVendorPanel = (int) (session('role_type') ?? 0) === 3;
         $dashboardRoute = $isVendorPanel ? 'vendor.dashboard' : 'admin.dashboard';
@@ -100,9 +100,9 @@
                                 </li>
                                 @endif
                                 <li>
-                                    <a href="{{ route($isVendorPanel ? 'vendor.dashboard' : 'admin.profile.edit') }}">
+                                    <a href="{{ route($isVendorPanel ? 'vendor.profile' : 'admin.profile.edit') }}">
                                         <i data-feather="settings"></i>
-                                        <span>{{ $isVendorPanel ? 'Dashboard' : 'Settings' }}</span>
+                                        <span>{{ $isVendorPanel ? 'Profile' : 'Settings' }}</span>
                                     </a>
                                 </li>
                                 <li>

@@ -74,6 +74,21 @@
                         </a>
                     </li>
 
+                    @if($isVendorPanel)
+                    <li class="sidebar-list">
+                        <a class="sidebar-link sidebar-title link-nav" href="{{ route('vendor.payments') }}">
+                            <i class="ri-bank-card-line"></i>
+                            <span>Payments</span>
+                        </a>
+                    </li>
+                    <li class="sidebar-list">
+                        <a class="sidebar-link sidebar-title link-nav" href="{{ route('vendor.profile') }}">
+                            <i class="ri-user-3-line"></i>
+                            <span>Profile</span>
+                        </a>
+                    </li>
+                    @endif
+
                     <li class="sidebar-list">
                         <a class="sidebar-link sidebar-title link-nav" href="{{ route($isVendorPanel ? 'vendor.products' : 'admin.products') }}">
                             <i class="ri-store-3-line"></i>
@@ -126,9 +141,9 @@
                     @endif
 
                     <li class="sidebar-list">
-                        <a class="sidebar-link sidebar-title link-nav" href="{{ $isVendorPanel ? route('vendor.dashboard') : route('admin.static-pages.index') }}">
+                        <a class="sidebar-link sidebar-title link-nav" href="{{ $isVendorPanel ? route('vendor.addons.index') : route('admin.static-pages.index') }}">
                             <i class="ri-file-list-3-line"></i>
-                            <span>{{ $isVendorPanel ? 'Pages' : 'Static Pages' }}</span>
+                            <span>{{ $isVendorPanel ? 'Add On Lists' : 'Static Pages' }}</span>
                         </a>
                     </li>
 

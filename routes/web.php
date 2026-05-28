@@ -24,6 +24,7 @@ use App\Http\Controllers\Admin\GstTaxController;
 use App\Http\Controllers\Admin\DiscountOfferController;
 use App\Http\Controllers\Admin\VendorManagementController;
 use App\Http\Controllers\Admin\DeliveryManagementController;
+use App\Http\Controllers\Vendor\PanelController as VendorPanelController;
 use App\Http\Controllers\CommonController;
 
 Route::any('/',       [LoginController::class,'index']);
@@ -293,9 +294,20 @@ Route::middleware(['VendorAuth'])->prefix('vendor')->name('vendor.')->group(func
         Route::get('/delete-product/{id}',[ProductManagementController::class,'deleteProduct'])->name('delete-product');
         Route::post('/toggle-product-status/{id}',[ProductManagementController::class,'toggleStatus'])->name('products.toggle-status');
 
-        Route::get('/orders',[OrderManagementController::class,'orders'])->name('orders');
-        Route::get('/order-details/{id}',[OrderManagementController::class,'orderDetails'])->name('order-details');
-        Route::post('/update-order-status/{id}',[OrderManagementController::class,'updateOrderStatus'])->name('update-order-status');
+        Route::get('/orders',[VendorPanelController::class,'orders'])->name('orders');
+        Route::get('/order-details/{id}',[VendorPanelController::class,'orderDetails'])->name('order-details');
+        Route::post('/update-order-status/{id}',[VendorPanelController::class,'updateOrderStatus'])->name('update-order-status');
+        Route::get('/profile', [VendorPanelController::class, 'profile'])->name('profile');
+        Route::post('/profile', [VendorPanelController::class, 'updateProfile'])->name('profile.update');
+        Route::get('/payments', [VendorPanelController::class, 'payments'])->name('payments');
+        Route::post('/payments/withdraw', [VendorPanelController::class, 'requestWithdraw'])->name('payments.withdraw');
+        Route::get('/addons', [VendorPanelController::class, 'addons'])->name('addons.index');
+        Route::get('/addons/create', [VendorPanelController::class, 'addonCreate'])->name('addons.create');
+        Route::post('/addons', [VendorPanelController::class, 'addonStore'])->name('addons.store');
+        Route::get('/addons/{id}/edit', [VendorPanelController::class, 'addonEdit'])->name('addons.edit');
+        Route::post('/addons/{id}', [VendorPanelController::class, 'addonUpdate'])->name('addons.update');
+        Route::post('/addons/{id}/toggle', [VendorPanelController::class, 'addonToggle'])->name('addons.toggle');
+        Route::post('/addons/{id}/delete', [VendorPanelController::class, 'addonDelete'])->name('addons.delete');
 
     });
 

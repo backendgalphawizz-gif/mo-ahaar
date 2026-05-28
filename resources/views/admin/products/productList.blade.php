@@ -41,6 +41,7 @@
                                 <button type="submit" class="btn btn-outline-secondary btn-sm">Search</button>
                             </form>
                             <div class="dropdown">
+                                @if(!$isVendorPanel)
                                 <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
                                     <i class="ri-download-line me-1"></i>Export Data
                                 </button>
@@ -48,6 +49,7 @@
                                     <li><a class="dropdown-item" href="{{ route('admin.products.export-excel', array_filter(['search' => $search ?? ''])) }}">Export Excel</a></li>
                                     <li><a class="dropdown-item" href="{{ route('admin.products.export-pdf', array_filter(['search' => $search ?? ''])) }}">Export PDF</a></li>
                                 </ul>
+                                @endif
                             </div>
                         </div>
                       
