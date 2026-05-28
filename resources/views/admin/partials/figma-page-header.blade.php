@@ -13,7 +13,7 @@
         @endif
     </div>
     @if(!empty($actionUrl) && !empty($actionLabel))
-        <a href="{{ $actionUrl }}" class="btn btn-theme btn-sm ms-auto flex-shrink-0">
+        <a href="{{ $actionUrl }}" class="btn btn-figma-primary ms-auto flex-shrink-0">
             <i class="{{ $actionIcon }} me-1"></i>{{ $actionLabel }}
         </a>
     @endif

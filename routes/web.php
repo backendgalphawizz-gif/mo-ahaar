@@ -195,6 +195,7 @@ Route::middleware(['AdminAuth'])->prefix('admin')->group(function(){
         Route::post('/customers/{id}/verify-gst',[CustomerManagementController::class,'verifyGst'])->name('admin.customers.verify-gst');
         Route::get('/customers/export-excel', [CustomerManagementController::class, 'exportCustomersExcel'])->name('admin.customers.export-excel');
         Route::get('/customers/export-pdf', [CustomerManagementController::class, 'exportCustomersPdf'])->name('admin.customers.export-pdf');
+        Route::get('/customers/transactions', [PaymentEarningController::class, 'userTransactions'])->name('admin.customers.transactions');
 
         // Vendor Management Routes
         Route::get('/vendors', [VendorManagementController::class, 'index'])->name('admin.vendors');
@@ -220,6 +221,7 @@ Route::middleware(['AdminAuth'])->prefix('admin')->group(function(){
         Route::post('/delivery/{id}/approval-status', [DeliveryManagementController::class, 'updateApprovalStatus'])->name('admin.delivery.approval-status');
         Route::post('/delivery/{id}/toggle-status', [DeliveryManagementController::class, 'toggleStatus'])->name('admin.delivery.toggle-status');
         Route::get('/delivery/export-excel', [DeliveryManagementController::class, 'exportDriversExcel'])->name('admin.delivery.export-excel');
+        Route::get('/delivery/wallet-transactions', [DeliveryManagementController::class, 'walletTransactions'])->name('admin.delivery.wallet-transactions');
 
         // Payment Management Routes
         Route::get('/payments/commission-settings', [PaymentEarningController::class, 'commissionSettings'])->name('admin.payments.commission-settings');

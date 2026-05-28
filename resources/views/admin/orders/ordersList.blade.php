@@ -49,7 +49,7 @@
 
         <div class="card dashboard-card">
             <div class="card-body">
-                <div class="figma-status-tabs">
+                <div class="figma-line-tabs">
                     @foreach($figmaTabs as $tab)
                         <a href="{{ route($ordersRoute, array_filter(['status_filter' => $tab['filter'], 'search' => $search ?? null])) }}"
                            class="tab-link {{ ($activeFilter === $tab['filter']) || (empty($activeFilter) && empty($tab['filter'])) ? 'active' : '' }}">

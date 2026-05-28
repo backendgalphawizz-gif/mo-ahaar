@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\DriverRequest;
 use App\Models\DeliveryAssignment;
 use App\Models\DriverProfile;
+use App\Models\DriverTransaction;
 use App\Models\DriverWallet;
 use App\Models\Users;
 use App\Services\DriverWalletService;
@@ -74,6 +75,33 @@ class DeliveryManagementController extends Controller
             'wallets' => $wallets,
             'search' => $request->query('search', ''),
             'status' => $request->query('status', 'all'),
+        ]);
+    }
+
+    public function walletTransactions(Request $request)
+    {
+        $search = trim((string) $request->query('search', ''));
+        $transactions = collect();
+
+        if (Schema::hasTable('driver_transactions')) {
+            $query = DriverTransaction::with('driver')
+                ->orderByDesc('id');
+
+            if ($search !== '') {
+                $query->where(function ($q) use ($search) {
+                    $q->where('reference', 'like', '%' . $search . '%')
+                        ->orWhere('description', 'like', '%' . $search . '%')
+                        ->orWhere('type', 'like', '%' . $search . '%');
+                });
+            }
+
+            $transactions = $query->paginate(20)->withQueryString();
+        }
+
+        return view('admin.delivery.walletTransactions', [
+            'title' => 'Wallet Transactions',
+            'transactions' => $transactions,
+            'search' => $search,
         ]);
     }
 

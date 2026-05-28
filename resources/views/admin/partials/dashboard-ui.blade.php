@@ -1,3 +1,4 @@
+@include('admin.partials.admin-figma-theme')
 <style>
 .page-body { background: #f3f4f6; min-height: calc(100vh - 64px); padding: 14px 10px 18px; }
 .container-fluid { max-width: 1240px; }

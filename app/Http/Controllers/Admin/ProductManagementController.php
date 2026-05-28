@@ -127,6 +127,7 @@ class ProductManagementController extends Controller
             $request->merge(['sku' => $this->generateUniqueProductSku()]);
         }
 
+        $singlePrice = $request->input('price', $request->input('mrp_price'));
         $request->merge([
             'sub_category_id' => $request->filled('sub_category_id') ? $request->input('sub_category_id') : null,
             'short_description' => $shortFromDesc,
@@ -134,7 +135,8 @@ class ProductManagementController extends Controller
             'gst_calculation_type' => $request->input('gst_calculation_type', Product::GST_EXCLUDED),
             'target_user_type' => $request->input('target_user_type', Product::TARGET_RETAILER),
             'stock' => $request->input('stock', 100),
-            'price' => $request->input('price', $request->input('mrp_price')),
+            'price' => $singlePrice,
+            'mrp_price' => $singlePrice,
         ]);
 
         if (!$request->filled('category_id')) {
@@ -155,7 +157,7 @@ class ProductManagementController extends Controller
             'sub_category_id' => ['nullable', 'exists:sub_categories,sub_category_id'],
             'sku' => ['nullable', 'string', 'max:100', Rule::unique('products', 'sku')->whereNotNull('sku')],
             'mrp_price' => ['required', 'numeric', 'min:0', 'regex:/^\d{1,10}(\.\d{1,2})?$/'],
-            'price' => ['required', 'numeric', 'min:0', 'lte:mrp_price', 'regex:/^\d{1,10}(\.\d{1,2})?$/'],
+            'price' => ['required', 'numeric', 'min:0', 'regex:/^\d{1,10}(\.\d{1,2})?$/'],
             'stock' => ['nullable', 'integer', 'min:0', 'max:999999'],
             'min_quantity' => [
                 'nullable',
@@ -185,15 +187,17 @@ class ProductManagementController extends Controller
             'sku.required' => 'SKU is required.',
             'sku.max' => 'SKU may not be greater than 100 characters.',
             'sku.unique' => 'This SKU is already in use.',
-            'mrp_price.required' => 'MRP price is required.',
-            'mrp_price.numeric' => 'MRP price must be a number.',
-            'mrp_price.min' => 'MRP price must be at least 0.',
-            'mrp_price.regex' => 'MRP price may not be greater than 10 digits.',
+            'mrp_price.required' => 'Price is required.',
+            'mrp_price.numeric' => 'Price must be a valid number.',
+            'mrp_price.min' => 'Price must be at least 0.',
+            'mrp_price.regex' => 'Price may not be greater than 10 digits.',
             'price.required' => 'Price is required.',
-            'price.numeric' => 'Price must be a number.',
+            'price.numeric' => 'Price must be a valid number.',
             'price.min' => 'Price must be at least 0.',
-            'price.lte' => 'Discounted price cannot be greater than MRP price.',
             'price.regex' => 'Price may not be greater than 10 digits.',
+            'product_description.required' => 'Ingredients are required.',
+            'product_type.required' => 'Please select veg or non-veg.',
+            'product_type.in' => 'Food type must be veg or non-veg.',
             'stock.required' => 'Stock quantity is required.',
             'stock.integer' => 'Stock quantity must be an integer.',
             'stock.min' => 'Stock quantity must be at least 0.',
@@ -238,7 +242,7 @@ class ProductManagementController extends Controller
         $product->featured = (int) ($validated['featured'] ?? 0);
         // Set defaults for admin-added products
         $product->status = 1;
-        $product->sale_status = ((float) $validated['price'] < (float) $validated['mrp_price']) ? 1 : 0;
+        $product->sale_status = 0;
         $product->random_related_product = 0;
         $product->free_shipping = 0;
         $product->safe_checkout = 0;
@@ -363,13 +367,15 @@ class ProductManagementController extends Controller
 
         $desc = (string) $request->input('product_description', '');
         $plainDesc = trim(strip_tags($desc));
+        $singlePrice = $request->input('price', $request->input('mrp_price', $product->price));
         $request->merge([
             'short_description' => Str::limit($plainDesc !== '' ? $plainDesc : (string) $request->input('product_name', $product->product_name), 300),
             'sub_category_id' => $request->filled('sub_category_id') ? $request->input('sub_category_id') : null,
             'gst_calculation_type' => $request->input('gst_calculation_type', $product->gst_calculation_type ?? Product::GST_EXCLUDED),
             'target_user_type' => $request->input('target_user_type', $product->target_user_type ?: Product::TARGET_RETAILER),
             'stock' => $request->input('stock', $product->stock ?: 100),
-            'price' => $request->input('price', $request->input('mrp_price', $product->price)),
+            'price' => $singlePrice,
+            'mrp_price' => $singlePrice,
         ]);
         if (!$request->filled('category_id')) {
             $request->merge(['category_id' => $product->category_id ?: ProductCategory::where('status', '!=', 0)->value('category_id')]);
@@ -388,7 +394,7 @@ class ProductManagementController extends Controller
             'sub_category_id' => ['nullable', 'exists:sub_categories,sub_category_id'],
             'target_user_type' => ['nullable', Rule::in(Product::targetUserTypeOptions())],
             'mrp_price' => ['required', 'numeric', 'min:0', 'regex:/^\d{1,10}(\.\d{1,2})?$/'],
-            'price' => ['required', 'numeric', 'min:0', 'lte:mrp_price', 'regex:/^\d{1,10}(\.\d{1,2})?$/'],
+            'price' => ['required', 'numeric', 'min:0', 'regex:/^\d{1,10}(\.\d{1,2})?$/'],
             'stock' => ['nullable', 'integer', 'min:0', 'max:999999'],
             'stock_status' => ['nullable', Rule::in(['in_stock', 'out_of_stock', 'backorder'])],
             'min_quantity' => [
@@ -446,7 +452,7 @@ class ProductManagementController extends Controller
         $product->video = $validated['video'] ?? null;
         $product->product_type = $validated['product_type'];
         $product->tags = $validated['tags'] ?? null;
-        $product->sale_status = ((float) $validated['price'] < (float) $validated['mrp_price']) ? 1 : 0;
+        $product->sale_status = 0;
         $product->gst_calculation_type = $validated['gst_calculation_type'] ?? Product::GST_EXCLUDED;
         $gstTaxUpdate = !empty($validated['gst_tax_id']) ? GstTax::find($validated['gst_tax_id']) : null;
         $product->gst_percentage = $gstTaxUpdate ? number_format((float) $gstTaxUpdate->percentage, 2) : null;

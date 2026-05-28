@@ -2,32 +2,30 @@
     $isEdit = !empty($vendor);
     $tab = $tab ?? 'personal';
     $formAction = $isEdit ? route('admin.update-vendor', $vendor->vendor_id) : route('admin.store-vendor');
+    $stepKeys = ['personal', 'business', 'bank', 'documents'];
+    $currentIndex = array_search($tab, $stepKeys, true);
+    if ($currentIndex === false) {
+        $currentIndex = 0;
+    }
 @endphp
 
+@include('admin.partials.dashboard-ui')
 <div class="page-body">
     <div class="container-fluid">
         <div class="card dashboard-card">
             <div class="card-body p-4">
-                <div class="d-flex align-items-center mb-3">
-                    <a href="{{ route('admin.vendors') }}" class="btn btn-outline-secondary btn-sm me-2"><i class="ri-arrow-left-line"></i></a>
+                <div class="d-flex align-items-center mb-4">
+                    <a href="{{ route('admin.vendors') }}" class="btn btn-outline-secondary btn-sm me-3"><i class="ri-arrow-left-line"></i></a>
                     <div>
-                        <h5 class="mb-0">{{ $isEdit ? 'Edit Vendor' : 'Add New Vendor' }}</h5>
-                        <small class="text-muted">{{ $isEdit ? 'Update details for vendor ' . ($vendor->vendor_code ?? '') : 'Register a new vendor' }}</small>
+                        <h4 class="figma-page-title mb-1">{{ $isEdit ? 'Edit Restaurant' : 'Add New Restaurant' }} @if($isEdit)<span class="text-danger">#{{ $vendor->vendor_code ?? $vendor->vendor_id }}</span>@endif</h4>
+                        <p class="figma-page-subtitle mb-0">{{ $isEdit ? 'Update the details for this restaurant' : 'Fill in the details to register a new restaurant on the platform' }}</p>
                     </div>
                 </div>
 
                 @if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
                 @if(session('error'))<div class="alert alert-danger">{{ session('error') }}</div>@endif
-                @if($errors->any())<div class="alert alert-danger">{{ $errors->first() }}</div>@endif
 
-                <ul class="nav nav-tabs vendor-form-tabs mb-4">
-                    @foreach(['personal' => 'Personal Info', 'business' => 'Business Info', 'bank' => 'Bank Details', 'documents' => 'Documents'] as $key => $label)
-                        <li class="nav-item">
-                            <a class="nav-link {{ $tab === $key ? 'active' : '' }}"
-                               href="{{ $isEdit ? route('admin.edit-vendor', ['id' => $vendor->vendor_id, 'tab' => $key]) : route('admin.add-vendor', ['tab' => $key]) }}">{{ $label }}</a>
-                        </li>
-                    @endforeach
-                </ul>
+                @include('admin.vendors.partials.stepper', ['tab' => $tab, 'isEdit' => $isEdit, 'vendor' => $vendor])
 
                 <form method="POST" action="{{ $formAction }}" enctype="multipart/form-data">
                     @csrf
@@ -47,21 +45,24 @@
                     @endif
 
                     @if($tab === 'personal')
-                        <div class="form-section">
+                        <div class="form-section-figma">
                             <h6>Personal Information</h6>
                             <p class="text-muted">Vendor's contact details</p>
                             <div class="row g-3">
                                 <div class="col-md-4">
-                                    <label class="form-label">Vendor Name</label>
-                                    <input type="text" name="owner_name" class="form-control" value="{{ old('owner_name', $vendor->owner_name ?? '') }}" required>
+                                    <label class="form-label">Owner Full Name <span class="text-danger">*</span></label>
+                                    <input type="text" name="owner_name" class="form-control @error('owner_name') is-invalid @enderror" value="{{ old('owner_name', $vendor->owner_name ?? '') }}" placeholder="Enter owner name">
+                                    @include('admin.partials.field-error', ['field' => 'owner_name'])
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="form-label">Mobile No.</label>
-                                    <input type="text" name="mobile" class="form-control" value="{{ old('mobile', $vendor->mobile ?? '') }}" required maxlength="15">
+                                    <label class="form-label">Mobile Number <span class="text-danger">*</span></label>
+                                    <input type="text" name="mobile" class="form-control @error('mobile') is-invalid @enderror" value="{{ old('mobile', $vendor->mobile ?? '') }}" maxlength="15" placeholder="Enter mobile number">
+                                    @include('admin.partials.field-error', ['field' => 'mobile'])
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="form-label">Email Address</label>
-                                    <input type="email" name="email" class="form-control" value="{{ old('email', $vendor->email ?? '') }}" required>
+                                    <label class="form-label">Email Address (Optional)</label>
+                                    <input type="email" name="email" class="form-control @error('email') is-invalid @enderror" value="{{ old('email', $vendor->email ?? '') }}" placeholder="Enter email address">
+                                    @include('admin.partials.field-error', ['field' => 'email'])
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label">DOB</label>
@@ -86,24 +87,27 @@
                                 </div>
                                 @if(!$isEdit)
                                     <div class="col-md-6">
-                                        <label class="form-label">Password</label>
-                                        <input type="password" name="password" class="form-control" required>
+                                        <label class="form-label">Password <span class="text-danger">*</span></label>
+                                        <input type="password" name="password" class="form-control @error('password') is-invalid @enderror">
+                                        @include('admin.partials.field-error', ['field' => 'password'])
                                     </div>
                                     <div class="col-md-6">
-                                        <label class="form-label">Confirm Password</label>
-                                        <input type="password" name="password_confirmation" class="form-control" required>
+                                        <label class="form-label">Confirm Password <span class="text-danger">*</span></label>
+                                        <input type="password" name="password_confirmation" class="form-control @error('password_confirmation') is-invalid @enderror">
+                                        @include('admin.partials.field-error', ['field' => 'password_confirmation'])
                                     </div>
                                 @endif
                             </div>
                         </div>
                     @elseif($tab === 'business')
-                        <div class="form-section">
+                        <div class="form-section-figma">
                             <h6>Business Information</h6>
                             <p class="text-muted">Company and registration details</p>
                             <div class="row g-3">
                                 <div class="col-md-4">
-                                    <label class="form-label">Business Name</label>
-                                    <input type="text" name="business_name" class="form-control" value="{{ old('business_name', $vendor->business_name ?? '') }}" required>
+                                    <label class="form-label">Restaurant Name <span class="text-danger">*</span></label>
+                                    <input type="text" name="business_name" class="form-control @error('business_name') is-invalid @enderror" value="{{ old('business_name', $vendor->business_name ?? '') }}" placeholder="Enter restaurant name">
+                                    @include('admin.partials.field-error', ['field' => 'business_name'])
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label">Business Phone</label>
@@ -144,7 +148,7 @@
                             </div>
                         </div>
                     @elseif($tab === 'bank')
-                        <div class="form-section">
+                        <div class="form-section-figma">
                             <h6>Bank Details</h6>
                             <p class="text-muted">Financial and payment routing details</p>
                             <div class="row g-3">
@@ -179,8 +183,8 @@
                             </div>
                         </div>
                     @else
-                        <div class="form-section">
-                            <h6>Documents</h6>
+                        <div class="form-section-figma">
+                            <h6>Documents Information</h6>
                             <p class="text-muted">Upload necessary verification documents</p>
                             <div class="row g-3">
                                 @foreach([
@@ -212,10 +216,22 @@
                         </div>
                     @endif
 
-                    <div class="d-flex justify-content-end gap-2 mt-4">
-                        <a href="{{ route('admin.vendors') }}" class="btn btn-outline-secondary">Cancel</a>
-                        <button type="submit" class="btn btn-theme">
-                            <i class="ri-save-line me-1"></i>{{ $isEdit ? 'Save Changes' : 'Create Vendor' }}
+                    <div class="d-flex justify-content-between gap-2 mt-4">
+                        @if($tab !== 'personal')
+                            <a href="{{ $isEdit ? route('admin.edit-vendor', ['id' => $vendor->vendor_id, 'tab' => $stepKeys[max(0, $currentIndex - 1)] ?? 'personal']) : route('admin.add-vendor', ['tab' => $stepKeys[max(0, $currentIndex - 1)] ?? 'personal']) }}" class="btn btn-outline-secondary">Back</a>
+                        @else
+                            <span></span>
+                        @endif
+                        <button type="submit" class="btn btn-figma-primary">
+                            @if($tab === 'documents')
+                                <i class="ri-save-line me-1"></i>{{ $isEdit ? 'Save Changes' : 'Submit & Add Restaurant' }}
+                            @elseif($tab === 'personal')
+                                Next: Business Info
+                            @elseif($tab === 'business')
+                                Next: Bank Details
+                            @else
+                                Next: Documents
+                            @endif
                         </button>
                     </div>
                 </form>

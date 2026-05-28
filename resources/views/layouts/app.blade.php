@@ -60,14 +60,20 @@
                 @endif
                 <div class="nav-right col-6 pull-right right-header p-0">
                     <ul class="nav-menus">
-                       
-                      
+                        @if(!$isVendorPanel)
+                        <li class="notification-box">
+                            <a href="{{ route('admin.notifications.index') }}" title="Notifications">
+                                <i class="ri-notification-3-line"></i>
+                                <span class="dot"></span>
+                            </a>
+                        </li>
+                        @endif
                         <li class="profile-nav onhover-dropdown pe-0 me-0">
                             <div class="media profile-media">
                                 <img class="user-profile rounded-circle" src="{{ session('profile_image') ? asset('public/uploads/admins/' . session('profile_image')) : asset('public/assets/images/users/4.jpg') }}" alt="{{ session('name', 'Admin') }}">
                                 <div class="user-name-hide media-body">
-                                    <span>{{ session('name', 'Admin') }}</span>
-                                    <p class="mb-0 font-roboto">{{ $isVendorPanel ? 'Vendor' : 'Admin' }}<i class="middle ri-arrow-down-s-line"></i></p>
+                                    <span>{{ session('name', 'Admin User') }}</span>
+                                    <p class="mb-0 font-roboto">{{ $isVendorPanel ? 'Vendor' : 'Super Admin' }}</p>
                                 </div>
                             </div>
                             <ul class="profile-dropdown onhover-show-div">
@@ -149,14 +155,6 @@
             </div>
         </div>
     </div>
-<style>
-    .page-header { height: 56px; border-bottom: 1px solid #eceef2; }
-    .header-wrapper { min-height: 56px !important; padding: 0 10px !important; }
-    .header-logo-wrapper .logo-wrapper .main-logo,
-    .header-logo-wrapper .logo-wrapper .white-logo { max-height: 28px; width: auto; }
-    .profile-media .user-name-hide { display: none !important; }
-    .nav-menus .profile-nav .user-profile { width: 24px; height: 24px; }
-</style>
      @include('layouts.script') 
         @yield('scripts')
 </body>

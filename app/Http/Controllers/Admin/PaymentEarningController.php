@@ -97,6 +97,36 @@ class PaymentEarningController extends Controller
         return view('admin.payments.paymentStatus', compact('title', 'orders', 'stats', 'status', 'search'));
     }
 
+    public function userTransactions(Request $request)
+    {
+        $title = 'User Transactions';
+        $status = $request->query('status');
+        $search = trim((string) $request->query('search', ''));
+
+        $query = Orders::with(['vendor', 'customer.user'])->orderByDesc('order_id');
+        if (!empty($status) && in_array($status, ['pending', 'paid', 'failed', 'refunded'], true)) {
+            $query->where('payment_status', $status);
+        }
+
+        if ($search !== '') {
+            $query->where(function ($subQuery) use ($search) {
+                $subQuery->where('order_number', 'like', '%' . $search . '%')
+                    ->orWhere('transaction_id', 'like', '%' . $search . '%')
+                    ->orWhereHas('vendor', function ($vendorQuery) use ($search) {
+                        $vendorQuery->where('business_name', 'like', '%' . $search . '%');
+                    })
+                    ->orWhereHas('customer.user', function ($customerQuery) use ($search) {
+                        $customerQuery->where('name', 'like', '%' . $search . '%')
+                            ->orWhere('mobile', 'like', '%' . $search . '%');
+                    });
+            });
+        }
+
+        $orders = $query->paginate(15)->withQueryString();
+
+        return view('admin.payments.userTransactions', compact('title', 'orders', 'status', 'search'));
+    }
+
     public function vendorTransactions(Request $request)
     {
         $title = 'Vendor Transactions';

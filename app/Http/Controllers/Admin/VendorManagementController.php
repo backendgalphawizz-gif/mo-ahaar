@@ -30,7 +30,7 @@ class VendorManagementController extends Controller
         try {
             $user = Users::create([
                 'name' => $validated['owner_name'],
-                'email' => $validated['email'],
+                'email' => $this->resolveVendorEmail($validated),
                 'mobile' => $validated['mobile'],
                 'password' => Hash::make($validated['password']),
                 'role_type' => 3,
@@ -145,7 +145,7 @@ class VendorManagementController extends Controller
         try {
             $user = Users::create([
                 'name' => $validated['owner_name'],
-                'email' => $validated['email'],
+                'email' => $this->resolveVendorEmail($validated),
                 'mobile' => $validated['mobile'],
                 'password' => Hash::make($validated['password']),
                 'role_type' => 3,
@@ -227,7 +227,7 @@ class VendorManagementController extends Controller
             if ($vendor->user_id) {
                 Users::where('user_id', $vendor->user_id)->update([
                     'name' => $validated['owner_name'],
-                    'email' => $validated['email'],
+                    'email' => $this->resolveVendorEmail($validated),
                     'mobile' => $validated['mobile'],
                 ]);
             }
@@ -332,7 +332,7 @@ class VendorManagementController extends Controller
             'owner_name' => 'required|string|max:100',
             'mobile' => 'required|string|max:15',
             'email' => [
-                'required',
+                'nullable',
                 'email',
                 'max:255',
                 Rule::unique('users', 'email')->ignore($vendor?->user_id, 'user_id'),
@@ -375,7 +375,29 @@ class VendorManagementController extends Controller
             $rules['password'] = 'required|string|min:8|confirmed';
         }
 
-        return $request->validate($rules);
+        return $request->validate($rules, [
+            'owner_name.required' => 'Owner full name is required.',
+            'mobile.required' => 'Mobile number is required.',
+            'email.email' => 'Please enter a valid email address.',
+            'email.unique' => 'This email is already registered.',
+            'business_name.required' => 'Restaurant name is required.',
+            'address.required' => 'Address is required.',
+            'password.required' => 'Password is required.',
+            'password.min' => 'Password must be at least 8 characters.',
+            'password.confirmed' => 'Password confirmation does not match.',
+        ]);
+    }
+
+    protected function resolveVendorEmail(array $validated): string
+    {
+        $email = trim((string) ($validated['email'] ?? ''));
+        if ($email !== '') {
+            return $email;
+        }
+
+        $mobile = preg_replace('/\D/', '', (string) ($validated['mobile'] ?? ''));
+
+        return 'vendor_' . ($mobile !== '' ? $mobile : Str::random(8)) . '@noemail.moaahar.local';
     }
 
     protected function mapVendorPayload(Request $request, array $validated): array

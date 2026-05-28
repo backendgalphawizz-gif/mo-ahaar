@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\CustomerAddress;
 use App\Models\Customers;
+use App\Models\Orders;
 use App\Models\Users;
 use Illuminate\Http\Request;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -120,6 +121,13 @@ class CustomerManagementController extends Controller
             });
         }
 
+        $statusFilter = $request->query('status', 'all');
+        if ($statusFilter === 'active') {
+            $listQuery->where('users.status', 1);
+        } elseif ($statusFilter === 'inactive') {
+            $listQuery->where('users.status', 0);
+        }
+
         $allCustomers = $listQuery
             ->select($this->customerUserSelectColumns())
             ->orderByDesc('customers.customer_id')
@@ -127,6 +135,16 @@ class CustomerManagementController extends Controller
             ->withQueryString();
 
         $customerIds = $allCustomers->getCollection()->pluck('customer_id')->all();
+
+        $orderCounts = [];
+        if (!empty($customerIds) && Schema::hasTable('orders')) {
+            $orderCounts = Orders::query()
+                ->select('customer_id', DB::raw('COUNT(*) as total'))
+                ->whereIn('customer_id', $customerIds)
+                ->groupBy('customer_id')
+                ->pluck('total', 'customer_id')
+                ->all();
+        }
 
         $activitySummary = DB::table('orders')
             ->leftJoin('order_trackings', 'orders.order_id', '=', 'order_trackings.order_id')
@@ -163,6 +181,8 @@ class CustomerManagementController extends Controller
             'hasApproval',
             'hasGstVerified',
             'search',
+            'statusFilter',
+            'orderCounts',
         ));
     }
 

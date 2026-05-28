@@ -20,13 +20,6 @@
                 </div>
 
                 @if(session('error'))<div class="alert alert-danger">{{ session('error') }}</div>@endif
-                @if($errors->any())
-                    <div class="alert alert-danger">
-                        <ul class="mb-0 ps-3">
-                            @foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach
-                        </ul>
-                    </div>
-                @endif
 
                 <form method="POST" action="{{ $formAction }}" enctype="multipart/form-data" id="driverForm">
                     @csrf
@@ -48,15 +41,18 @@
                                 <div class="row g-3">
                                     <div class="col-md-4">
                                         <label class="form-label">Full Name <span class="text-danger">*</span></label>
-                                        <input type="text" name="name" class="form-control" value="{{ old('name', $driver->name ?? '') }}" maxlength="100" required>
+                                        <input type="text" name="name" class="form-control @error('name') is-invalid @enderror" value="{{ old('name', $driver->name ?? '') }}" maxlength="100">
+                                        @include('admin.partials.field-error', ['field' => 'name'])
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label">Mobile No. <span class="text-danger">*</span></label>
-                                        <input type="text" name="mobile" class="form-control" value="{{ old('mobile', $driver->mobile ?? '') }}" maxlength="10" oninput="this.value=this.value.replace(/\D/g,'').slice(0,10)" required>
+                                        <input type="text" name="mobile" class="form-control @error('mobile') is-invalid @enderror" value="{{ old('mobile', $driver->mobile ?? '') }}" maxlength="10" oninput="this.value=this.value.replace(/\D/g,'').slice(0,10)">
+                                        @include('admin.partials.field-error', ['field' => 'mobile'])
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label">Email Address <span class="text-danger">*</span></label>
-                                        <input type="email" name="email" class="form-control" value="{{ old('email', $driver->email ?? '') }}" maxlength="150" required>
+                                        <input type="email" name="email" class="form-control @error('email') is-invalid @enderror" value="{{ old('email', $driver->email ?? '') }}" maxlength="150">
+                                        @include('admin.partials.field-error', ['field' => 'email'])
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label">Document Type <span class="text-danger">*</span></label>

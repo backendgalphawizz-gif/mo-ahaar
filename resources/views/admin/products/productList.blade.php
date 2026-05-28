@@ -14,6 +14,7 @@
                     'subtitle' => 'Manage menu items, pricing, and availability',
                     'actionUrl' => route($isVendorPanel ? 'vendor.add-product' : 'admin.add-product'),
                     'actionLabel' => 'Add Food',
+                    'actionIcon' => 'ri-add-line',
                 ])
 
                 
