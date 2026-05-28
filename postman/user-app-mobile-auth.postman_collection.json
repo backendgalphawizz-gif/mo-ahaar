@@ -1,385 +1,515 @@
 {
   "info": {
     "_postman_id": "f7f3a59d-8f52-4a9f-a0be-5d9b9dd7f910",
-    "name": "User App Mobile Auth",
-    "description": "Auto OTP login flow for user app. Request OTP saves otp to variable, verify OTP uses it and saves token.",
+    "name": "Mo Ahaar - User App",
+    "description": "Customer / user mobile app APIs. Run Login → Verify OTP first; token is saved automatically.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
   },
   "item": [
     {
-      "name": "1. User Login - Request OTP",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Accept",
-            "value": "application/json"
-          },
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"mobile\": \"{{mobile}}\"\n}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
-        },
-        "url": {
-          "raw": "{{base_url}}/user-app/login",
-          "host": [
-            "{{base_url}}"
-          ],
-          "path": [
-            "user-app",
-            "login"
-          ]
-        },
-        "description": "Requests OTP for the given mobile number. Stores otp and otp_expires_at automatically for next request."
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('Status code is 200', function () {",
-              "    pm.response.to.have.status(200);",
-              "});",
-              "",
-              "const json = pm.response.json();",
-              "if (json && json.otp) {",
-              "    pm.collectionVariables.set('otp', String(json.otp));",
-              "}",
-              "if (json && json.otp_expires_at) {",
-              "    pm.collectionVariables.set('otp_expires_at', String(json.otp_expires_at));",
-              "}",
-              "pm.test('OTP exists in response', function () {",
-              "    pm.expect(json).to.have.property('otp');",
-              "});"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "2. User Login - Verify OTP",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Accept",
-            "value": "application/json"
-          },
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"mobile\": \"{{mobile}}\",\n  \"otp\": \"{{otp}}\"\n}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
-        },
-        "url": {
-          "raw": "{{base_url}}/user-app/verify-otp",
-          "host": [
-            "{{base_url}}"
-          ],
-          "path": [
-            "user-app",
-            "verify-otp"
-          ]
-        },
-        "description": "Verifies OTP and returns token. Stores token and token_type automatically."
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('Status code is 200', function () {",
-              "    pm.response.to.have.status(200);",
-              "});",
-              "",
-              "const json = pm.response.json();",
-              "if (json && json.token) {",
-              "    pm.collectionVariables.set('token', String(json.token));",
-              "}",
-              "if (json && json.token_type) {",
-              "    pm.collectionVariables.set('token_type', String(json.token_type));",
-              "}",
-              "pm.test('Token exists in response', function () {",
-              "    pm.expect(json).to.have.property('token');",
-              "});"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "3. Customer Cart & Order Management",
+      "name": "Auth",
       "item": [
         {
-          "name": "Add Product To Cart",
+          "name": "1. Login - Request OTP",
           "request": {
+            "auth": { "type": "noauth" },
             "method": "POST",
             "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"product_id\": {{product_id}},\n  \"quantity\": 1\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
+              "raw": "{\n  \"mobile\": \"{{mobile}}\"\n}"
             },
-            "url": {
-              "raw": "{{base_url}}/customer-app/cart/add",
-              "host": [
-                "{{base_url}}"
+            "url": "{{base_url}}/user-app/login"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "const json = pm.response.json();",
+                "if (json?.otp) pm.collectionVariables.set('otp', String(json.otp));",
+                "if (json?.token) pm.collectionVariables.set('token', String(json.token));"
               ],
-              "path": [
-                "customer-app",
-                "cart",
-                "add"
+              "type": "text/javascript"
+            }
+          }]
+        },
+        {
+          "name": "2. Login - Verify OTP",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mobile\": \"{{mobile}}\",\n  \"otp\": \"{{otp}}\"\n}"
+            },
+            "url": "{{base_url}}/user-app/verify-otp"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "const json = pm.response.json();",
+                "if (json?.token) pm.collectionVariables.set('token', String(json.token));"
+              ],
+              "type": "text/javascript"
+            }
+          }]
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{base_url}}/customer-app/auth/logout"
+          }
+        },
+        {
+          "name": "Registration Content (Privacy, Terms, FAQ)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{base_url}}/customer-app/auth/registration-content"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Settings & Content",
+      "item": [
+        {
+          "name": "Business Settings (Profile support pages)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{base_url}}/customer-app/settings/business"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Home & Discovery",
+      "item": [
+        {
+          "name": "Home Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/customer-app/home/dashboard?latitude={{latitude}}&longitude={{longitude}}",
+              "host": ["{{base_url}}"],
+              "path": ["customer-app", "home", "dashboard"],
+              "query": [
+                { "key": "latitude", "value": "{{latitude}}" },
+                { "key": "longitude", "value": "{{longitude}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Search (Foods & Restaurants)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/customer-app/products/search?q={{search_query}}",
+              "host": ["{{base_url}}"],
+              "path": ["customer-app", "products", "search"],
+              "query": [{ "key": "q", "value": "{{search_query}}" }]
+            }
+          }
+        },
+        {
+          "name": "Categories List",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/customer-app/products/categories"
+          }
+        },
+        {
+          "name": "Category Products (e.g. Pizza)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/customer-app/products/categories/{{category_id}}"
+          }
+        },
+        {
+          "name": "Product Detail",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/customer-app/products/detail/{{product_id}}"
+          }
+        },
+        {
+          "name": "Nearby Restaurants",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/customer-app/vendors/nearby?latitude={{latitude}}&longitude={{longitude}}",
+              "host": ["{{base_url}}"],
+              "path": ["customer-app", "vendors", "nearby"],
+              "query": [
+                { "key": "latitude", "value": "{{latitude}}" },
+                { "key": "longitude", "value": "{{longitude}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Restaurant Detail",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/customer-app/vendors/{{vendor_id}}"
+          }
+        },
+        {
+          "name": "Restaurant Menu",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/customer-app/vendors/{{vendor_id}}/menu?category_id=&is_veg=",
+              "host": ["{{base_url}}"],
+              "path": ["customer-app", "vendors", "{{vendor_id}}", "menu"]
+            }
+          }
+        },
+        {
+          "name": "Enable Location",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"latitude\": {{latitude}},\n  \"longitude\": {{longitude}}\n}"
+            },
+            "url": "{{base_url}}/customer-app/location/enable"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Profile & Addresses",
+      "item": [
+        {
+          "name": "Get Profile",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/customer-app/profile"
+          }
+        },
+        {
+          "name": "Update Personal Information",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "full_name", "value": "Shreya Shah", "type": "text" },
+                { "key": "email_id", "value": "shreyashah@example.com", "type": "text" },
+                { "key": "profile_image", "type": "file", "src": [] }
               ]
             },
-            "description": "Adds a product into the authenticated customer's cart and stores the returned cart_item_id."
+            "url": "{{base_url}}/customer-app/profile/update"
+          }
+        },
+        {
+          "name": "List Addresses",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/customer-app/addresses"
+          }
+        },
+        {
+          "name": "Add Address",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"full_name\": \"Shreya Shah\",\n  \"mobile_number\": \"9517530286\",\n  \"house_no_building_name\": \"G - 14 1st\",\n  \"road_name_area_colony\": \"Sabari Nagar, Sukhliya\",\n  \"city\": \"Indore\",\n  \"state\": \"M.P\",\n  \"country\": \"India\",\n  \"pincode\": \"452001\",\n  \"delivery_type\": \"home\",\n  \"is_default\": true\n}"
+            },
+            "url": "{{base_url}}/customer-app/addresses"
           },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status code is 200', function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "const json = pm.response.json();",
-                  "if (json?.data?.item?.cart_item_id) {",
-                  "    pm.collectionVariables.set('cart_item_id', String(json.data.item.cart_item_id));",
-                  "}",
-                  "pm.test('Cart item id is returned', function () {",
-                  "    pm.expect(json?.data?.item?.cart_item_id).to.exist;",
-                  "});"
-                ]
-              }
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "const id = pm.response.json()?.data?.customer_address_id;",
+                "if (id) pm.collectionVariables.set('address_id', String(id));"
+              ],
+              "type": "text/javascript"
             }
-          ]
+          }]
+        },
+        {
+          "name": "Update Address",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"full_name\": \"Shreya Shah\",\n  \"mobile_number\": \"9517530286\",\n  \"house_no_building_name\": \"G - 14 1st\",\n  \"road_name_area_colony\": \"Sabari Nagar, Sukhliya\",\n  \"city\": \"Indore\",\n  \"state\": \"M.P\",\n  \"country\": \"India\",\n  \"pincode\": \"452001\",\n  \"delivery_type\": \"home\"\n}"
+            },
+            "url": "{{base_url}}/customer-app/addresses/{{address_id}}"
+          }
+        },
+        {
+          "name": "Delete Address",
+          "request": {
+            "method": "DELETE",
+            "url": "{{base_url}}/customer-app/addresses/{{address_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cart",
+      "item": [
+        {
+          "name": "Get Cart",
+          "request": { "method": "GET", "url": "{{base_url}}/customer-app/cart" }
+        },
+        {
+          "name": "Add To Cart",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_id\": {{product_id}},\n  \"quantity\": 1\n}"
+            },
+            "url": "{{base_url}}/customer-app/cart/add"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "const id = pm.response.json()?.data?.item?.cart_item_id;",
+                "if (id) pm.collectionVariables.set('cart_item_id', String(id));"
+              ],
+              "type": "text/javascript"
+            }
+          }]
         },
         {
           "name": "Update Cart Quantity",
           "request": {
             "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"cart_item_id\": {{cart_item_id}},\n  \"quantity\": 2\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
+              "raw": "{\n  \"cart_item_id\": {{cart_item_id}},\n  \"quantity\": 2\n}"
             },
-            "url": {
-              "raw": "{{base_url}}/customer-app/cart/update",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "customer-app",
-                "cart",
-                "update"
-              ]
-            },
-            "description": "Updates a cart line by cart_item_id and returns the refreshed cart."
+            "url": "{{base_url}}/customer-app/cart/update"
           }
         },
         {
           "name": "Remove Cart Item",
           "request": {
             "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"cart_item_id\": {{cart_item_id}}\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
+              "raw": "{\n  \"cart_item_id\": {{cart_item_id}}\n}"
             },
-            "url": {
-              "raw": "{{base_url}}/customer-app/cart/remove",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "customer-app",
-                "cart",
-                "remove"
-              ]
+            "url": "{{base_url}}/customer-app/cart/remove"
+          }
+        },
+        {
+          "name": "Cooking Instructions",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cooking_instructions\": \"Less spicy, no onion\"\n}"
             },
-            "description": "Removes a single cart line by cart_item_id and returns the refreshed cart."
+            "url": "{{base_url}}/customer-app/cart/cooking-instructions"
+          }
+        },
+        {
+          "name": "Apply Promo Code",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"promo_code\": \"{{promo_code}}\"\n}"
+            },
+            "url": "{{base_url}}/customer-app/cart/apply-promo"
+          }
+        },
+        {
+          "name": "Remove Promo Code",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/customer-app/cart/remove-promo"
+          }
+        },
+        {
+          "name": "Select Delivery Address",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_address_id\": {{address_id}}\n}"
+            },
+            "url": "{{base_url}}/customer-app/cart/select-address"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Checkout & Payment",
+      "item": [
+        {
+          "name": "Checkout Summary",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/customer-app/checkout/summary"
+          }
+        },
+        {
+          "name": "Payment Methods",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/customer-app/payment/methods"
           }
         },
         {
           "name": "Place Order (COD)",
           "request": {
             "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"shipping_address\": \"{{shipping_address}}\",\n  \"payment_method\": \"cod\",\n  \"notes\": \"Deliver during business hours\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
+              "raw": "{\n  \"payment_method\": \"cod\",\n  \"customer_address_id\": {{address_id}},\n  \"shipping_address\": \"{{shipping_address}}\",\n  \"notes\": \"Deliver during business hours\"\n}"
             },
-            "url": {
-              "raw": "{{base_url}}/customer-app/checkout/place-order",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "customer-app",
-                "checkout",
-                "place-order"
-              ]
-            },
-            "description": "Places a COD order from the current authenticated customer's cart and stores the returned order_id."
+            "url": "{{base_url}}/customer-app/checkout/place-order"
           },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status code is 201', function () {",
-                  "    pm.response.to.have.status(201);",
-                  "});",
-                  "const json = pm.response.json();",
-                  "if (json?.data?.order_id) {",
-                  "    pm.collectionVariables.set('order_id', String(json.data.order_id));",
-                  "}",
-                  "pm.test('Order id is returned', function () {",
-                  "    pm.expect(json?.data?.order_id).to.exist;",
-                  "});"
-                ]
-              }
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "const id = pm.response.json()?.data?.order_id;",
+                "if (id) pm.collectionVariables.set('order_id', String(id));"
+              ],
+              "type": "text/javascript"
             }
-          ]
+          }]
+        },
+        {
+          "name": "Create Razorpay Order",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{}" },
+            "url": "{{base_url}}/customer-app/checkout/create-order"
+          }
+        },
+        {
+          "name": "Place Order (Online - after Razorpay)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payment_method\": \"online\",\n  \"customer_address_id\": {{address_id}},\n  \"razorpay_order_id\": \"{{razorpay_order_id}}\",\n  \"razorpay_payment_id\": \"{{razorpay_payment_id}}\",\n  \"razorpay_signature\": \"{{razorpay_signature}}\"\n}"
+            },
+            "url": "{{base_url}}/customer-app/checkout/place-order"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Orders",
+      "item": [
+        {
+          "name": "Order History",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/customer-app/orders/history"
+          }
+        },
+        {
+          "name": "Order Detail",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/customer-app/orders/{{order_id}}"
+          }
+        },
+        {
+          "name": "Track Order",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/customer-app/orders/{{order_id}}/tracking"
+          }
+        },
+        {
+          "name": "Cancel Order",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Changed my mind\"\n}"
+            },
+            "url": "{{base_url}}/customer-app/orders/{{order_id}}/cancel"
+          }
+        },
+        {
+          "name": "Download Invoice",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/customer-app/orders/{{order_id}}/invoice"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "List Notifications",
+          "request": { "method": "GET", "url": "{{base_url}}/customer-app/notifications" }
+        },
+        {
+          "name": "Unread Count",
+          "request": { "method": "GET", "url": "{{base_url}}/customer-app/notifications/unread-count" }
         }
       ]
     }
   ],
   "variable": [
-    {
-      "key": "base_url",
-      "value": "http://localhost/e-commerce/api"
-    },
-    {
-      "key": "mobile",
-      "value": "9876543210"
-    },
-    {
-      "key": "otp",
-      "value": ""
-    },
-    {
-      "key": "otp_expires_at",
-      "value": ""
-    },
-    {
-      "key": "token",
-      "value": ""
-    },
-    {
-      "key": "token_type",
-      "value": "Bearer"
-    },
-    {
-      "key": "product_id",
-      "value": "1"
-    },
-    {
-      "key": "second_product_id",
-      "value": "2"
-    },
-    {
-      "key": "cart_item_id",
-      "value": ""
-    },
-    {
-      "key": "order_id",
-      "value": ""
-    },
-    {
-      "key": "shipping_address",
-      "value": "Shop No. 12, Main Market, Ahmedabad"
-    }
+    { "key": "base_url", "value": "http://localhost/Projects/mo-ahaar/public/api" },
+    { "key": "mobile", "value": "9876543210" },
+    { "key": "otp", "value": "" },
+    { "key": "token", "value": "" },
+    { "key": "latitude", "value": "22.7196" },
+    { "key": "longitude", "value": "75.8577" },
+    { "key": "product_id", "value": "1" },
+    { "key": "category_id", "value": "1" },
+    { "key": "vendor_id", "value": "1" },
+    { "key": "cart_item_id", "value": "" },
+    { "key": "address_id", "value": "" },
+    { "key": "order_id", "value": "" },
+    { "key": "promo_code", "value": "TRIVAGO" },
+    { "key": "search_query", "value": "pizza" },
+    { "key": "shipping_address", "value": "G-14 1st Sabari Nagar, Sukhliya, Indore" },
+    { "key": "razorpay_order_id", "value": "" },
+    { "key": "razorpay_payment_id", "value": "" },
+    { "key": "razorpay_signature", "value": "" }
   ]
 }

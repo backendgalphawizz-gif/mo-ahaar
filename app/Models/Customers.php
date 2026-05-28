@@ -19,6 +19,10 @@ class Customers extends Model
         'longitude',
         'location_enabled',
         'location_updated_at',
+        'cart_cooking_instructions',
+        'cart_promo_code',
+        'cart_discount_offer_id',
+        'cart_selected_address_id',
    ];
 
     public $timestamps = false;

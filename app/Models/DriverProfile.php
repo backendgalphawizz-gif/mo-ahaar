@@ -33,6 +33,10 @@ class DriverProfile extends Model
         'driving_license_number',
         'city',
         'address',
+        'latitude',
+        'longitude',
+        'is_online',
+        'last_location_at',
         'pan_card',
         'aadhar_card',
         'aadhar_card_back',
@@ -58,6 +62,10 @@ class DriverProfile extends Model
         'driving_license_uploaded_at' => 'datetime',
         'rc_image_uploaded_at' => 'datetime',
         'puc_image_uploaded_at' => 'datetime',
+        'latitude' => 'float',
+        'longitude' => 'float',
+        'is_online' => 'boolean',
+        'last_location_at' => 'datetime',
     ];
 
     public function driver(): BelongsTo

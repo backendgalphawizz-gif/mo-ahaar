@@ -3,14 +3,18 @@
 namespace App\Http\Controllers\API\DriverApp;
 
 use App\Models\DeliveryAssignment;
+use App\Models\DeliveryAssignmentInvite;
 use App\Models\DeliveryAssignmentRejection;
-use App\Models\DriverNotification;
+use App\Services\DriverAssignmentService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 
 class DeliveryController extends DriverAppController
 {
+    public function __construct(
+        private readonly DriverAssignmentService $assignmentService
+    ) {
+    }
+
     public function accept(Request $request, int $assignmentId)
     {
         $driver = $this->resolveDriver($request);
@@ -29,40 +33,14 @@ class DeliveryController extends DriverAppController
             ], 404);
         }
 
-        if ($assignment->status !== DeliveryAssignment::STATUS_NEW || $assignment->driver_id !== null) {
+        try {
+            $assignment = $this->assignmentService->acceptByDriver($assignment, $driver);
+        } catch (\InvalidArgumentException $e) {
             return response()->json([
                 'status' => false,
-                'message' => 'This delivery is no longer available to accept.',
+                'message' => $e->getMessage(),
             ], 422);
         }
-
-        $alreadyRejected = DeliveryAssignmentRejection::where('assignment_id', $assignmentId)
-            ->where('driver_id', $driver->user_id)
-            ->exists();
-
-        if ($alreadyRejected) {
-            return response()->json([
-                'status' => false,
-                'message' => 'You have already rejected this delivery.',
-            ], 422);
-        }
-
-        DB::transaction(function () use ($assignment, $driver) {
-            $assignment->driver_id = $driver->user_id;
-            $assignment->status = DeliveryAssignment::STATUS_ASSIGNED;
-            $assignment->assigned_at = now();
-            $assignment->save();
-
-            NotificationController::notify(
-                (int) $driver->user_id,
-                'New Delivery Assigned',
-                'You accepted order ' . ($assignment->order?->order_number ?? $assignment->order_id) . '.',
-                'new_delivery_assigned',
-                $assignment
-            );
-        });
-
-        $assignment->refresh();
 
         return response()->json([
             'status' => true,
@@ -104,6 +82,13 @@ class DeliveryController extends DriverAppController
                 ['reason' => $validated['reason'] ?? null]
             );
 
+            if ($assignment->assignment_mode === DeliveryAssignment::MODE_BROADCAST) {
+                DeliveryAssignmentInvite::where('assignment_id', $assignment->assignment_id)
+                    ->where('driver_id', $driver->user_id)
+                    ->where('status', DeliveryAssignmentInvite::STATUS_PENDING)
+                    ->update(['status' => DeliveryAssignmentInvite::STATUS_DECLINED]);
+            }
+
             return response()->json([
                 'status' => true,
                 'message' => 'Delivery rejected successfully',
@@ -137,5 +122,4 @@ class DeliveryController extends DriverAppController
             'message' => 'You cannot reject this delivery.',
         ], 422);
     }
-
 }

@@ -115,4 +115,31 @@ class Orders extends Model
     {
         return $this->hasMany(OrderTracking::class, 'order_id', 'order_id')->orderByDesc('tracked_at');
     }
+
+    public function deliveryAssignment()
+    {
+        return $this->hasOne(DeliveryAssignment::class, 'order_id', 'order_id')->latestOfMany('assignment_id');
+    }
+
+    public function adminCommissionAmount(): float
+    {
+        $vendor = $this->vendor;
+        if (!$vendor || $vendor->commission_percent === null) {
+            return 0.0;
+        }
+
+        return round(((float) $this->total_amount) * ((float) $vendor->commission_percent) / 100, 2);
+    }
+
+    public function productSummary(): string
+    {
+        if (!$this->relationLoaded('orderItems')) {
+            $this->load('orderItems');
+        }
+
+        return $this->orderItems
+            ->map(fn ($item) => trim(($item->product_name ?? 'Item') . ' x' . (int) $item->quantity))
+            ->filter()
+            ->implode(', ') ?: '—';
+    }
 }

@@ -12,7 +12,7 @@ use Illuminate\Http\Request;
 
 class NotificationController extends Controller
 {
-    private const CUSTOMER_ROLE_TYPE = 3;
+    private const CUSTOMER_ROLE_TYPE = Users::CUSTOMER_APP_ROLE_TYPE;
 
     /**
      * GET /api/customer-app/notifications

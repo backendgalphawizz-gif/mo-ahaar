@@ -3,11 +3,12 @@
 @section('content')
 <div class="page-body">
     <div class="container-fluid">
-        <div class="title-header option-title d-flex align-items-center flex-wrap gap-2 mb-4">
-            <h5 class="mb-0"><i class="ri-price-tag-3-line me-2"></i>Add Discount Offer</h5>
-            <a class="btn btn-outline-secondary btn-sm ms-auto" href="{{ route('admin.discount-offers.index') }}">
-                <i class="ri-arrow-left-line me-1"></i>Back to list
-            </a>
+        <div class="d-flex align-items-center gap-3 mb-2">
+            <a href="{{ route('admin.discount-offers.index') }}" class="btn btn-outline-secondary btn-sm"><i class="ri-arrow-left-line"></i></a>
+            <div>
+                <h5 class="mb-0">Create Promo Code</h5>
+                <small class="text-muted">Configure a new promotional code for customers.</small>
+            </div>
         </div>
 
         @if($errors->any())
@@ -26,7 +27,7 @@
             @csrf
             @include('admin.discount-offers._form')
             <div class="d-flex gap-2">
-                <button type="submit" class="btn btn-theme px-4">Save Offer</button>
+                <button type="submit" class="btn btn-theme px-4"><i class="ri-save-line me-1"></i>Add Promo Code</button>
                 <a href="{{ route('admin.discount-offers.index') }}" class="btn btn-outline-secondary px-4">Cancel</a>
             </div>
         </form>

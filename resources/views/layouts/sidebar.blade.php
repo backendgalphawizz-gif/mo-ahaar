@@ -77,8 +77,8 @@
                             <span>Product Management</span>
                         </a>
                         <ul class="sidebar-submenu">
-                            <li><a href="{{ route('admin.products') }}">Product List</a></li>
-                            <li><a href="{{ route('admin.add-product') }}">Add Product</a></li>
+                            <li><a href="{{ route('admin.products') }}">Food List</a></li>
+                            <li><a href="{{ route('admin.add-product') }}">Add Food</a></li>
                             <li><a href="{{ route('admin.categories') }}">Categories</a></li>
                             <li><a href="{{ route('admin.sub-category') }}">Sub Categories</a></li>
                             <li><a href="{{ route('admin.product-reviews') }}">Product Reviews</a></li>
@@ -86,16 +86,10 @@
                     </li>
 
                     <li class="sidebar-list">
-                        <a class="linear-icon-link sidebar-link sidebar-title" href="javascript:void(0)">
+                        <a class="sidebar-link sidebar-title link-nav" href="{{ route('admin.payments.status') }}">
                             <i class="ri-bank-card-line"></i>
                             <span>Payment Management</span>
                         </a>
-                        <ul class="sidebar-submenu">
-                            <li><a href="{{ route('admin.payments.status') }}">Payment Status</a></li>
-                            <li><a href="{{ route('admin.payments.commission-settings') }}">Commission Settings</a></li>
-                            <li><a href="{{ route('admin.payments.vendor-transactions') }}">Vendor Transactions</a></li>
-                            <li><a href="{{ route('admin.settings.payment-methods') }}">Payment Methods</a></li>
-                        </ul>
                     </li>
 
                     <li class="sidebar-list">
@@ -141,6 +135,13 @@
                         <a class="sidebar-link sidebar-title link-nav" href="{{ route('admin.static-pages.index') }}">
                             <i class="ri-file-list-3-line"></i>
                             <span>Static Pages</span>
+                        </a>
+                    </li>
+
+                    <li class="sidebar-list">
+                        <a class="sidebar-link sidebar-title link-nav" href="{{ route('admin.profile.edit') }}">
+                            <i class="ri-user-settings-line"></i>
+                            <span>Admin Profile</span>
                         </a>
                     </li>
 

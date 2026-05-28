@@ -12,9 +12,9 @@
         <div class="row">
             <div class="col-12">
                 <div class="title-header option-title d-flex flex-wrap align-items-center gap-2 mb-4">
-                    <h5 class="mb-0"><i class="ri-shopping-bag-3-line me-2"></i>{{ $title }}</h5>
+                    <h5 class="mb-0"><i class="ri-restaurant-line me-2"></i>Food Management</h5>
                     <a class="btn btn-theme btn-sm ms-auto" href="{{ route('admin.add-product', array_filter(['segment' => $segmentFilter ?? null])) }}">
-                        <i class="ri-add-line me-1"></i>Add product
+                        <i class="ri-add-line me-1"></i>Add Food
                     </a>
                 </div>
 

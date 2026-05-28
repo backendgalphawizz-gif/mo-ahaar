@@ -49,14 +49,23 @@ class ProfileController extends Controller
         $isWholesaler = Schema::hasColumn('users', 'user_type')
             && strcasecmp((string) ($user->user_type ?? ''), 'Wholesaler') === 0;
 
+        if ($request->filled('full_name') && !$request->filled('name')) {
+            $request->merge(['name' => $request->input('full_name')]);
+        }
+        if ($request->filled('email_id') && !$request->filled('email')) {
+            $request->merge(['email' => $request->input('email_id')]);
+        }
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'full_name' => ['nullable', 'string', 'max:255'],
             'email' => [
                 'nullable',
                 'email',
                 'max:255',
                 Rule::unique('users', 'email')->ignore($user->user_id, 'user_id'),
             ],
+            'email_id' => ['nullable', 'email', 'max:255'],
             'gst_number' => [
                 'nullable',
                 'string',
