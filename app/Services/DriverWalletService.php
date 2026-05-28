@@ -79,6 +79,7 @@ class DriverWalletService
     {
         return DB::transaction(function () use ($driverId, $amount) {
             $wallet = $this->lockWallet($driverId);
+            $wallet = $this->reconcileWallet($driverId, $wallet);
             $available = $wallet->availableBalance();
 
             if ($amount < self::MIN_WITHDRAW_AMOUNT) {
@@ -133,6 +134,46 @@ class DriverWalletService
             $this->getOrCreateWallet($driverId);
 
             return DriverWallet::where('driver_id', $driverId)->lockForUpdate()->first();
+        }
+
+        return $wallet;
+    }
+
+    public function reconcileWallet(int $driverId, ?DriverWallet $wallet = null): DriverWallet
+    {
+        $wallet = $wallet ?: $this->getOrCreateWallet($driverId);
+
+        if (!$wallet || !Schema::hasTable('driver_transactions')) {
+            return $wallet;
+        }
+
+        $completedCredit = (float) DriverTransaction::where('driver_id', $driverId)
+            ->where('type', DriverTransaction::TYPE_CREDIT)
+            ->where('status', DriverTransaction::STATUS_COMPLETED)
+            ->sum('amount');
+
+        $completedDebit = (float) DriverTransaction::where('driver_id', $driverId)
+            ->where('type', DriverTransaction::TYPE_DEBIT)
+            ->where('status', DriverTransaction::STATUS_COMPLETED)
+            ->sum('amount');
+
+        $pendingDebit = (float) DriverTransaction::where('driver_id', $driverId)
+            ->where('type', DriverTransaction::TYPE_DEBIT)
+            ->where('status', DriverTransaction::STATUS_PENDING)
+            ->sum('amount');
+
+        $calculatedBalance = round($completedCredit - $completedDebit, 2);
+        $calculatedPending = round($pendingDebit, 2);
+
+        if (
+            abs(((float) $wallet->balance - $calculatedBalance)) >= 0.01
+            || abs(((float) $wallet->pending_balance - $calculatedPending)) >= 0.01
+        ) {
+            $wallet->update([
+                'balance' => $calculatedBalance,
+                'pending_balance' => $calculatedPending,
+            ]);
+            $wallet->refresh();
         }
 
         return $wallet;

@@ -70,26 +70,33 @@ Route::middleware(['AdminAuth'])->prefix('admin')->group(function(){
 
         Route::get('/seed-driver-demo', function (\Illuminate\Http\Request $request) {
             try {
-                $fresh = $request->boolean('fresh');
-                $params = $fresh ? ['--fresh' => true] : [];
-                \Illuminate\Support\Facades\Artisan::call('driver:seed-demo', $params);
-                $output = \Illuminate\Support\Facades\Artisan::output();
+                $seeders = [
+                    'AdminDeliveryPartnerSeeder',
+                    'DriverAppSeeder',
+                    'DriverDemoDataSeeder',
+                    'TicketSampleSeeder',
+                    'UserAppDemoDataSeeder',
+                    'VendorSeeder',
+                ];
+
+                $outputs = [];
+                foreach ($seeders as $seeder) {
+                    \Illuminate\Support\Facades\Artisan::call('db:seed', [
+                        '--class' => 'Database\\Seeders\\' . $seeder
+                    ]);
+                    $outputs[$seeder] = \Illuminate\Support\Facades\Artisan::output();
+                }
 
                 return response()->json([
                     'success' => true,
-                    'message' => $fresh
-                        ? 'Driver demo data refreshed successfully'
-                        : 'Driver demo data seeded successfully',
-                    'output' => $output,
-                    'driver_login' => [
-                        'email' => \Database\Seeders\DriverDemoDataSeeder::DEMO_DRIVER_EMAIL,
-                        'password' => 'Driver@123',
-                    ],
+                    'message' => 'All seeders executed successfully',
+                    'seeders_run' => $seeders,
+                    'outputs' => $outputs,
                 ]);
             } catch (\Throwable $e) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Driver demo seed failed',
+                    'message' => 'Seeding failed',
                     'error' => $e->getMessage(),
                 ], 500);
             }

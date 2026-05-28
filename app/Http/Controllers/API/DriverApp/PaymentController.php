@@ -26,6 +26,7 @@ class PaymentController extends DriverAppController
         }
 
         $wallet = $this->walletService->getOrCreateWallet((int) $driver->user_id);
+        $wallet = $this->walletService->reconcileWallet((int) $driver->user_id, $wallet);
         $totalBalance = $wallet ? (float) $wallet->balance : 0.0;
         $available = $wallet ? $wallet->availableBalance() : 0.0;
         $pending = $wallet ? (float) $wallet->pending_balance : 0.0;
@@ -190,9 +191,11 @@ class PaymentController extends DriverAppController
             ]);
         }
 
-        $wallet = $result['wallet'];
-        $totalBalance = (float) $wallet->balance;
-        $available = $wallet->availableBalance();
+        // Re-read wallet after commit to avoid stale object values.
+        $wallet = $this->walletService->getOrCreateWallet((int) $driver->user_id);
+        $wallet = $this->walletService->reconcileWallet((int) $driver->user_id, $wallet);
+        $totalBalance = $wallet ? (float) $wallet->balance : 0.0;
+        $available = $wallet ? $wallet->availableBalance() : 0.0;
         $txn = $result['transaction'];
 
         return response()->json([
@@ -205,8 +208,13 @@ class PaymentController extends DriverAppController
                 'amount_formatted' => DriverWalletService::formatInr($amount),
                 'status' => DriverTransaction::STATUS_PENDING,
                 'wallet' => [
-                    'total_earnings' => $totalBalance,
-                    'total_earnings_formatted' => DriverWalletService::formatInr($totalBalance),
+                    // Keep this field aligned with wallet summary UI expectation.
+                    'total_earnings' => $available,
+                    'total_earnings_formatted' => DriverWalletService::formatInr($available),
+                    'available_balance' => $available,
+                    'available_balance_formatted' => DriverWalletService::formatInr($available),
+                    'ledger_balance' => $totalBalance,
+                    'ledger_balance_formatted' => DriverWalletService::formatInr($totalBalance),
                 ],
             ],
         ], 201);
