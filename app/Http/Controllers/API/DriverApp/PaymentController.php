@@ -26,6 +26,7 @@ class PaymentController extends DriverAppController
         }
 
         $wallet = $this->walletService->getOrCreateWallet((int) $driver->user_id);
+        $totalBalance = $wallet ? (float) $wallet->balance : 0.0;
         $available = $wallet ? $wallet->availableBalance() : 0.0;
         $pending = $wallet ? (float) $wallet->pending_balance : 0.0;
 
@@ -33,11 +34,11 @@ class PaymentController extends DriverAppController
             'status' => true,
             'message' => 'Wallet retrieved successfully',
             'data' => [
-                'total_earnings' => $available,
+                'total_earnings' => $totalBalance,
                 'available_balance' => $available,
                 'pending_withdrawals' => $pending,
                 'currency' => $wallet?->currency ?? 'INR',
-                'total_earnings_formatted' => DriverWalletService::formatInr($available),
+                'total_earnings_formatted' => DriverWalletService::formatInr($totalBalance),
                 'can_withdraw' => $available >= DriverWalletService::MIN_WITHDRAW_AMOUNT,
                 'min_withdraw_amount' => DriverWalletService::MIN_WITHDRAW_AMOUNT,
             ],
@@ -190,6 +191,7 @@ class PaymentController extends DriverAppController
         }
 
         $wallet = $result['wallet'];
+        $totalBalance = (float) $wallet->balance;
         $available = $wallet->availableBalance();
         $txn = $result['transaction'];
 
@@ -203,8 +205,8 @@ class PaymentController extends DriverAppController
                 'amount_formatted' => DriverWalletService::formatInr($amount),
                 'status' => DriverTransaction::STATUS_PENDING,
                 'wallet' => [
-                    'total_earnings' => $available,
-                    'total_earnings_formatted' => DriverWalletService::formatInr($available),
+                    'total_earnings' => $totalBalance,
+                    'total_earnings_formatted' => DriverWalletService::formatInr($totalBalance),
                 ],
             ],
         ], 201);

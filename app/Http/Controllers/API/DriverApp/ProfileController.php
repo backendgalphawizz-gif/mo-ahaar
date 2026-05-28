@@ -29,6 +29,56 @@ class ProfileController extends DriverAppController
         ], 200);
     }
 
+    // public function updatePersonalInformation(Request $request)
+    // {
+    //     $driver = $this->resolveDriver($request);
+    //     if (!$driver) {
+    //         return response()->json([
+    //             'status' => false,
+    //             'message' => 'Unauthorized driver access',
+    //         ], 403);
+    //     }
+
+    //     if ($request->filled('full_name') && !$request->filled('name')) {
+    //         $request->merge(['name' => $request->input('full_name')]);
+    //     }
+
+    //     $profile = $this->getOrCreateDriverProfile((int) $driver->user_id);
+
+    //     $rules = DriverProfileValidator::personalRules((int) $driver->user_id, $profile, false);
+    //     $validated = $request->validate($rules, DriverProfileValidator::messages());
+
+    //     $driver->name = trim($validated['name']);
+    //     $driver->mobile = $validated['mobile'];
+    //     $driver->email = $validated['email'];
+
+    //     if ($request->hasFile('profile_image')) {
+    //         $this->deleteDriverFile($driver->profile_image);
+    //         $driver->profile_image = $this->storeDriverFile(
+    //             $request->file('profile_image'),
+    //             'profile_' . $driver->user_id
+    //         );
+    //     }
+
+    //     $driver->save();
+
+    //     DriverProfileValidator::syncProfileFromRequest(
+    //         $profile,
+    //         $validated,
+    //         $request,
+    //         fn ($file, $prefix) => $this->storeDriverFile($file, $prefix),
+    //         fn ($fileName) => $this->deleteDriverFile($fileName)
+    //     );
+
+    //     return response()->json([
+    //         'status' => true,
+    //         'message' => 'Personal information updated successfully',
+    //         'data' => [
+    //             'personal_information' => $this->formatPersonalInformation($driver->fresh(), $profile->fresh()),
+    //         ],
+    //     ], 200);
+    // }
+
     public function updatePersonalInformation(Request $request)
     {
         $driver = $this->resolveDriver($request);
@@ -42,15 +92,17 @@ class ProfileController extends DriverAppController
         if ($request->filled('full_name') && !$request->filled('name')) {
             $request->merge(['name' => $request->input('full_name')]);
         }
+        
 
-        $profile = $this->getOrCreateDriverProfile((int) $driver->user_id);
+        $validated = $request->validate([
+            'name' => ['nullable', 'string', 'max:255'],
+            'full_name' => ['nullable', 'string', 'max:255'],
+            'profile_image' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+        ]);
 
-        $rules = DriverProfileValidator::personalRules((int) $driver->user_id, $profile, false);
-        $validated = $request->validate($rules, DriverProfileValidator::messages());
-
-        $driver->name = trim($validated['name']);
-        $driver->mobile = $validated['mobile'];
-        $driver->email = $validated['email'];
+        if (isset($validated['name'])) {
+            $driver->name = trim($validated['name']);
+        }
 
         if ($request->hasFile('profile_image')) {
             $this->deleteDriverFile($driver->profile_image);
@@ -62,13 +114,7 @@ class ProfileController extends DriverAppController
 
         $driver->save();
 
-        DriverProfileValidator::syncProfileFromRequest(
-            $profile,
-            $validated,
-            $request,
-            fn ($file, $prefix) => $this->storeDriverFile($file, $prefix),
-            fn ($fileName) => $this->deleteDriverFile($fileName)
-        );
+        $profile = $this->getOrCreateDriverProfile((int) $driver->user_id);
 
         return response()->json([
             'status' => true,
@@ -79,6 +125,7 @@ class ProfileController extends DriverAppController
         ], 200);
     }
 
+    
     public function updateBankInformation(Request $request)
     {
         $driver = $this->resolveDriver($request);

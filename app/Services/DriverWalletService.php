@@ -49,8 +49,13 @@ class DriverWalletService
             $wallet = $this->getOrCreateWallet($driverId);
             $amount = (float) $assignment->payout_amount;
 
-            $wallet->balance = (float) $wallet->balance + $amount;
-            $wallet->save();
+            $newBalance = round((float) $wallet->balance + $amount, 2);
+            
+            $wallet->update([
+                'balance' => $newBalance,
+            ]);
+            
+            $wallet->refresh();
 
             return DriverTransaction::create([
                 'driver_id' => $driverId,
@@ -90,9 +95,15 @@ class DriverWalletService
                 'status' => DriverWithdrawal::STATUS_PENDING,
             ]);
 
-            $wallet->balance = (float) $wallet->balance - $amount;
-            $wallet->pending_balance = (float) $wallet->pending_balance + $amount;
-            $wallet->save();
+            // Keep ledger balance unchanged for pending withdrawals.
+            // Available balance is derived as (balance - pending_balance).
+            $newPendingBalance = round((float) $wallet->pending_balance + $amount, 2);
+            
+            $wallet->update([
+                'pending_balance' => $newPendingBalance,
+            ]);
+            
+            $wallet->refresh();
 
             $transaction = DriverTransaction::create([
                 'driver_id' => $driverId,
@@ -100,7 +111,7 @@ class DriverWalletService
                 'type' => DriverTransaction::TYPE_DEBIT,
                 'status' => DriverTransaction::STATUS_PENDING,
                 'amount' => $amount,
-                'balance_after' => $wallet->balance,
+                'balance_after' => $wallet->availableBalance(),
                 'title' => 'Withdrawal',
                 'subtitle' => 'Bank transfer',
                 'withdrawal_id' => $withdrawal->withdrawal_id,
@@ -109,7 +120,7 @@ class DriverWalletService
             return [
                 'withdrawal' => $withdrawal,
                 'transaction' => $transaction,
-                'wallet' => $wallet->fresh(),
+                'wallet' => $wallet,
             ];
         });
     }
