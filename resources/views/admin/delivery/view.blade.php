@@ -1,93 +1,121 @@
 @extends('layouts.app')
 
 @section('content')
+@include('admin.partials.dashboard-ui')
+@php
+    $driverCode = $profile->driver_code ?? ('DB-' . str_pad((string) $driver->user_id, 3, '0', STR_PAD_LEFT));
+    $accountType = strtolower((string) ($profile->account_type ?? 'savings'));
+    if ($accountType === 'saving') {
+        $accountType = 'savings';
+    }
+    $docUrl = function (?string $file) {
+        return $file ? asset('public/uploads/drivers/' . $file) : null;
+    };
+@endphp
 <div class="page-body">
     <div class="container-fluid">
-        <div class="d-flex flex-wrap align-items-center gap-3 mb-4">
-            <a href="{{ route('admin.delivery.index') }}" class="btn btn-outline-secondary btn-sm"><i class="ri-arrow-left-line"></i></a>
-            <div>
-                <h5 class="mb-0">{{ $profile->driver_code ?? 'Driver' }} - {{ $driver->name }}</h5>
-                <small class="text-muted">Driver profile and delivery history</small>
+        <div class="vendor-wizard-head d-flex align-items-start gap-3 mb-4">
+            <a href="{{ route('admin.delivery.index') }}" class="btn-back-figma" title="Back"><i class="ri-arrow-left-line"></i></a>
+            <div class="flex-grow-1">
+                <h4 class="figma-page-title mb-1">Delivery Boy Details <span class="vendor-code-accent">#{{ $driverCode }}</span></h4>
+                <p class="figma-page-subtitle mb-0">View complete information for this driver</p>
             </div>
-            <div class="ms-auto d-flex gap-2">
-                <a href="{{ route('admin.delivery.edit', $driver->user_id) }}" class="btn btn-outline-warning btn-sm"><i class="ri-pencil-line me-1"></i>Edit</a>
-                <a href="{{ route('admin.delivery.add') }}" class="btn btn-theme btn-sm"><i class="ri-add-line me-1"></i>Add Driver</a>
-            </div>
+            <a href="{{ route('admin.delivery.edit', $driver->user_id) }}" class="btn btn-outline-warning btn-sm"><i class="ri-pencil-line me-1"></i>Edit</a>
         </div>
 
         @if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
 
-        <div class="row g-4 mb-4">
-            <div class="col-lg-4">
-                <div class="card dashboard-card h-100">
-                    <div class="card-body">
-                        <h6 class="mb-3">Driver Profile Information</h6>
-                        <p><strong>Full Name:</strong> {{ $driver->name }}</p>
-                        <p><strong>Mobile No.:</strong> +91 {{ $driver->mobile }}</p>
-                        <p><strong>Email:</strong> {{ $driver->email }}</p>
-                        <p><strong>Document Type:</strong> {{ strtoupper($profile->document_type ?? '—') }}</p>
-                        <p><strong>Vehicle No.:</strong> {{ $profile->vehicle_number ?? '—' }}</p>
-                        <p><strong>Driving License No.:</strong> {{ $profile->driving_license_number ?? '—' }}</p>
-                        <p><strong>PUC No.:</strong> {{ $profile->puc_number ?? '—' }}{{ !empty($profile?->puc_expiry_date) ? ' (Exp: ' . $profile->puc_expiry_date->format('d-m-Y') . ')' : '' }}</p>
-                        <p><strong>Wallet Balance:</strong> ₹{{ number_format((float) ($wallet->balance ?? 0), 0) }}</p>
-                        <p class="mb-0"><strong>Status:</strong> <span class="badge badge-soft-warning">{{ ucfirst($driver->approval_status ?? 'pending') }}</span></p>
+        <div class="card dashboard-card mb-4">
+            <div class="card-body p-4">
+                <div class="figma-form-block mb-4">
+                    <h6 class="mb-3">Personal Information</h6>
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <div class="text-muted small">Full Name</div>
+                            <div class="fw-semibold">{{ $driver->name }}</div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-muted small">Mobile Number</div>
+                            <div class="fw-semibold">+91 {{ $driver->mobile }}</div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-muted small">Email Address</div>
+                            <div class="fw-semibold">{{ $driver->email ?: '—' }}</div>
+                        </div>
+                        <div class="col-md-8">
+                            <div class="text-muted small">Full Address</div>
+                            <div class="fw-semibold">{{ $profile->address ?? '—' }}</div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-muted small">City</div>
+                            <div class="fw-semibold">{{ $profile->city ?? '—' }}</div>
+                        </div>
                     </div>
                 </div>
-            </div>
-            <div class="col-lg-4">
-                <div class="card dashboard-card h-100">
-                    <div class="card-body">
-                        <h6 class="mb-3">Bank Details</h6>
-                        <p><strong>Account Name:</strong> {{ $profile->account_holder_name ?? '—' }}</p>
-                        <p><strong>Bank Name:</strong> {{ $profile->bank_name ?? '—' }}</p>
-                        <p><strong>Account No.:</strong> {{ $profile->account_number ?? '—' }}</p>
-                        <p class="mb-0"><strong>IFSC Code:</strong> {{ $profile->ifsc_code ?? '—' }} ({{ ucfirst($profile->account_type ?? '') }})</p>
+
+                <div class="figma-form-block mb-4">
+                    <h6 class="mb-3">Vehicle Information</h6>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <div class="text-muted small">Vehicle Registration Number</div>
+                            <div class="fw-semibold">{{ $profile->vehicle_number ?? '—' }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="text-muted small">Driving License Number</div>
+                            <div class="fw-semibold">{{ $profile->driving_license_number ?? '—' }}</div>
+                        </div>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="driver-doc-preview">
+                                <div class="text-muted small mb-2">Driving License Front</div>
+                                @if($docUrl($profile->driving_license ?? null))
+                                    <a href="{{ $docUrl($profile->driving_license) }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary">View Document</a>
+                                @else
+                                    <span class="text-muted">Not uploaded</span>
+                                @endif
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="driver-doc-preview">
+                                <div class="text-muted small mb-2">Driving License Back</div>
+                                @if($docUrl($profile->driving_license_back ?? null))
+                                    <a href="{{ $docUrl($profile->driving_license_back) }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary">View Document</a>
+                                @else
+                                    <span class="text-muted">Not uploaded</span>
+                                @endif
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
-            <div class="col-lg-4">
-                <div class="card dashboard-card h-100">
-                    <div class="card-body">
-                        <h6 class="mb-3">Documents</h6>
-                        @if(($profile->document_type ?? '') === 'pan')
-                            <p>
-                                <strong>PAN Card:</strong>
-                                @if(!empty($profile?->pan_card))
-                                    <a href="{{ asset('public/uploads/drivers/' . $profile->pan_card) }}" target="_blank">View File</a>
-                                @else — @endif
-                            </p>
-                        @else
-                            <p>
-                                <strong>Aadhaar Front:</strong>
-                                @if(!empty($profile?->aadhar_card))
-                                    <a href="{{ asset('public/uploads/drivers/' . $profile->aadhar_card) }}" target="_blank">View File</a>
-                                @else — @endif
-                            </p>
-                            <p>
-                                <strong>Aadhaar Back:</strong>
-                                @if(!empty($profile?->aadhar_card_back))
-                                    <a href="{{ asset('public/uploads/drivers/' . $profile->aadhar_card_back) }}" target="_blank">View File</a>
-                                @else — @endif
-                            </p>
-                        @endif
-                        <p>
-                            <strong>RC Image:</strong>
-                            @if(!empty($profile?->rc_image))
-                                <a href="{{ asset('public/uploads/drivers/' . $profile->rc_image) }}" target="_blank">View File</a>
-                            @else — @endif
-                        </p>
-                        <p>
-                            <strong>Driving License Image:</strong>
-                            @if(!empty($profile?->driving_license))
-                                <a href="{{ asset('public/uploads/drivers/' . $profile->driving_license) }}" target="_blank">View File</a>
-                            @else — @endif
-                        </p>
-                        <p class="mb-0">
-                            <strong>PUC Image:</strong>
-                            @if(!empty($profile?->puc_image))
-                                <a href="{{ asset('public/uploads/drivers/' . $profile->puc_image) }}" target="_blank">View File</a>
-                            @else — @endif
-                        </p>
+
+                <div class="figma-form-block">
+                    <h6 class="mb-3">Bank Details</h6>
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <div class="text-muted small">Account Holder Name</div>
+                            <div class="fw-semibold">{{ $profile->account_holder_name ?? '—' }}</div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-muted small">Bank Name</div>
+                            <div class="fw-semibold">{{ $profile->bank_name ?? '—' }}</div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-muted small">Branch Name</div>
+                            <div class="fw-semibold">{{ $profile->branch_name ?? '—' }}</div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-muted small">Account Number</div>
+                            <div class="fw-semibold">{{ $profile->account_number ?? '—' }}</div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-muted small">IFSC Code</div>
+                            <div class="fw-semibold">{{ $profile->ifsc_code ?? '—' }}</div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-muted small">Account Type</div>
+                            <div class="fw-semibold">{{ $accountType === 'current' ? 'Current' : 'Saving' }}</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -96,7 +124,7 @@
         <div class="card dashboard-card">
             <div class="card-body">
                 <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
-                    <h6 class="mb-0">Delivery Details</h6>
+                    <h6 class="mb-0">Delivery History</h6>
                     <form method="GET" action="{{ route('admin.delivery.view', $driver->user_id) }}" class="ms-auto d-flex gap-2">
                         <div class="input-group" style="min-width:260px;">
                             <span class="input-group-text"><i class="ri-search-line"></i></span>
@@ -150,4 +178,20 @@
         </div>
     </div>
 </div>
+@endsection
+
+@section('scripts')
+<style>
+.driver-doc-preview {
+    border: 1px solid #eceef2;
+    border-radius: 10px;
+    background: #f9fafb;
+    min-height: 100px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+</style>
 @endsection

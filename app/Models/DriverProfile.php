@@ -37,6 +37,7 @@ class DriverProfile extends Model
         'aadhar_card',
         'aadhar_card_back',
         'driving_license',
+        'driving_license_back',
         'rc_image',
         'puc_number',
         'puc_expiry_date',
@@ -45,6 +46,7 @@ class DriverProfile extends Model
         'aadhar_card_uploaded_at',
         'aadhar_card_back_uploaded_at',
         'driving_license_uploaded_at',
+        'driving_license_back_uploaded_at',
         'rc_image_uploaded_at',
         'puc_image_uploaded_at',
     ];
@@ -56,6 +58,7 @@ class DriverProfile extends Model
         'aadhar_card_uploaded_at' => 'datetime',
         'aadhar_card_back_uploaded_at' => 'datetime',
         'driving_license_uploaded_at' => 'datetime',
+        'driving_license_back_uploaded_at' => 'datetime',
         'rc_image_uploaded_at' => 'datetime',
         'puc_image_uploaded_at' => 'datetime',
     ];

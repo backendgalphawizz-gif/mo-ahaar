@@ -210,13 +210,13 @@ class AuthController extends Controller
                 'gender' => $gender,
             ]);
 
-            $customer->addresses()->create([
-                'contact_name' => $user->name,
-                'mobile' => $user->mobile,
-                'address_line' => $validated['address'] ?? null,
-                'address_type' => 'other',
-                'is_default' => true,
-            ]);
+            // $customer->addresses()->create([
+            //     'contact_name' => $user->name,
+            //     'mobile' => $user->mobile,
+            //     'address_line' => $validated['address'] ?? null,
+            //     'address_type' => 'other',
+            //     'is_default' => true,
+            // ]);
 
             DB::commit();
 

@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class DeliveryManagementController extends Controller
@@ -112,9 +113,10 @@ class DeliveryManagementController extends Controller
     public function addDriver()
     {
         return view('admin.delivery.add', [
-            'title' => 'Add New Driver',
+            'title' => 'Add New Delivery Boy',
             'driver' => null,
             'profile' => null,
+            'tab' => old('driver_tab', request('tab', 'personal')),
         ]);
     }
 
@@ -129,7 +131,7 @@ class DeliveryManagementController extends Controller
 
             $driver = Users::create([
                 'name' => trim($validated['name']),
-                'email' => trim($validated['email']),
+                'email' => $this->resolveDriverEmail($validated),
                 'mobile' => $validated['mobile'],
                 'password' => Hash::make($validated['password']),
                 'role_type' => Users::DRIVER_APP_ROLE_TYPE,
@@ -195,9 +197,10 @@ class DeliveryManagementController extends Controller
         $profile = DriverProfile::where('driver_id', $driver->user_id)->first();
 
         return view('admin.delivery.edit', [
-            'title' => 'Edit Delivery Partner',
+            'title' => 'Edit Delivery Boy',
             'driver' => $driver,
             'profile' => $profile,
+            'tab' => old('driver_tab', request('tab', 'personal')),
         ]);
     }
 
@@ -210,7 +213,7 @@ class DeliveryManagementController extends Controller
         DB::beginTransaction();
         try {
             $driver->name = trim($validated['name']);
-            $driver->email = trim($validated['email']);
+            $driver->email = $this->resolveDriverEmail($validated);
             $driver->mobile = $validated['mobile'];
 
             if (!empty($validated['password'])) {
@@ -373,5 +376,17 @@ class DeliveryManagementController extends Controller
         if (File::exists($path)) {
             File::delete($path);
         }
+    }
+
+    private function resolveDriverEmail(array $validated): string
+    {
+        $email = trim((string) ($validated['email'] ?? ''));
+        if ($email !== '') {
+            return $email;
+        }
+
+        $mobile = preg_replace('/\D/', '', (string) ($validated['mobile'] ?? ''));
+
+        return 'driver_' . ($mobile !== '' ? $mobile : Str::random(8)) . '@noemail.moaahar.local';
     }
 }
