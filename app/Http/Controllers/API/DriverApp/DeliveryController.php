@@ -45,20 +45,39 @@ class DeliveryController extends DriverAppController
             ], 422);
         }
 
-        DB::transaction(function () use ($assignment, $driver) {
-            $assignment->driver_id = $driver->user_id;
-            $assignment->status = DeliveryAssignment::STATUS_ASSIGNED;
-            $assignment->assigned_at = now();
-            $assignment->save();
+        try {
+            DB::transaction(function () use ($assignment, $driver) {
+                $locked = DeliveryAssignment::where('assignment_id', $assignment->assignment_id)
+                    ->lockForUpdate()
+                    ->first();
 
-            NotificationController::notify(
-                (int) $driver->user_id,
-                'New Delivery Assigned',
-                'You accepted order ' . ($assignment->order?->order_number ?? $assignment->order_id) . '.',
-                'new_delivery_assigned',
-                $assignment
-            );
-        });
+                if (
+                    !$locked
+                    || $locked->status !== DeliveryAssignment::STATUS_NEW
+                    || $locked->driver_id !== null
+                ) {
+                    throw new \RuntimeException('This delivery has already been assigned to another driver');
+                }
+
+                $locked->driver_id = $driver->user_id;
+                $locked->status = DeliveryAssignment::STATUS_ASSIGNED;
+                $locked->assigned_at = now();
+                $locked->save();
+
+                NotificationController::notify(
+                    (int) $driver->user_id,
+                    'New Delivery Assigned',
+                    'You accepted order ' . ($locked->order?->order_number ?? $locked->order_id) . '.',
+                    'new_delivery_assigned',
+                    $locked
+                );
+            });
+        } catch (\RuntimeException $e) {
+            return response()->json([
+                'status' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        }
 
         $assignment->refresh();
 

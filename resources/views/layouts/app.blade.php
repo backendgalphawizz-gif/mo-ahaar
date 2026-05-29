@@ -10,12 +10,20 @@
         $dashboardRoute = $isVendorPanel ? 'vendor.dashboard' : 'admin.dashboard';
         $defaultLogoUrl = asset('public/uploads/settings/moaahar-logo.png');
         $defaultAvatarUrl = asset('public/assets/images/logo/1.png');
-        $logoUrl = !empty($globalStoreSetting) && !empty($globalStoreSetting->logo)
-            ? asset('public/uploads/settings/' . $globalStoreSetting->logo)
-            : $defaultLogoUrl;
-        $profileImageUrl = session('profile_image')
-            ? asset('public/uploads/admins/' . session('profile_image'))
-            : $defaultAvatarUrl;
+        $logoUrl = $defaultLogoUrl;
+        if (!empty($globalStoreSetting) && !empty($globalStoreSetting->logo)) {
+            $logoFile = public_path('uploads/settings/' . $globalStoreSetting->logo);
+            if (is_file($logoFile)) {
+                $logoUrl = asset('public/uploads/settings/' . $globalStoreSetting->logo);
+            }
+        }
+        $profileImageUrl = $defaultAvatarUrl;
+        if (session('profile_image')) {
+            $profileFile = public_path('uploads/admins/' . session('profile_image'));
+            if (is_file($profileFile)) {
+                $profileImageUrl = asset('public/uploads/admins/' . session('profile_image'));
+            }
+        }
     @endphp
     @include('admin.partials.admin-figma-theme')
     <!-- tap on top start -->
@@ -64,6 +72,16 @@
                 @endif
                 <div class="nav-right col-6 pull-right right-header p-0">
                     <ul class="nav-menus">
+                        @if($isVendorPanel)
+                        <li class="notification-box">
+                            <a href="{{ route('vendor.orders') }}" title="Order notifications">
+                                <i class="ri-notification-3-line"></i>
+                                @if(($vendorUnreadNotifications ?? 0) > 0)
+                                    <span class="badge rounded-pill bg-danger" style="position:absolute;top:2px;right:2px;font-size:10px;">{{ $vendorUnreadNotifications > 99 ? '99+' : $vendorUnreadNotifications }}</span>
+                                @endif
+                            </a>
+                        </li>
+                        @endif
                         @if(!$isVendorPanel)
                         {{-- <li class="notification-box">
                             <a href="{{ route('admin.notifications.index') }}" title="Notifications">

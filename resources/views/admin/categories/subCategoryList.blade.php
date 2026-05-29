@@ -57,7 +57,6 @@
                                                         <th>Category Name</th>
                                                         <th>Sub Category Name</th>
                                                         <th>Date</th>
-                                                        <th>Slug</th>
                                                         <th>Action</th>
                                                     </tr>
                                                 </thead>
@@ -80,7 +79,6 @@
                                                         <td>{{ $category->category_name }}</td>
                                                         <td>{{ @$category->sub_cat_name }}</td>
                                                         <td>{{ @$category->created_at->format('d-m-Y') }}</td>
-                                                        <td>{{ @$category->sub_cat_slug }}</td>
                                                         <td>
                                                             <ul>
                                                                 <li>
@@ -89,9 +87,7 @@
                                                                        data-bs-target="#viewSubCategoryModal"
                                                                        data-category="{{ $category->category_name }}"
                                                                        data-name="{{ $category->sub_cat_name }}"
-                                                                       data-slug="{{ $category->sub_cat_slug }}"
                                                                        data-date="{{ optional($category->created_at)->format('d-m-Y') }}"
-                                                                       data-desc="{{ $category->sub_cat_description ?? '' }}"
                                                                        data-image="{{ $category->sub_cat_image ? asset('public/uploads/sub_categories/' . $category->sub_cat_image) : asset('public/assets/images/product/sample-cat.png') }}">
                                                                         <i class="ri-eye-line"></i>
                                                                     </a>
@@ -116,7 +112,7 @@
                                                     </tr>
                                                 @empty
                                                     <tr>
-                                                        <td colspan="7" class="text-center text-muted py-4">No sub categories found.</td>
+                                                        <td colspan="6" class="text-center text-muted py-4">No sub categories found.</td>
                                                     </tr>
                                                 @endforelse
                                                    
@@ -192,11 +188,7 @@
                         <div class="col-md-8">
                             <div class="mb-2"><strong>Category:</strong> <span id="subCategoryParent">-</span></div>
                             <div class="mb-2"><strong>Name:</strong> <span id="subCategoryViewName">-</span></div>
-                            <div class="mb-2"><strong>Slug:</strong> <span id="subCategoryViewSlug">-</span></div>
                             <div class="mb-2"><strong>Created:</strong> <span id="subCategoryViewDate">-</span></div>
-                            <div><strong>Description:</strong>
-                                <p id="subCategoryViewDesc" class="mb-0 text-muted mt-1">-</p>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -293,9 +285,7 @@
 
                     document.getElementById('subCategoryParent').textContent = trigger.getAttribute('data-category') || '-';
                     document.getElementById('subCategoryViewName').textContent = trigger.getAttribute('data-name') || '-';
-                    document.getElementById('subCategoryViewSlug').textContent = trigger.getAttribute('data-slug') || '-';
                     document.getElementById('subCategoryViewDate').textContent = trigger.getAttribute('data-date') || '-';
-                    document.getElementById('subCategoryViewDesc').textContent = trigger.getAttribute('data-desc') || 'No description available.';
                     document.getElementById('subCategoryViewImage').src = trigger.getAttribute('data-image');
                 });
             });

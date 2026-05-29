@@ -73,14 +73,6 @@
                                                         
                                                     </div>
                                                 </div>
-                                                <div class="mb-4 row align-items-center mt-5">
-                                                    <label class="col-sm-3 col-form-label form-label-title">Sub Category Description</label>
-                                                    <div class="form-group col-sm-9">
-                                                        <div class="input-group">
-                                                            <textarea class="form-control" id="sub_category_description" name="sub_category_description" placeholder="Sub Category Description"></textarea>
-                                                        </div>
-                                                    </div>
-                                                </div>
 
                                                 <div class="mb-4 row align-items-center mt-5">
                                                     <label class="form-label-title col-sm-3 mb-0"></label>

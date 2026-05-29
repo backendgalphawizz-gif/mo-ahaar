@@ -173,7 +173,7 @@ class OrdersController extends Controller
                     'promo_applied' => $this->orderHasPromoApplied($order),
                     'shipping_address' => $order->shipping_address,
                     'notes'            => $order->notes,
-                    'cooking_instructions' => $this->extractCookingInstructionsFromOrderNotes($order->notes),
+                    'cooking_instructions' => $this->resolveOrderCookingInstructions($order),
                     'can_cancel'       => $this->canCancelOrder($order),
                     'placed_at'        => $order->created_at ? $order->created_at->toDateTimeString() : null,
                     'updated_at'       => $order->updated_at ? $order->updated_at->toDateTimeString() : null,
@@ -684,6 +684,18 @@ class OrdersController extends Controller
         }
 
         return false;
+    }
+
+    private function resolveOrderCookingInstructions(Orders $order): ?string
+    {
+        if (Schema::hasColumn('orders', 'cooking_instructions')) {
+            $stored = $order->cooking_instructions;
+            if ($stored !== null && trim((string) $stored) !== '') {
+                return trim((string) $stored);
+            }
+        }
+
+        return $this->extractCookingInstructionsFromOrderNotes($order->notes);
     }
 
     private function extractCookingInstructionsFromOrderNotes(?string $notes): ?string

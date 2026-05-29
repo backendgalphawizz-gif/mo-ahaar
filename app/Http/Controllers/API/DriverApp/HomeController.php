@@ -5,6 +5,7 @@ namespace App\Http\Controllers\API\DriverApp;
 use App\Models\DeliveryAssignment;
 use App\Models\DriverNotification;
 use App\Models\Orders;
+use App\Services\OrderDispatchService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 
@@ -96,7 +97,10 @@ class HomeController extends DriverAppController
         $perPage = (int) ($validated['per_page'] ?? 10);
         $perPage = max(1, min($perPage, 50));
 
-        $paginated = $this->eligibleNewDeliveriesQuery((int) $driver->user_id)
+        $driverLat = isset($validated['latitude']) ? (float) $validated['latitude'] : null;
+        $driverLng = isset($validated['longitude']) ? (float) $validated['longitude'] : null;
+
+        $paginated = $this->eligibleNewDeliveriesQuery((int) $driver->user_id, $driverLat, $driverLng)
             ->paginate($perPage);
 
         $items = collect($paginated->items())
@@ -127,7 +131,7 @@ class HomeController extends DriverAppController
             return;
         }
 
-        $statuses = ['processing', 'shipped', 'out_for_delivery'];
+        $statuses = OrderDispatchService::poolOrderStatuses();
 
         Orders::query()
             ->with(['vendor', 'customer.user'])

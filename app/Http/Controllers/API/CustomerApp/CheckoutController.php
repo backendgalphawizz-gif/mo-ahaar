@@ -5,6 +5,7 @@ namespace App\Http\Controllers\API\CustomerApp;
 use App\Http\Controllers\API\Concerns\RespondsWithAccountRestrictions;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\API\CustomerApp\NotificationController;
+use App\Services\OrderDispatchService;
 use App\Models\CartItem;
 use App\Models\CustomerAddress;
 use App\Models\Customers;
@@ -380,9 +381,10 @@ class CheckoutController extends Controller
 
         $totals = $this->calculateCheckoutTotals($items, $customer);
         $notes = $this->composeOrderNotes(
-            trim((string) ($validated['notes'] ?? $customer->cart_cooking_instructions ?? '')),
+            trim((string) ($validated['notes'] ?? '')),
             $validated
         );
+        $cookingInstructions = $this->normalizeOptionalText($validated['cooking_instructions'] ?? null);
 
         DB::beginTransaction();
         try {
@@ -398,7 +400,7 @@ class CheckoutController extends Controller
                 $isCod ? 'pending' : $onlinePaymentStatus,
                 $isCod ? 'pending' : $onlineOrderStatus,
                 $notes,
-                $validated['cooking_instructions'] ?? null
+                $cookingInstructions
             );
 
             if ($isOnline) {
@@ -434,6 +436,8 @@ class CheckoutController extends Controller
                 ]
             );
 
+            app(OrderDispatchService::class)->dispatchAfterOrderPlaced($order->fresh(['vendor', 'customer.user']));
+
             return response()->json([
                 'status' => true,
                 'message' => 'Your order has been placed successfully!',
@@ -449,6 +453,7 @@ class CheckoutController extends Controller
                     'promo_applied' => !empty($order->promo_code) || (float) ($order->promo_discount ?? 0) > 0,
                     'has_promo_applied' => !empty($order->promo_code) || (float) ($order->promo_discount ?? 0) > 0,
                     'items_ordered' => $items->count(),
+                    'cooking_instructions' => $order->cooking_instructions,
                     'track_order_url' => url('/api/customer-app/orders/' . $order->order_id . '/tracking'),
                 ],
             ], 200);
@@ -855,7 +860,7 @@ class CheckoutController extends Controller
         ];
 
         if (\Illuminate\Support\Facades\Schema::hasColumn('orders', 'cooking_instructions')) {
-            $orderData['cooking_instructions'] = $cookingInstructions;
+            $orderData['cooking_instructions'] = $this->normalizeOptionalText($cookingInstructions);
         }
 
         if (\Illuminate\Support\Facades\Schema::hasColumn('orders', 'gst_amount')) {
@@ -981,5 +986,16 @@ class CheckoutController extends Controller
         }
 
         return $baseNotes . "\n" . $paymentLine;
+    }
+
+    private function normalizeOptionalText(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $trimmed = trim($value);
+
+        return $trimmed === '' ? null : $trimmed;
     }
 }

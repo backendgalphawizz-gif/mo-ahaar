@@ -164,9 +164,9 @@
                                         maxlength="500"
                                         autocomplete="off">
                                     @include('admin.partials.field-error', ['field' => 'address'])
-                                    <small class="text-muted d-block mt-1">Suggestions से address चुनें — location automatically save होगी।</small>
-                                    <small id="vendor-address-maps-help" class="text-warning d-none d-block mt-1">Google Maps API key (.env में GOOGLE_MAPS_API_KEY) configure नहीं है।</small>
-                                    <small id="vendor-address-coords-error" class="text-danger d-none d-block mt-1">कृपया dropdown से valid address select करें (lat/long required)।</small>
+                                    {{-- <small class="text-muted d-block mt-1">Suggestions से address चुनें — location automatically save होगी।</small> --}}
+                                    {{-- <small id="vendor-address-maps-help" class="text-warning d-none d-block mt-1">Google Maps API key (.env में GOOGLE_MAPS_API_KEY) configure नहीं है।</small> --}}
+                                    {{-- <small id="vendor-address-coords-error" class="text-danger d-none d-block mt-1">कृपया dropdown से valid address select करें (lat/long required)।</small> --}}
                                     <input type="hidden" name="latitude" id="vendor_latitude" value="{{ $val('latitude') }}">
                                     <input type="hidden" name="longitude" id="vendor_longitude" value="{{ $val('longitude') }}">
                                     @include('admin.partials.field-error', ['field' => 'latitude'])

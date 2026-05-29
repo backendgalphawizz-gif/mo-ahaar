@@ -67,14 +67,6 @@
                                                         
                                                     </div>
                                                 </div>
-                                                <div class="mb-4 row align-items-center mt-5">
-                                                    <label class="col-sm-3 col-form-label form-label-title">Category Description</label>
-                                                    <div class="form-group col-sm-9">
-                                                        <div class="input-group">
-                                                            <textarea class="form-control" id="category_description" name="category_description" placeholder="Category Description">{{ old('category_description', $category->category_description) }}</textarea>
-                                                        </div>
-                                                    </div>
-                                                </div>
 
                                                 <div class="mb-4 row align-items-center mt-5">
                                                     <label class="form-label-title col-sm-3 mb-0"></label>

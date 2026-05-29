@@ -7,6 +7,7 @@ use App\Models\DeliveryAssignment;
 use App\Models\Orders;
 use App\Models\Users;
 use App\Models\Vendor;
+use App\Services\OrderDispatchService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -112,12 +113,18 @@ abstract class DriverAppController extends Controller
 
         $existing = DeliveryAssignment::where('order_id', $order->order_id)->first();
         if ($existing) {
+            $formattedDelivery = OrderDispatchService::formatShippingAddress($order);
+            if ($formattedDelivery !== '' && $existing->delivery_address !== $formattedDelivery) {
+                $existing->delivery_address = $formattedDelivery;
+                $existing->save();
+            }
+
             return $existing;
         }
 
         $vendor = $order->vendor_id ? Vendor::find($order->vendor_id) : null;
         $pickupAddress = self::vendorAddressLine($vendor);
-        $deliveryAddress = (string) ($order->shipping_address ?? '');
+        $deliveryAddress = OrderDispatchService::formatShippingAddress($order);
 
         if ($payoutAmount <= 0) {
             $payoutAmount = max(50, round((float) $order->shipping_amount, 2));
@@ -163,18 +170,21 @@ abstract class DriverAppController extends Controller
         return $vendor->city ?? $vendor->area ?? $vendor->address ?? null;
     }
 
-    protected function eligibleNewDeliveriesQuery(int $driverId)
+    protected function eligibleNewDeliveriesQuery(int $driverId, ?float $driverLat = null, ?float $driverLng = null)
     {
         $rejectedIds = DB::table('delivery_assignment_rejections')
             ->where('driver_id', $driverId)
             ->pluck('assignment_id');
 
-        return DeliveryAssignment::query()
-            ->with(['order.customer.user'])
+        $query = DeliveryAssignment::query()
+            ->with(['order.customer.user', 'order.vendor'])
             ->where('status', DeliveryAssignment::STATUS_NEW)
             ->whereNull('driver_id')
-            ->when($rejectedIds->isNotEmpty(), fn ($q) => $q->whereNotIn('assignment_id', $rejectedIds))
-            ->orderByDesc('assignment_id');
+            ->when($rejectedIds->isNotEmpty(), fn ($q) => $q->whereNotIn('assignment_id', $rejectedIds));
+
+        OrderDispatchService::applyNearbyVendorFilter($query, $driverLat, $driverLng);
+
+        return $query->orderByDesc('assignment_id');
     }
 
     protected function myOrdersBaseQuery(int $driverId)

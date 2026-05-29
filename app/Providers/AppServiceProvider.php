@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\StoreSetting;
+use App\Models\VendorNotification;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\View;
@@ -36,6 +37,17 @@ class AppServiceProvider extends ServiceProvider
             }
 
             $view->with('globalStoreSetting', $storeSetting);
+        });
+
+        View::composer('layouts.app', function ($view) {
+            $vendorUnread = 0;
+            if ((int) session('role_type') === 3 && session('vendor_id') && Schema::hasTable('vendor_notifications')) {
+                $vendorUnread = VendorNotification::query()
+                    ->where('vendor_id', (int) session('vendor_id'))
+                    ->where('is_read', false)
+                    ->count();
+            }
+            $view->with('vendorUnreadNotifications', $vendorUnread);
         });
 
         // Manually push SecurityHeaders middleware to the middleware stack

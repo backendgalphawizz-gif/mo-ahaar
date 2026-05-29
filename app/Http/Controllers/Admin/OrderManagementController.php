@@ -161,6 +161,14 @@ class OrderManagementController extends Controller
             'tracked_at' => now(),
          ]);
 
+         \App\Http\Controllers\API\DriverApp\NotificationController::notify(
+            (int) $driver->user_id,
+            'New Delivery Assigned',
+            'Admin assigned order ' . ($order->order_number ?? $order->order_id) . ' to you.',
+            'new_delivery_assigned',
+            $assignment
+         );
+
          return back()->with('success', 'Delivery partner assigned successfully.');
       } catch (\Exception $e) {
          return back()->with('error', 'Failed to assign driver: ' . $e->getMessage());
@@ -234,6 +242,8 @@ class OrderManagementController extends Controller
             'location' => 'System',
             'tracked_at' => now(),
          ]);
+
+         app(\App\Services\OrderDispatchService::class)->dispatchAfterOrderPlaced($order->fresh(['vendor', 'customer.user']));
 
          return redirect()->route('admin.orders')->with('success', 'Order created successfully.');
       } catch (\Exception $e) {

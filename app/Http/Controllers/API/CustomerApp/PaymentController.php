@@ -11,6 +11,7 @@ use App\Models\OrderItem;
 use App\Models\Orders;
 use App\Models\Product;
 use App\Models\Users;
+use App\Services\OrderDispatchService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -214,6 +215,8 @@ class PaymentController extends Controller
                     ]
                 );
             });
+
+            app(OrderDispatchService::class)->dispatchAfterOrderPlaced($order->fresh(['vendor', 'customer.user']));
 
             return response()->json([
                 'status'  => true,

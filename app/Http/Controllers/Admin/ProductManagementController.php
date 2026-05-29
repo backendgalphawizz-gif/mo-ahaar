@@ -553,10 +553,7 @@ class ProductManagementController extends Controller
         $search = trim((string) request()->query('search', ''));
         $allCategories = ProductCategory::where('status', '!=', 0)
             ->when($search !== '', function ($query) use ($search) {
-                $query->where(function ($q) use ($search) {
-                    $q->where('category_name', 'like', "%$search%")
-                      ->orWhere('slug', 'like', "%$search%");
-                });
+                $query->where('category_name', 'like', "%$search%");
             })
             ->orderByDesc('category_id')
             ->paginate(10)
@@ -574,14 +571,13 @@ class ProductManagementController extends Controller
         // Validate input, especially category_image as image
         $validated = $request->validate([
             'category_name' => 'required|string|max:255|unique:product_categories,category_name',
-            'category_description' => 'nullable|string',
             'category_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
         ]);
 
         $category = new ProductCategory();
         $category->category_name = $validated['category_name'];
         $category->slug = Str::slug($validated['category_name']);
-        $category->category_description = $validated['category_description'] ?? null;
+        $category->category_description = null;
 
         if ($request->hasFile('category_image')) {
             $image = $request->file('category_image');
@@ -613,7 +609,6 @@ class ProductManagementController extends Controller
                 'max:255',
                 Rule::unique('product_categories', 'category_name')->ignore($request->category_id, 'category_id'),
             ],
-            'category_description' => 'nullable|string',
             'category_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
         ]);
 
@@ -622,7 +617,7 @@ class ProductManagementController extends Controller
 
         $category->category_name = $validated['category_name'];
         $category->slug = Str::slug($validated['category_name']);
-        $category->category_description = $validated['category_description'] ?? null;
+        $category->category_description = null;
 
         if ($request->hasFile('category_image')) {
             $oldImagePath = public_path('uploads/categories/' . $category->category_image);
@@ -667,7 +662,6 @@ class ProductManagementController extends Controller
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('sub_categories.sub_cat_name', 'like', "%$search%")
-                      ->orWhere('sub_categories.sub_cat_slug', 'like', "%$search%")
                       ->orWhere('product_categories.category_name', 'like', "%$search%");
                 });
             })
@@ -690,7 +684,6 @@ class ProductManagementController extends Controller
         $validated = $request->validate([
             'category_id' => 'required|exists:product_categories,category_id',
             'sub_category_name' => 'required|string|max:255|unique:sub_categories,sub_cat_name',
-            'sub_category_description' => 'nullable|string',
             'sub_category_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
         ]);
 
@@ -698,7 +691,7 @@ class ProductManagementController extends Controller
         $subCategory->category_id = $validated['category_id'];
         $subCategory->sub_cat_name = $validated['sub_category_name'];
         $subCategory->sub_cat_slug = Str::slug($validated['sub_category_name']);
-        $subCategory->sub_cat_description = $validated['sub_category_description'] ?? null;
+        $subCategory->sub_cat_description = null;
 
         if ($request->hasFile('sub_category_image')) {
             $image = $request->file('sub_category_image');
@@ -735,7 +728,6 @@ class ProductManagementController extends Controller
                 'max:255',
                 Rule::unique('sub_categories', 'sub_cat_name')->ignore($request->sub_category_id, 'sub_category_id'),
             ],
-            'sub_category_description' => 'nullable|string',
             'sub_category_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
         ]);
 
@@ -745,7 +737,7 @@ class ProductManagementController extends Controller
         $subCategory->category_id = $validated['category_id'];
         $subCategory->sub_cat_name = $validated['sub_category_name'];
         $subCategory->sub_cat_slug = Str::slug($validated['sub_category_name']);
-        $subCategory->sub_cat_description = $validated['sub_category_description'] ?? null;
+        $subCategory->sub_cat_description = null;
 
         if ($request->hasFile('sub_category_image')) {
             $oldImagePath = public_path('uploads/sub_categories/' . $subCategory->sub_cat_image);

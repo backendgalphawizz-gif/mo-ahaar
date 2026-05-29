@@ -200,6 +200,67 @@ class CustomerCartAndOrderApiTest extends TestCase
             ->assertJsonPath('data.orders.0.can_cancel', true);
     }
 
+    public function test_place_order_uses_request_cooking_instructions_only(): void
+    {
+        $user = $this->createCustomerUser();
+        $customer = Customers::where('user_id', '=', $user->user_id)->firstOrFail();
+        $customer->cart_cooking_instructions = 'Old cart instruction should not be used';
+        $customer->save();
+
+        $product = $this->createProduct([
+            'vendor_id' => 101,
+            'price' => 120.00,
+        ]);
+
+        CartItem::create([
+            'customer_id' => $customer->customer_id,
+            'product_id' => $product->product_id,
+            'quantity' => 1,
+            'unit_price' => $product->price,
+            'sale_price' => null,
+        ]);
+
+        $this->actingAs($user, 'web');
+
+        $withInstructions = $this->postJson('/api/customer-app/checkout/place-order', [
+            'shipping_address' => 'Test address, Ahmedabad',
+            'payment_method' => 'cod',
+            'cooking_instructions' => 'Less spicy, no onion',
+        ]);
+
+        $withInstructions->assertOk()
+            ->assertJsonPath('data.cooking_instructions', 'Less spicy, no onion');
+
+        $orderId = (int) $withInstructions->json('data.order_id');
+
+        $this->assertDatabaseHas('orders', [
+            'order_id' => $orderId,
+            'cooking_instructions' => 'Less spicy, no onion',
+            'notes' => null,
+        ]);
+
+        CartItem::create([
+            'customer_id' => $customer->customer_id,
+            'product_id' => $product->product_id,
+            'quantity' => 1,
+            'unit_price' => $product->price,
+            'sale_price' => null,
+        ]);
+
+        $withoutInstructions = $this->postJson('/api/customer-app/checkout/place-order', [
+            'shipping_address' => 'Test address, Ahmedabad',
+            'payment_method' => 'cod',
+        ]);
+
+        $withoutInstructions->assertOk()
+            ->assertJsonPath('data.cooking_instructions', null);
+
+        $this->assertDatabaseHas('orders', [
+            'order_id' => (int) $withoutInstructions->json('data.order_id'),
+            'cooking_instructions' => null,
+        ]);
+    }
+
     private function rebuildCommerceTables(): void
     {
         Schema::disableForeignKeyConstraints();
@@ -235,6 +296,7 @@ class CustomerCartAndOrderApiTest extends TestCase
             $table->decimal('longitude', 10, 7)->nullable();
             $table->boolean('location_enabled')->default(false);
             $table->timestamp('location_updated_at')->nullable();
+            $table->text('cart_cooking_instructions')->nullable();
         });
 
         Schema::create('products', function (Blueprint $table) {
@@ -310,6 +372,7 @@ class CustomerCartAndOrderApiTest extends TestCase
             $table->string('order_status');
             $table->string('shipping_address');
             $table->text('notes')->nullable();
+            $table->text('cooking_instructions')->nullable();
             $table->string('razorpay_order_id')->nullable();
             $table->string('razorpay_payment_id')->nullable();
             $table->string('razorpay_signature')->nullable();

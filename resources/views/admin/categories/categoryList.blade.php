@@ -45,7 +45,6 @@
                                                         <th>Category Image</th>
                                                         <th>Category Name</th>
                                                         <th>Date</th>
-                                                        <th>Category Slug</th>
                                                         <th>Actions</th>
                                                     </tr>
                                                 </thead>
@@ -64,7 +63,6 @@
                                                         </td>
                                                         <td>{{ $category->category_name }}</td>
                                                         <td>{{ $category->created_at->format('d-m-Y') }}</td>
-                                                        <td>{{ $category->slug }}</td>
                                                         <td>
                                                             <ul>
                                                                 <li>
@@ -72,9 +70,7 @@
                                                                        data-bs-toggle="modal"
                                                                        data-bs-target="#viewCategoryModal"
                                                                        data-name="{{ $category->category_name }}"
-                                                                       data-slug="{{ $category->slug }}"
                                                                        data-date="{{ optional($category->created_at)->format('d-m-Y') }}"
-                                                                       data-desc="{{ $category->category_description ?? '' }}"
                                                                        data-image="{{ $category->category_image ? asset('public/uploads/categories/' . $category->category_image) : asset('public/assets/images/product/sample-cat.png') }}">
                                                                         <i class="ri-eye-line"></i>
                                                                     </a>
@@ -97,7 +93,7 @@
                                                     </tr>
                                                     @empty
                                                     <tr>
-                                                        <td colspan="6" class="text-center text-muted py-4">No categories found.</td>
+                                                        <td colspan="5" class="text-center text-muted py-4">No categories found.</td>
                                                     </tr>
                                                     @endforelse
                                                 </tbody>
@@ -139,11 +135,7 @@
                         </div>
                         <div class="col-md-8">
                             <div class="mb-2"><strong>Name:</strong> <span id="categoryViewName">-</span></div>
-                            <div class="mb-2"><strong>Slug:</strong> <span id="categoryViewSlug">-</span></div>
                             <div class="mb-2"><strong>Created:</strong> <span id="categoryViewDate">-</span></div>
-                            <div><strong>Description:</strong>
-                                <p id="categoryViewDesc" class="mb-0 text-muted mt-1">-</p>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -239,9 +231,7 @@
                     if (!trigger) return;
 
                     document.getElementById('categoryViewName').textContent = trigger.getAttribute('data-name') || '-';
-                    document.getElementById('categoryViewSlug').textContent = trigger.getAttribute('data-slug') || '-';
                     document.getElementById('categoryViewDate').textContent = trigger.getAttribute('data-date') || '-';
-                    document.getElementById('categoryViewDesc').textContent = trigger.getAttribute('data-desc') || 'No description available.';
                     document.getElementById('categoryViewImage').src = trigger.getAttribute('data-image');
                 });
             });

@@ -7,6 +7,8 @@ use App\Models\Orders;
 use App\Models\Product;
 use App\Models\Users;
 use App\Models\Vendor;
+use App\Models\VendorNotification;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -24,6 +26,13 @@ class PanelController extends Controller
             ->paginate(10);
 
         $statsQuery = Orders::where('vendor_id', $vendor->vendor_id);
+        if (Schema::hasTable('vendor_notifications')) {
+            VendorNotification::query()
+                ->where('vendor_id', $vendor->vendor_id)
+                ->where('is_read', false)
+                ->update(['is_read' => true]);
+        }
+
         $stats = [
             'new_orders' => (clone $statsQuery)->whereIn('order_status', ['pending', 'payment_pending'])->count(),
             'total_orders' => (clone $statsQuery)->count(),

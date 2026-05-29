@@ -82,6 +82,7 @@ class Orders extends Model
         'order_status',
         'shipping_address',
         'notes',
+        'cooking_instructions',
         'promo_code',
         'promo_discount',
         'discount_offer_id',
