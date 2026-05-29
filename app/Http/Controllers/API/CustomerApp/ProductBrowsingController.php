@@ -11,7 +11,7 @@ use App\Models\ProductSubCategory;
 use App\Models\Users;
 use App\Models\Vendor;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Schema;  
 
 class ProductBrowsingController extends Controller
 {

@@ -117,7 +117,7 @@ Route::prefix('customer-app')->middleware('set.customer.locale')->name('customer
         Route::get('/sub-categories/{subCategoryId}', [CustomerProductBrowsingController::class, 'subCategoryDetails'])->name('products.sub-category-details');
         Route::get('/by-user-type', [CustomerProductBrowsingController::class, 'productsByUserType'])->name('products.by-user-type');
         Route::get('/detail/{id?}', [CustomerProductBrowsingController::class, 'productDetail'])->name('products.detail');
-    });
+    });  
 
     Route::middleware('auth:sanctum')->prefix('orders')->group(function () {
         Route::get('/history', [CustomerOrdersController::class, 'history'])->name('orders.history');
