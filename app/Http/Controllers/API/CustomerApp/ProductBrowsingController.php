@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\API\CustomerApp;
 
 use App\Http\Controllers\Controller;
+use App\Models\Customers;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\ProductReview;
@@ -185,18 +186,28 @@ class ProductBrowsingController extends Controller
     }
 
         /**
-     * Show product details by product id
+     * Product detail by product id, or restaurant detail when restaurant_id / type=restaurant is passed.
+     *
+     * Product:  GET /products/detail/{productId}
+     * Restaurant: GET /products/detail/{restaurantId}?type=restaurant
+     *             GET /products/detail?restaurant_id={restaurantId}
      */
-    public function productDetail(Request $request, $productId)
+    public function productDetail(Request $request, $productId = null)
     {
         $user = $request->user();
-        $product = Product::with('details')
-            ->visibleToCustomerUser($user)
-            ->where('product_id', $productId)
-            ->where('status', 1)
-            ->first();
+        $restaurantId = $this->resolveRestaurantDetailModeId($request, $productId);
 
-        // First check: does the product exist at all (ignoring user-type visibility)?
+        if ($restaurantId !== null) {
+            return $this->restaurantDetailResponse($request, $user, $restaurantId);
+        }
+
+        if ($productId === null || $productId === '') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Product id or restaurant_id is required.',
+            ], 422);
+        }
+
         $baseProduct = Product::where('product_id', $productId)->first();
 
         if (!$baseProduct) {
@@ -213,7 +224,6 @@ class ProductBrowsingController extends Controller
             ], 404);
         }
 
-        // Second check: apply user-type visibility
         $product = Product::with('details')
             ->visibleToCustomerUser($user)
             ->where('product_id', $productId)
@@ -223,6 +233,7 @@ class ProductBrowsingController extends Controller
         if (!$product) {
             $productSegment = $baseProduct->target_user_type ?? 'All';
             $userSegment    = $user ? ($user->user_type ?? 'Unknown') : 'Unauthenticated';
+
             return response()->json([
                 'success'         => false,
                 'message'         => 'This product is not available for your account type.',
@@ -230,31 +241,6 @@ class ProductBrowsingController extends Controller
                 'your_segment'    => $userSegment,
             ], 403);
         }
-
-        // Rating summary
-        $reviewQuery = ProductReview::where('product_id', $productId)->where('status', 1);
-        $totalReviews = (clone $reviewQuery)->count();
-        $averageRating = $totalReviews > 0
-            ? round((clone $reviewQuery)->avg('rating'), 1)
-            : null;
-
-        $ratingSummary = [];
-        for ($star = 5; $star >= 1; $star--) {
-            $count = (clone $reviewQuery)->where('rating', $star)->count();
-            $ratingSummary[] = [
-                'star'       => $star,
-                'count'      => $count,
-                'percentage' => $totalReviews > 0 ? round(($count / $totalReviews) * 100) : 0,
-            ];
-        }
-
-        // Recent reviews (read more — first page, 5 per page)
-        $perPage  = (int) $request->query('reviews_per_page', 5);
-        $page     = (int) $request->query('reviews_page', 1);
-        $reviews  = (clone $reviewQuery)
-            ->with(['customer:customer_id,user_id', 'customer.user:user_id,name', 'user:user_id,name'])
-            ->orderByDesc('created_at')
-            ->paginate($perPage, ['*'], 'page', $page);
 
         $restaurant = null;
         $restaurantProducts = [];
@@ -298,22 +284,199 @@ class ProductBrowsingController extends Controller
 
         return response()->json([
             'success' => true,
-            'data'    => array_merge($product->toArray(), [
-                'average_rating' => $averageRating,
-                'total_reviews'  => $totalReviews,
-                'rating_summary' => $ratingSummary,
-                'reviews'        => [
-                    'data'          => $reviews->items(),
-                    'current_page'  => $reviews->currentPage(),
-                    'per_page'      => $reviews->perPage(),
-                    'total'         => $reviews->total(),
-                    'last_page'     => $reviews->lastPage(),
-                    'has_more'      => $reviews->hasMorePages(),
-                ],
+            'data'    => array_merge($this->buildFullProductDetailData($product, $request), [
                 'restaurant' => $restaurant,
                 'restaurant_products' => $restaurantProducts,
             ]),
         ]);
+    }
+
+    private function restaurantDetailResponse(Request $request, $user, int $restaurantId)
+    {
+        if ($error = $this->restaurantNotFoundResponse($restaurantId)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Restaurant not found.',
+            ], 404);
+        }
+
+        $vendor = Vendor::where('vendor_id', $restaurantId)->first();
+        if (!$vendor) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Restaurant not found.',
+            ], 404);
+        }
+
+        $products = Product::with('details')
+            ->visibleToCustomerUser($user)
+            ->where('vendor_id', $restaurantId)
+            ->where('status', 1)
+            ->when(Schema::hasColumn('products', 'is_active_status'), fn ($q) => $q->whereIn('is_active_status', [1, '1']))
+            ->orderByDesc('featured')
+            ->orderByDesc('product_id')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'restaurant' => $this->mapCompleteRestaurant($vendor, $request, $user),
+                'products' => $products
+                    ->map(fn (Product $product) => $this->buildFullProductDetailData($product, $request))
+                    ->values()
+                    ->all(),
+            ],
+        ]);
+    }
+
+    /**
+     * Full product payload (same fields as single product detail API).
+     */
+    private function buildFullProductDetailData(Product $product, Request $request): array
+    {
+        $productId = (int) $product->product_id;
+        $reviewQuery = ProductReview::where('product_id', $productId)->where('status', 1);
+        $totalReviews = (clone $reviewQuery)->count();
+        $averageRating = $totalReviews > 0
+            ? round((clone $reviewQuery)->avg('rating'), 1)
+            : null;
+
+        $ratingSummary = [];
+        for ($star = 5; $star >= 1; $star--) {
+            $count = (clone $reviewQuery)->where('rating', $star)->count();
+            $ratingSummary[] = [
+                'star'       => $star,
+                'count'      => $count,
+                'percentage' => $totalReviews > 0 ? round(($count / $totalReviews) * 100) : 0,
+            ];
+        }
+
+        $perPage = (int) $request->query('reviews_per_page', 5);
+        $page = (int) $request->query('reviews_page', 1);
+        $reviews = (clone $reviewQuery)
+            ->with(['customer:customer_id,user_id', 'customer.user:user_id,name', 'user:user_id,name'])
+            ->orderByDesc('created_at')
+            ->paginate($perPage, ['*'], 'page', $page);
+
+        return array_merge($product->toArray(), [
+            'average_rating' => $averageRating,
+            'total_reviews'  => $totalReviews,
+            'rating_summary' => $ratingSummary,
+            'reviews'        => [
+                'data'          => $reviews->items(),
+                'current_page'  => $reviews->currentPage(),
+                'per_page'      => $reviews->perPage(),
+                'total'         => $reviews->total(),
+                'last_page'     => $reviews->lastPage(),
+                'has_more'      => $reviews->hasMorePages(),
+            ],
+        ]);
+    }
+
+    private function resolveRestaurantDetailModeId(Request $request, $pathId): ?int
+    {
+        if ($request->filled('restaurant_id') || $request->filled('vendor_id')) {
+            return $this->resolveRestaurantId($request);
+        }
+
+        $type = strtolower((string) $request->query('type', ''));
+        if (in_array($type, ['restaurant', 'vendor'], true) && $pathId !== null && $pathId !== '') {
+            return (int) $pathId;
+        }
+
+        return null;
+    }
+
+    private function mapCompleteRestaurant(Vendor $vendor, Request $request, $user): array
+    {
+        $banner = $vendor->business_banner ?: $vendor->shop_image;
+        $image = $banner ?: $vendor->business_logo;
+        $distanceKm = null;
+
+        if ($user && Schema::hasTable('customers')) {
+            $customer = Customers::where('user_id', $user->user_id)->first();
+            if (
+                $customer
+                && $customer->latitude
+                && $customer->longitude
+                && $vendor->latitude
+                && $vendor->longitude
+            ) {
+                $distanceKm = $this->haversineKm(
+                    (float) $customer->latitude,
+                    (float) $customer->longitude,
+                    (float) $vendor->latitude,
+                    (float) $vendor->longitude
+                );
+            }
+        }
+
+        if ($distanceKm === null && $request->filled('latitude') && $request->filled('longitude') && $vendor->latitude && $vendor->longitude) {
+            $distanceKm = $this->haversineKm(
+                (float) $request->input('latitude'),
+                (float) $request->input('longitude'),
+                (float) $vendor->latitude,
+                (float) $vendor->longitude
+            );
+        }
+
+        return [
+            'vendor_id' => $vendor->vendor_id,
+            'restaurant_id' => $vendor->vendor_id,
+            'vendor_code' => $vendor->vendor_code ?? null,
+            'restaurant_name' => $vendor->business_name,
+            'name' => $vendor->business_name,
+            'owner_name' => $vendor->owner_name,
+            'business_name' => $vendor->business_name,
+            'business_type' => $vendor->business_type,
+            'business_description' => $vendor->business_description,
+            'description' => $vendor->business_description,
+            'location' => $vendor->address,
+            'address' => $vendor->address,
+            'latitude' => $vendor->latitude,
+            'longitude' => $vendor->longitude,
+            'mobile' => $vendor->mobile ?? $vendor->business_phone,
+            'business_phone' => $vendor->business_phone,
+            'business_email' => $vendor->business_email,
+            'rating' => $this->vendorAverageRating((int) $vendor->vendor_id),
+            'banner_image_url' => $banner ? url('public/uploads/vendors/' . $banner) : null,
+            'image_url' => $image ? url('public/uploads/vendors/' . $image) : null,
+            'logo_url' => !empty($vendor->business_logo)
+                ? url('public/uploads/vendors/' . $vendor->business_logo)
+                : null,
+            'approval_status' => $vendor->approval_status ?? null,
+            'status' => $vendor->status ?? null,
+            'distance_km' => $distanceKm !== null ? round($distanceKm, 1) : null,
+            'distance' => $distanceKm !== null ? round($distanceKm, 1) . ' km' : null,
+            'created_at' => $vendor->created_at,
+            'updated_at' => $vendor->updated_at,
+        ];
+    }
+
+    private function vendorAverageRating(int $vendorId): ?float
+    {
+        if (!Schema::hasTable('product_reviews') || !Schema::hasColumn('products', 'vendor_id')) {
+            return null;
+        }
+
+        $avg = ProductReview::query()
+            ->join('products', 'products.product_id', '=', 'product_reviews.product_id')
+            ->where('products.vendor_id', $vendorId)
+            ->where('product_reviews.status', 1)
+            ->avg('product_reviews.rating');
+
+        return $avg !== null ? round((float) $avg, 1) : null;
+    }
+
+    private function haversineKm(float $lat1, float $lon1, float $lat2, float $lon2): float
+    {
+        $earthRadius = 6371;
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLon = deg2rad($lon2 - $lon1);
+        $a = sin($dLat / 2) ** 2
+            + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLon / 2) ** 2;
+
+        return $earthRadius * (2 * atan2(sqrt($a), sqrt(1 - $a)));
     }
 
     /**

@@ -161,6 +161,17 @@
           }
         },
         {
+          "name": "Restaurant Detail (full products)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/customer-app/products/detail/{{vendor_id}}?type=restaurant",
+              "query": [{ "key": "type", "value": "restaurant" }]
+            },
+            "description": "Pass restaurant/vendor id in path with type=restaurant. Or use /products/detail?restaurant_id={{vendor_id}}"
+          }
+        },
+        {
           "name": "Nearby Restaurants",
           "request": {
             "method": "GET",
