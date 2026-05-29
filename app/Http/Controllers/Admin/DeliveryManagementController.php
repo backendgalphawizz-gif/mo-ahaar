@@ -85,13 +85,15 @@ class DeliveryManagementController extends Controller
 
         if (Schema::hasTable('driver_transactions')) {
             $query = DriverTransaction::with('driver')
-                ->orderByDesc('id');
+                ->orderByDesc('transaction_id');
 
             if ($search !== '') {
                 $query->where(function ($q) use ($search) {
-                    $q->where('reference', 'like', '%' . $search . '%')
-                        ->orWhere('description', 'like', '%' . $search . '%')
-                        ->orWhere('type', 'like', '%' . $search . '%');
+                    $q->where('transaction_ref', 'like', '%' . $search . '%')
+                        ->orWhere('title', 'like', '%' . $search . '%')
+                        ->orWhere('subtitle', 'like', '%' . $search . '%')
+                        ->orWhere('type', 'like', '%' . $search . '%')
+                        ->orWhere('status', 'like', '%' . $search . '%');
                 });
             }
 

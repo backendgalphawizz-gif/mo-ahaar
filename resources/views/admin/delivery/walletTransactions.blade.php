@@ -25,23 +25,34 @@
                                 <th>Type</th>
                                 <th>Amount</th>
                                 <th>Reference</th>
-                                <th>Description</th>
+                                <th>Details</th>
+                                <th>Status</th>
                                 <th>Date</th>
                             </tr>
                         </thead>
                         <tbody>
                             @forelse($transactions as $txn)
                                 <tr>
-                                    <td>#{{ $txn->id }}</td>
+                                    <td>#{{ $txn->transaction_id }}</td>
                                     <td>{{ optional($txn->driver)->name ?? 'Driver #' . $txn->driver_id }}</td>
-                                    <td>{{ ucfirst((string) $txn->type) }}</td>
+                                    <td>
+                                        <span class="{{ $txn->type === 'credit' ? 'text-success' : 'text-danger' }}">
+                                            {{ ucfirst((string) $txn->type) }}
+                                        </span>
+                                    </td>
                                     <td class="fw-semibold">₹{{ number_format((float) $txn->amount, 2) }}</td>
-                                    <td>{{ $txn->reference ?? '—' }}</td>
-                                    <td>{{ Str::limit($txn->description ?? '—', 40) }}</td>
+                                    <td class="text-nowrap">{{ $txn->transaction_ref ?? '—' }}</td>
+                                    <td>
+                                        <div class="fw-medium">{{ $txn->title ?? '—' }}</div>
+                                        @if(!empty($txn->subtitle))
+                                            <small class="text-muted">{{ Str::limit($txn->subtitle, 40) }}</small>
+                                        @endif
+                                    </td>
+                                    <td>{{ ucfirst((string) ($txn->status ?? '—')) }}</td>
                                     <td>{{ optional($txn->created_at)->format('d/m/Y h:i A') }}</td>
                                 </tr>
                             @empty
-                                <tr><td colspan="7" class="text-center py-4 text-muted">No wallet transactions found.</td></tr>
+                                <tr><td colspan="8" class="text-center py-4 text-muted">No wallet transactions found.</td></tr>
                             @endforelse
                         </tbody>
                     </table>
