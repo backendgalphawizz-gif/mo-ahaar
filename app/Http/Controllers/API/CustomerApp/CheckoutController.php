@@ -476,7 +476,7 @@ class CheckoutController extends Controller
      *   gst_type         – 'included' | 'excluded'
      *   gst_percentage   – GST rate (e.g. 18.0)
      */
-    private function computeItemGst(CartItem $item): array
+    private function computeItemGst(CartItem $item): array 
     {
         $product        = $item->product;
         $effectivePrice = (float) ($item->sale_price ?: $item->unit_price);
