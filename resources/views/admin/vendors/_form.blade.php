@@ -230,7 +230,7 @@
                         <div class="figma-form-block">
                             <h6>Documents Information</h6>
                             <hr class="figma-section-rule">
-                            <p class="text-muted small mb-3">Upload verification documents (JPG, PNG or PDF, max 4MB each). Fields marked <span class="text-danger">*</span> are required.</p>
+                            {{-- <p class="text-muted small mb-3">Upload verification documents (JPG, PNG or PDF, max 4MB each). Fields marked <span class="text-danger">*</span> are required.</p> --}}
                             @php
                                 $documentUploads = [
                                     ['field' => 'aadhaar_card_front', 'label' => 'Aadhaar Card (Front)', 'required' => true, 'folder' => 'documents'],

@@ -45,7 +45,7 @@
                 <div class="card dashboard-card h-100">
                     <div class="card-body">
                         <h6 class="mb-1"><i class="ri-shield-check-line me-1"></i>Process Payment</h6>
-                        <p class="text-muted small mb-3">Update the status and leave a note for the requested withdrawal.</p>
+                        {{-- <p class="text-muted small mb-3">Update the status and leave a note for the requested withdrawal.</p> --}}
 
                         <form method="POST" action="{{ route('admin.payments.settlements.update-status', $settlement->settlement_id) }}">
                             @csrf

@@ -270,6 +270,7 @@ class VendorManagementController extends Controller
             return $this->advanceVendorWizard($request, $vendor, false, $tab);
         }
 
+        $this->mergeExistingVendorIntoRequest($request, $vendor);
         $this->normalizeVendorRequest($request);
 
         try {
@@ -408,6 +409,53 @@ class VendorManagementController extends Controller
     {
         $scalars = collect($wizard)->filter(fn ($v) => is_scalar($v) || $v === null)->toArray();
         $request->merge($scalars);
+    }
+
+    /**
+     * Final edit submit only sends the active tab's fields — backfill from DB.
+     */
+    private function mergeExistingVendorIntoRequest(Request $request, Vendor $vendor): void
+    {
+        $user = $vendor->user_id
+            ? Users::where('user_id', $vendor->user_id)->first()
+            : null;
+
+        $existing = [
+            'owner_name' => $vendor->owner_name ?: $user?->name,
+            'mobile' => $vendor->mobile ?: $user?->mobile,
+            'email' => $vendor->email ?: $user?->email,
+            'dob' => $vendor->dob ? $vendor->dob->format('Y-m-d') : null,
+            'gender' => $vendor->gender,
+            'business_name' => $vendor->business_name,
+            'business_email' => $vendor->business_email,
+            'business_phone' => $vendor->business_phone,
+            'business_description' => $vendor->business_description,
+            'tax_name' => $vendor->tax_name,
+            'tax_number' => $vendor->tax_number,
+            'pan_number' => $vendor->pan_number,
+            'gst_number' => $vendor->gst_number,
+            'address' => $vendor->address,
+            'latitude' => $vendor->latitude,
+            'longitude' => $vendor->longitude,
+            'bank_name' => $vendor->bank_name,
+            'branch_name' => $vendor->branch_name,
+            'bank_account' => $vendor->bank_account,
+            'account_holder_name' => $vendor->account_holder_name,
+            'ifsc_code' => $vendor->ifsc_code,
+            'account_type' => $vendor->account_type,
+            'commission_percent' => $vendor->commission_percent,
+            'approval_status' => $vendor->approval_status,
+        ];
+
+        foreach ($existing as $key => $value) {
+            if ($request->has($key)) {
+                continue;
+            }
+
+            if ($value !== null && $value !== '') {
+                $request->merge([$key => $value]);
+            }
+        }
     }
 
     /**
