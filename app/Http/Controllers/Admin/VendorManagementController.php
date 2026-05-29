@@ -163,7 +163,7 @@ class VendorManagementController extends Controller
         $action = (string) $request->input('wizard_action', 'submit');
 
         if ($action === 'next') {
-            return $this->advanceVendorWizard($request, null, true, $tab);
+            return $this->advanceVendorWizard($request, true, null, $tab);
         }
 
         $wizard = session('admin.vendor_wizard.create', []);
@@ -267,7 +267,7 @@ class VendorManagementController extends Controller
         $action = (string) $request->input('wizard_action', 'submit');
 
         if ($action === 'next') {
-            return $this->advanceVendorWizard($request, $vendor, false, $tab);
+            return $this->advanceVendorWizard($request, false, $vendor, $tab);
         }
 
         if ($action === 'back') {
@@ -362,7 +362,7 @@ class VendorManagementController extends Controller
         }
     }
 
-    private function advanceVendorWizard(Request $request, ?Vendor $vendor, bool $isCreate, string $tab)
+    private function advanceVendorWizard(Request $request, bool $isCreate, ?Vendor $vendor, string $tab)
     {
         if (!in_array($tab, VendorFormValidator::TABS, true)) {
             $tab = 'personal';
@@ -417,7 +417,7 @@ class VendorManagementController extends Controller
         }
 
         $this->normalizeVendorRequest($request);
-        $validated = VendorFormValidator::validateTab($request, $vendor, false);
+        $validated = VendorFormValidator::validateTab($request, $tab, $vendor, false);
 
         if ($tab === 'personal' && $vendor->user_id) {
             Users::where('user_id', $vendor->user_id)->update([

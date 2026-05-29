@@ -52,7 +52,7 @@
         $errorStep = 2;
     } elseif ($errors->hasAny(['bank_name', 'account_holder_name', 'bank_account', 'ifsc_code', 'account_type'])) {
         $errorStep = 3;
-    } elseif ($errors->hasAny(['aadhaar_card_front', 'aadhaar_card_back', 'pan_card', 'aadhaar_card'])) {
+    } elseif ($errors->hasAny(['aadhaar_card_front', 'aadhaar_card_back', 'pan_card', 'gst_file', 'aadhaar_card'])) {
         $errorStep = 4;
     }
 @endphp
@@ -86,13 +86,13 @@
                 <div class="col-md-6"><label class="field-label">Full Name <span class="req">*</span></label><input type="text" name="owner_name" class="form-control @error('owner_name') is-invalid @enderror" value="{{ old('owner_name') }}" placeholder="Enter your full name" required>@error('owner_name')<span class="field-error">{{ $message }}</span>@enderror</div>
                 <div class="col-md-6"><label class="field-label">Email Address <span class="req">*</span></label><input type="email" name="email" class="form-control @error('email') is-invalid @enderror" value="{{ old('email') }}" placeholder="your.email@example.com" required>@error('email')<span class="field-error">{{ $message }}</span>@enderror</div>
                 <div class="col-md-6"><label class="field-label">Mobile Number <span class="req">*</span></label><input type="text" name="mobile" maxlength="10" class="form-control @error('mobile') is-invalid @enderror" value="{{ old('mobile') }}" placeholder="+91 1234567890" oninput="this.value=this.value.replace(/\D/g,'').slice(0,10)" required>@error('mobile')<span class="field-error">{{ $message }}</span>@enderror</div>
-                <div class="col-md-6"><label class="field-label">DOB</label><input type="date" name="dob" class="form-control" value="{{ old('dob') }}"></div>
+                <div class="col-md-6"><label class="field-label">DOB</label><input type="date" name="dob" class="form-control" value="{{ old('dob') }}" max="{{ date('Y-m-d', strtotime('-18 years')) }}" placeholder="YYYY-MM-DD"></div>
                 <div class="col-md-6"><label class="field-label">Password <span class="req">*</span></label><input type="password" name="password" id="password" class="form-control @error('password') is-invalid @enderror" placeholder="Enter password" required>@error('password')<span class="field-error">{{ $message }}</span>@enderror
                     <div class="field-help">Minimum 8 chars with uppercase, lowercase, number, special character.</div>
                     <div class="strength-track"><div class="strength-fill" id="strengthFill"></div></div>
                     <div class="strength-text" id="strengthText">Password strength: -</div>
                 </div>
-                <div class="col-md-6"><label class="field-label">Confirm Password <span class="req">*</span></label><input type="password" name="password_confirmation" id="password_confirmation" class="form-control" placeholder="Confirm password" required><div class="invalid-feedback" id="confirmPasswordError"></div></div>
+                <div class="col-md-6"><label class="field-label">Confirm Password <span class="req">*</span></label><input type="password" name="password_confirmation" id="password_confirmation" class="form-control" placeholder="Confirm password" required><span class="field-error" id="confirmPasswordError"></span></div>
                 <div class="col-md-6">
                     <label class="field-label">Gender</label>
                     <div class="d-flex gap-3 pt-2">
@@ -124,8 +124,8 @@
                     <div class="field-help">Start typing address and select from suggestions.</div>
                 </div>
                 <div class="col-12"><label class="field-label">Description</label><textarea name="business_description" class="form-control">{{ old('business_description') }}</textarea></div>
-                <div class="col-md-6"><label class="field-label">PAN Number <span class="req">*</span></label><input type="text" name="pan_number" id="pan_number" maxlength="10" class="form-control text-uppercase @error('pan_number') is-invalid @enderror" value="{{ old('pan_number') }}" placeholder="ABCDE1234F" required oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,10)">@error('pan_number')<span class="field-error">{{ $message }}</span>@enderror</div>
-                <div class="col-md-6"><label class="field-label">GST Number <span class="req">*</span></label><input type="text" name="gst_number" id="gst_number" maxlength="15" class="form-control text-uppercase @error('gst_number') is-invalid @enderror" value="{{ old('gst_number') }}" placeholder="22AAAAA0000A1Z5" required oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,15)">@error('gst_number')<span class="field-error">{{ $message }}</span>@enderror</div>
+                <div class="col-md-6"><label class="field-label">PAN Number <span class="req">*</span></label><input type="text" name="pan_number" id="pan_number" maxlength="10" class="form-control text-uppercase @error('pan_number') is-invalid @enderror" value="{{ old('pan_number') }}" placeholder="ABCDE1234F" required>@error('pan_number')<span class="field-error">{{ $message }}</span>@enderror</div>
+                <div class="col-md-6"><label class="field-label">GST Number <span class="req">*</span></label><input type="text" name="gst_number" id="gst_number" maxlength="15" class="form-control text-uppercase @error('gst_number') is-invalid @enderror" value="{{ old('gst_number') }}" placeholder="22AAAAA0000A1Z5" required>@error('gst_number')<span class="field-error">{{ $message }}</span>@enderror</div>
             </div>
             <div class="btn-row">
                 <button type="button" class="btn btn-nav btn-back step-back" data-go="1">Back</button>
@@ -163,7 +163,7 @@
                 </div>
                 <div class="col-12">
                     <label class="field-label">IFSC Code <span class="req">*</span></label>
-                    <input type="text" name="ifsc_code" id="ifsc_code" class="form-control text-uppercase @error('ifsc_code') is-invalid @enderror" value="{{ old('ifsc_code') }}" maxlength="11" placeholder="e.g. SBIN0001234" required oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,11)">
+                    <input type="text" name="ifsc_code" id="ifsc_code" class="form-control text-uppercase @error('ifsc_code') is-invalid @enderror" value="{{ old('ifsc_code') }}" maxlength="11" placeholder="e.g. SBIN0001234" required>
                     @error('ifsc_code')<span class="field-error">{{ $message }}</span>@enderror
                 </div>
             </div>
@@ -197,6 +197,13 @@
                         <input type="file" name="pan_card" id="pan_card" class="form-control @error('pan_card') is-invalid @enderror" accept=".jpg,.jpeg,.png,.pdf" required>
                     </div>
                     @error('pan_card')<span class="field-error">{{ $message }}</span>@enderror
+                </div>
+                <div class="col-12">
+                    <label class="field-label">GST Certificate <span class="req">*</span></label>
+                    <div class="file-drop">
+                        <input type="file" name="gst_file" id="gst_file" class="form-control @error('gst_file') is-invalid @enderror" accept=".jpg,.jpeg,.png,.pdf" required>
+                    </div>
+                    @error('gst_file')<span class="field-error">{{ $message }}</span>@enderror
                 </div>
                 <input type="hidden" name="tax_name" value="{{ old('tax_name') }}">
                 <input type="hidden" name="tax_number" value="{{ old('tax_number') }}">
@@ -269,6 +276,45 @@
     const panPattern = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
     const gstPattern = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
     const mobilePattern = /^[6-9][0-9]{9}$/;
+
+    function validatePersonalStep() {
+        let ok = true;
+        const ownerName = document.querySelector('input[name="owner_name"]');
+        const email = document.querySelector('input[name="email"]');
+        const mobile = document.querySelector('input[name="mobile"]');
+
+        [ownerName, email, mobile].forEach(clearFieldError);
+
+        if (!ownerName.value.trim()) {
+            setFieldError(ownerName, 'Full name is required.');
+            ok = false;
+        } else if (ownerName.value.trim().length < 2) {
+            setFieldError(ownerName, 'Name must be at least 2 characters.');
+            ok = false;
+        }
+
+        if (!email.value.trim()) {
+            setFieldError(email, 'Email address is required.');
+            ok = false;
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value.trim())) {
+            setFieldError(email, 'Please enter a valid email address.');
+            ok = false;
+        }
+
+        if (!mobile.value.trim()) {
+            setFieldError(mobile, 'Mobile number is required.');
+            ok = false;
+        } else if (!mobilePattern.test(mobile.value.trim())) {
+            setFieldError(mobile, 'Enter a valid 10-digit mobile number starting with 6-9.');
+            ok = false;
+        }
+
+        if (!validateConfirmPassword()) {
+            ok = false;
+        }
+
+        return ok;
+    }
 
     function setFieldError(input, message) {
         if (!input) return false;
@@ -376,7 +422,7 @@
 
     function validateDocumentsStep() {
         let ok = true;
-        ['aadhaar_card_front', 'aadhaar_card_back', 'pan_card'].forEach(function (id) {
+        ['aadhaar_card_front', 'aadhaar_card_back', 'pan_card', 'gst_file'].forEach(function (id) {
             const input = document.getElementById(id);
             clearFieldError(input);
             if (!input.files || !input.files.length) {
@@ -389,7 +435,7 @@
 
     document.querySelectorAll('.step-next').forEach(btn => {
         btn.addEventListener('click', function () {
-            if (current === 1 && !validateConfirmPassword()) return;
+            if (current === 1 && !validatePersonalStep()) return;
             if (current === 2 && !validateBusinessStep()) return;
             if (current === 3 && !validateBankStep()) return;
             showStep(Number(this.dataset.go));
@@ -402,12 +448,59 @@
     pass.addEventListener('input', function () { evaluatePasswordStrength(pass.value); validateConfirmPassword(); });
     cpass.addEventListener('input', validateConfirmPassword);
 
+    // Handle uppercase conversion for PAN, GST, IFSC
+    const panInput = document.getElementById('pan_number');
+    const gstInput = document.getElementById('gst_number');
+    const ifscInput = document.getElementById('ifsc_code');
+
+    if (panInput) {
+        panInput.addEventListener('input', function(e) {
+            let val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+            e.target.value = val.slice(0, 10);
+        });
+    }
+
+    if (gstInput) {
+        gstInput.addEventListener('input', function(e) {
+            let val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+            e.target.value = val.slice(0, 15);
+        });
+    }
+
+    if (ifscInput) {
+        ifscInput.addEventListener('input', function(e) {
+            let val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+            e.target.value = val.slice(0, 11);
+        });
+    }
+
     if (addressInput && latInput && lngInput) {
-        addressInput.addEventListener('input', function () { latInput.value = ''; lngInput.value = ''; });
+        addressInput.addEventListener('input', function () { 
+            latInput.value = ''; 
+            lngInput.value = ''; 
+        });
+        
+        // Add warning if address is entered without selecting from autocomplete
+        form.addEventListener('submit', function(e) {
+            if (addressInput.value.trim() && !latInput.value && !lngInput.value) {
+                const proceed = confirm('You entered an address without selecting from Google suggestions. Location coordinates may not be accurate. Continue anyway?');
+                if (!proceed) {
+                    e.preventDefault();
+                    showStep(2);
+                }
+            }
+        });
     }
 
     form.addEventListener('submit', function (event) {
-        if (!validateConfirmPassword()) {
+        // Prevent double submission
+        const submitBtn = event.submitter || form.querySelector('button[type="submit"]');
+        if (submitBtn && submitBtn.disabled) {
+            event.preventDefault();
+            return;
+        }
+
+        if (!validatePersonalStep()) {
             event.preventDefault();
             showStep(1);
             return;
@@ -425,6 +518,13 @@
         if (!validateDocumentsStep()) {
             event.preventDefault();
             showStep(4);
+            return;
+        }
+
+        // Disable submit button and show loading
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Submitting...';
         }
     });
 

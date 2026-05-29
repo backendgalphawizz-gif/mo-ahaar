@@ -91,7 +91,7 @@ class VendorFormValidator
             'aadhaar_card_front' => self::documentFileRules('aadhaar_card_front', $vendor, $isCreate),
             'aadhaar_card_back' => self::documentFileRules('aadhaar_card_back', $vendor, $isCreate),
             'pan_card' => self::documentFileRules('pan_card', $vendor, $isCreate),
-            'gst_file' => self::documentFileRules('gst_file', $vendor, $isCreate),
+            'gst_file' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:4096'],
             'food_license_file' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:4096'],
         ];
 

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\API\CustomerApp;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\API\CustomerApp\NotificationController;
 use App\Models\Customers;
+use App\Models\DeliveryAssignment;
 use App\Models\Orders;
 use App\Models\OrderItem;
 use App\Models\OrderTracking;
@@ -103,88 +104,16 @@ class OrdersController extends Controller
             return response()->json(['status' => false, 'message' => 'Customer profile not found'], 404);
         }
 
-        $order = Orders::with(['orderItems', 'vendor'])
-            ->where('order_id', $orderId)
-            ->where('customer_id', $customer->customer_id)
-            ->first();
+        $order = $this->findCustomerOrder($customer->customer_id, $orderId, ['orderItems.product', 'vendor']);
 
         if (!$order) {
             return response()->json(['status' => false, 'message' => 'Order not found'], 404);
         }
 
-        // Load existing reviews by this customer for products in this order (one per product)
-        $productIds = $order->orderItems->pluck('product_id')->filter()->unique()->values();
-        $existingReviews = ProductReview::where('customer_id', $customer->customer_id)
-            ->whereIn('product_id', $productIds)
-            ->get()
-            ->keyBy('product_id');
-
-        $isDelivered = in_array((string) $order->order_status, ['delivered', 'completed'], true);
-
-        $items = $order->orderItems->map(function (OrderItem $item) use ($existingReviews, $isDelivered) {
-            $review = $existingReviews->get($item->product_id);
-            return [
-                'item_id'           => $item->item_id,
-                'product_id'        => $item->product_id,
-                'product_name'      => $item->product_name,
-                'sku'               => $item->sku,
-                'quantity'          => $item->quantity,
-                'unit_price'        => number_format((float) $item->unit_price, 2, '.', ''),
-                'discount_amount'   => number_format((float) $item->discount_amount, 2, '.', ''),
-                'tax_amount'        => number_format((float) $item->tax_amount, 2, '.', ''),
-                'line_total'        => number_format((float) $item->line_total, 2, '.', ''),
-                'item_status'       => $item->item_status,
-                'product_image_url' => $item->product && !empty($item->product->product_image)
-                    ? url('public/uploads/products/' . $item->product->product_image)
-                    : null,
-                'can_review'        => $isDelivered && $review === null,
-                'has_reviewed'      => $review !== null,
-                'my_review'         => $review ? [
-                    'review_id'    => $review->review_id,
-                    'rating'       => (int) $review->rating,
-                    'review'       => $review->review,
-                    'submitted_at' => $review->updated_at ? $review->updated_at->toDateTimeString() : null,
-                ] : null,
-            ];
-        })->values();
-
-        $vendor = $order->vendor;
-
         return response()->json([
             'status'  => true,
             'message' => 'Order details retrieved successfully',
-            'data'    => [
-                'order'  => [
-                    'order_id'         => $order->order_id,
-                    'order_number'     => $order->order_number,
-                    'order_status'     => $order->order_status,
-                    'payment_method'   => $order->payment_method,
-                    'payment_status'   => $order->payment_status,
-                    'subtotal'         => number_format((float) $order->subtotal, 2, '.', ''),
-                    'tax_amount'       => number_format((float) $order->tax_amount, 2, '.', ''),
-                    'shipping_amount'  => number_format((float) $order->shipping_amount, 2, '.', ''),
-                    'total_amount'     => number_format((float) $order->total_amount, 2, '.', ''),
-                    'billing'          => $this->formatOrderBillingSummary($order),
-                    'promo_code'       => $order->promo_code ?? null,
-                    'promo_discount'   => number_format((float) ($order->promo_discount ?? 0), 2, '.', ''),
-                    'offer_discount'   => number_format((float) ($order->offer_discount ?? 0), 2, '.', ''),
-                    'discount_offer_id' => $order->discount_offer_id ?? null,
-                    'has_promo_applied' => $this->orderHasPromoApplied($order),
-                    'promo_applied' => $this->orderHasPromoApplied($order),
-                    'shipping_address' => $order->shipping_address,
-                    'notes'            => $order->notes,
-                    'cooking_instructions' => $this->resolveOrderCookingInstructions($order),
-                    'can_cancel'       => $this->canCancelOrder($order),
-                    'placed_at'        => $order->created_at ? $order->created_at->toDateTimeString() : null,
-                    'updated_at'       => $order->updated_at ? $order->updated_at->toDateTimeString() : null,
-                ],
-                'vendor' => $vendor ? [
-                    'vendor_id'     => $vendor->vendor_id,
-                    'business_name' => $vendor->business_name,
-                    'mobile'        => $vendor->mobile,
-                ] : null,
-                'items'  => $items,
-            ],
+            'data'    => $this->buildOrderDetailPayload($order, $user, $customer),
         ], 200);
     }
 
@@ -206,96 +135,34 @@ class OrdersController extends Controller
             return response()->json(['status' => false, 'message' => 'Customer profile not found'], 404);
         }
 
-        $order = Orders::with('orderItems')
-            ->where('order_id', $orderId)
-            ->where('customer_id', $customer->customer_id)
-            ->first();
+        $order = $this->findCustomerOrder($customer->customer_id, $orderId, [
+            'orderItems.product',
+            'vendor',
+            'deliveryAssignment.driver.driverProfile',
+        ]);
 
         if (!$order) {
             return response()->json(['status' => false, 'message' => 'Order not found'], 404);
         }
 
-        $trackings = OrderTracking::where('order_id', $orderId)
-            ->orderByDesc('tracked_at')
-            ->get()
-            ->map(function (OrderTracking $tracking) {
-                return [
-                    'tracking_id' => $tracking->tracking_id,
-                    // 'status'      => $tracking->status,
-                    'status'      => Orders::statusLabel($tracking->status),
-                    'raw_status' => $tracking->status,
-                    'location'    => $tracking->location,
-                    'description' => $tracking->description,
-                    'tracked_at'  => $tracking->tracked_at
-                        ? $tracking->tracked_at->toDateTimeString()
-                        : null,
-                ];
-            })
-            ->values();
-
-        // Load existing reviews by this customer for products in this order
-        $productIds = $order->orderItems->pluck('product_id')->filter()->unique()->values();
-        $existingReviews = ProductReview::where('customer_id', $customer->customer_id)
-            ->whereIn('product_id', $productIds)
-            ->get()
-            ->keyBy('product_id');
-
-        $isDelivered = in_array((string) $order->order_status, ['delivered', 'completed'], true);
-
-        $items = $order->orderItems->map(function (OrderItem $item) use ($existingReviews, $isDelivered) {
-            $review = $existingReviews->get($item->product_id);
-            return [
-                'item_id'       => $item->item_id,
-                'product_id'    => $item->product_id,
-                'product_name'  => $item->product_name,
-                'sku'           => $item->sku,
-                'quantity'      => $item->quantity,
-                'unit_price'    => number_format((float) $item->unit_price, 2, '.', ''),
-                'line_total'    => number_format((float) $item->line_total, 2, '.', ''),
-                'gst_amount'    => number_format((float) $item->gst_amount, 2, '.', ''),
-                'gst_percentage'    => number_format((float) $item->gst_percentage, 2, '.', ''),
-                'gst_calculation_type'    => $item->gst_calculation_type,
-                'item_status'   => $item->item_status,
-                'thumbnail_url' => $item->product && !empty($item->product->product_image)
-                    ? url('public/uploads/products/' . $item->product->product_image)
-                    : null,
-                'can_review'    => $isDelivered && $review === null,
-                'has_reviewed'  => $review !== null,
-                'my_review'     => $review ? [
-                    'review_id'    => $review->review_id,
-                    'rating'       => (int) $review->rating,
-                    'review'       => $review->review,
-                    'submitted_at' => $review->updated_at ? $review->updated_at->toDateTimeString() : null,
-                ] : null,
-            ];
-        })->values();
+        $orderDetail = $this->buildOrderDetailPayload($order, $user, $customer);
+        $trackings = $this->formatOrderTrackingTimeline($orderId);
 
         return response()->json([
             'status'  => true,
             'message' => 'Order tracking retrieved successfully',
-            'data'    => [
-                'order_id'        => $order->order_id,
-                'order_number'    => $order->order_number,
-                // 'order_status'    => $order->order_status,
-                // 'order_status_label'    => $this->humanizeStatus($order->order_status),
-                'order_status' => Orders::statusLabel($order->order_status),
-                'order_status_label' => Orders::statusLabel($order->order_status),
-                'raw_order_status' => $order->order_status,
-                'razorpay_order_id'    => $order->razorpay_order_id,
-                'placed_at'       => $order->created_at ? $order->created_at->toDateTimeString() : null,
-                'payment_status'  => $order->payment_status,
-                'total_amount'    => number_format((float) $order->total_amount, 2, '.', ''),
-                'items_count'     => $order->orderItems->count(),
+            'data'    => array_merge($orderDetail, [
                 'shipping_details' => [
-                    'name'            => $user->name,
-                    'mobile'          => $user->mobile,
+                    'name'             => $user->name,
+                    'mobile'           => $user->mobile,
                     'shipping_address' => $order->shipping_address,
                 ],
-                'items'           => $items,
-                'current_stage'   => $this->resolveCurrentStage($order->order_status),
-                'status_flow'     => $this->buildStatusFlow($order),
-                'tracking'        => $trackings,
-            ],
+                'delivery'         => $this->formatDeliveryAssignmentForCustomer($order),
+                'items_count'      => $order->orderItems->count(),
+                'current_stage'    => $this->resolveCurrentStage($order->order_status),
+                'status_flow'      => $this->buildStatusFlow($order),
+                'tracking'         => $trackings,
+            ]),
         ], 200);
     }
 
@@ -388,6 +255,201 @@ class OrdersController extends Controller
     // -----------------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------------
+
+    /**
+     * @param  array<int, string>  $with
+     */
+    private function findCustomerOrder(int $customerId, int $orderId, array $with = []): ?Orders
+    {
+        return Orders::with($with)
+            ->where('order_id', $orderId)
+            ->where('customer_id', $customerId)
+            ->first();
+    }
+
+    /**
+     * Full order payload shared by show + tracking APIs.
+     *
+     * @return array<string, mixed>
+     */
+    private function buildOrderDetailPayload(Orders $order, Users $user, Customers $customer): array
+    {
+        $vendor = $this->resolveOrderVendor($order);
+        $firstItemImage = $order->orderItems->first()?->product?->product_image;
+        $fallbackImage = $firstItemImage
+            ? url('public/uploads/products/' . $firstItemImage)
+            : null;
+
+        return [
+            'order'      => $this->formatOrderDetailBlock($order, $user),
+            'vendor'     => $vendor ? [
+                'vendor_id'     => $vendor->vendor_id,
+                'business_name' => $vendor->business_name,
+                'mobile'        => $vendor->mobile,
+                'address'       => $vendor->address,
+                'business_email' => $vendor->business_email ?? null,
+            ] : null,
+            'restaurant' => $this->formatOrderVendor($order, $fallbackImage),
+            'items'      => $this->formatOrderItemsDetail($order, $customer),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function formatOrderDetailBlock(Orders $order, Users $user): array
+    {
+        $placedAt = $order->created_at;
+
+        return [
+            'order_id'              => $order->order_id,
+            'order_number'          => $order->order_number,
+            'order_status'          => $order->order_status,
+            'order_status_label'    => Orders::statusLabel($order->order_status),
+            'raw_order_status'      => $order->order_status,
+            'payment_method'        => $order->payment_method,
+            'payment_status'        => $order->payment_status,
+            'razorpay_order_id'     => $order->razorpay_order_id ?? null,
+            'subtotal'              => number_format((float) $order->subtotal, 2, '.', ''),
+            'tax_amount'            => number_format((float) $order->tax_amount, 2, '.', ''),
+            'shipping_amount'       => number_format((float) $order->shipping_amount, 2, '.', ''),
+            'total_amount'          => number_format((float) $order->total_amount, 2, '.', ''),
+            'total_amount_formatted' => $this->formatIndianCurrency((float) $order->total_amount),
+            'billing'               => $this->formatOrderBillingSummary($order),
+            'promo_code'            => $order->promo_code ?? null,
+            'promo_discount'        => number_format((float) ($order->promo_discount ?? 0), 2, '.', ''),
+            'offer_discount'        => number_format((float) ($order->offer_discount ?? 0), 2, '.', ''),
+            'discount_offer_id'     => $order->discount_offer_id ?? null,
+            'has_promo_applied'     => $this->orderHasPromoApplied($order),
+            'promo_applied'         => $this->orderHasPromoApplied($order),
+            'shipping_address'      => $order->shipping_address,
+            'notes'                 => $order->notes,
+            'cooking_instructions'  => $this->resolveOrderCookingInstructions($order),
+            'can_cancel'            => $this->canCancelOrder($order),
+            'customer_name'         => $user->name,
+            'customer_mobile'       => $user->mobile,
+            'placed_at'             => $placedAt ? $placedAt->toDateTimeString() : null,
+            'placed_at_formatted'   => $placedAt ? $placedAt->format('j M Y, g:i A') : null,
+            'updated_at'            => $order->updated_at ? $order->updated_at->toDateTimeString() : null,
+        ];
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
+     */
+    private function formatOrderItemsDetail(Orders $order, Customers $customer)
+    {
+        $productIds = $order->orderItems->pluck('product_id')->filter()->unique()->values();
+        $existingReviews = ProductReview::where('customer_id', $customer->customer_id)
+            ->whereIn('product_id', $productIds)
+            ->get()
+            ->keyBy('product_id');
+
+        $isDelivered = in_array((string) $order->order_status, ['delivered', 'completed', 'success'], true);
+
+        return $order->orderItems->map(function (OrderItem $item) use ($existingReviews, $isDelivered) {
+            $review = $existingReviews->get($item->product_id);
+            $imageUrl = $item->product && !empty($item->product->product_image)
+                ? url('public/uploads/products/' . $item->product->product_image)
+                : null;
+
+            return [
+                'item_id'              => $item->item_id,
+                'product_id'           => $item->product_id,
+                'product_name'         => $item->product_name,
+                'display_name'         => $this->formatOrderItemDisplayName($item),
+                'sku'                  => $item->sku,
+                'quantity'             => $item->quantity,
+                'unit_price'           => number_format((float) $item->unit_price, 2, '.', ''),
+                'discount_amount'      => number_format((float) $item->discount_amount, 2, '.', ''),
+                'tax_amount'           => number_format((float) $item->tax_amount, 2, '.', ''),
+                'gst_amount'           => number_format((float) ($item->gst_amount ?? 0), 2, '.', ''),
+                'gst_percentage'       => number_format((float) ($item->gst_percentage ?? 0), 2, '.', ''),
+                'gst_calculation_type' => $item->gst_calculation_type ?? null,
+                'line_total'           => number_format((float) $item->line_total, 2, '.', ''),
+                'item_status'          => $item->item_status,
+                'is_vegetarian'        => $this->orderItemIsVegetarian($item),
+                'product_image_url'    => $imageUrl,
+                'thumbnail_url'        => $imageUrl,
+                'can_review'           => $isDelivered && $review === null,
+                'has_reviewed'         => $review !== null,
+                'my_review'            => $review ? [
+                    'review_id'    => $review->review_id,
+                    'rating'       => (int) $review->rating,
+                    'review'       => $review->review,
+                    'submitted_at' => $review->updated_at ? $review->updated_at->toDateTimeString() : null,
+                ] : null,
+            ];
+        })->values();
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
+     */
+    private function formatOrderTrackingTimeline(int $orderId)
+    {
+        return OrderTracking::where('order_id', $orderId)
+            ->orderByDesc('tracked_at')
+            ->get()
+            ->map(function (OrderTracking $tracking) {
+                return [
+                    'tracking_id' => $tracking->tracking_id,
+                    'status'      => Orders::statusLabel($tracking->status),
+                    'raw_status'  => $tracking->status,
+                    'location'    => $tracking->location,
+                    'description' => $tracking->description,
+                    'tracked_at'  => $tracking->tracked_at
+                        ? $tracking->tracked_at->toDateTimeString()
+                        : null,
+                ];
+            })
+            ->values();
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function formatDeliveryAssignmentForCustomer(Orders $order): ?array
+    {
+        $assignment = $order->relationLoaded('deliveryAssignment')
+            ? $order->deliveryAssignment
+            : null;
+
+        if (!$assignment || !Schema::hasTable('delivery_assignments')) {
+            return null;
+        }
+
+        $driver = $assignment->driver;
+        $profile = $driver?->driverProfile;
+
+        return [
+            'assignment_id'          => $assignment->assignment_id,
+            'status'                 => $assignment->status,
+            'status_label'           => DeliveryAssignment::statusLabel((string) $assignment->status),
+            'pickup_address'         => $assignment->pickup_address,
+            'delivery_address'       => $assignment->delivery_address,
+            'store_name'             => $assignment->store_name,
+            'store_location_summary' => $assignment->store_location_summary,
+            'assigned_at'            => $assignment->assigned_at
+                ? $assignment->assigned_at->toDateTimeString()
+                : null,
+            'completed_at'           => $assignment->completed_at
+                ? $assignment->completed_at->toDateTimeString()
+                : null,
+            'driver'                 => $driver ? [
+                'driver_id'          => $driver->user_id,
+                'name'               => $driver->name,
+                'mobile'             => $driver->mobile,
+                'profile_image_url'  => !empty($driver->profile_image)
+                    ? url('public/uploads/drivers/' . $driver->profile_image)
+                    : null,
+                'vehicle_number'     => $profile?->vehicle_number,
+                'vehicle_type'       => $profile?->vehicle_type,
+                'vehicle_model'      => $profile?->vehicle_model,
+            ] : null,
+        ];
+    }
+
     private function formatOrderSummary(Orders $order): array
     {
         $itemCount = $order->orderItems->count();
