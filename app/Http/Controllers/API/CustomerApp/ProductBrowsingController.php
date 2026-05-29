@@ -189,8 +189,9 @@ class ProductBrowsingController extends Controller
      * Product detail by product id, or restaurant detail when restaurant_id / type=restaurant is passed.
      *
      * Product:  GET /products/detail/{productId}
-     * Restaurant: GET /products/detail/{restaurantId}?type=restaurant
-     *             GET /products/detail?restaurant_id={restaurantId}
+     * Restaurant: GET /products/detail?restaurant_id={restaurantId}
+     *             GET /products/detail?restaurant_id={restaurantId}&category_id={categoryId}
+     *             GET /products/detail/{restaurantId}?type=restaurant
      */
     public function productDetail(Request $request, $productId = null)
     {
@@ -300,6 +301,14 @@ class ProductBrowsingController extends Controller
             ], 404);
         }
 
+        $filterCategoryId = $this->resolveCategoryId($request);
+        if ($error = $this->categoryNotFoundResponse($filterCategoryId)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Category not found.',
+            ], 404);
+        }
+
         $vendor = Vendor::where('vendor_id', $restaurantId)->first();
         if (!$vendor) {
             return response()->json([
@@ -308,11 +317,17 @@ class ProductBrowsingController extends Controller
             ], 404);
         }
 
-        $products = Product::with('details')
+        $productsQuery = Product::with('details')
             ->visibleToCustomerUser($user)
             ->where('vendor_id', $restaurantId)
             ->where('status', 1)
-            ->when(Schema::hasColumn('products', 'is_active_status'), fn ($q) => $q->whereIn('is_active_status', [1, '1']))
+            ->when(Schema::hasColumn('products', 'is_active_status'), fn ($q) => $q->whereIn('is_active_status', [1, '1']));
+
+        if ($filterCategoryId !== null) {
+            $productsQuery->where('category_id', $filterCategoryId);
+        }
+
+        $products = $productsQuery
             ->orderByDesc('featured')
             ->orderByDesc('product_id')
             ->get();
@@ -375,7 +390,11 @@ class ProductBrowsingController extends Controller
 
     private function resolveRestaurantDetailModeId(Request $request, $pathId): ?int
     {
-        if ($request->filled('restaurant_id') || $request->filled('vendor_id')) {
+        if (
+            $request->filled('restaurant_id')
+            || $request->filled('restraunt_id')
+            || $request->filled('vendor_id')
+        ) {
             return $this->resolveRestaurantId($request);
         }
 
@@ -612,12 +631,43 @@ class ProductBrowsingController extends Controller
 
     private function resolveRestaurantId(Request $request): ?int
     {
-        $raw = $request->query('restaurant_id', $request->query('vendor_id'));
+        $raw = $request->query(
+            'restaurant_id',
+            $request->query('restraunt_id', $request->query('vendor_id'))
+        );
         if ($raw === null || $raw === '') {
             return null;
         }
 
         return (int) $raw;
+    }
+
+    private function resolveCategoryId(Request $request): ?int
+    {
+        $raw = $request->query('category_id', $request->query('category'));
+        if ($raw === null || $raw === '') {
+            return null;
+        }
+
+        return (int) $raw;
+    }
+
+    private function categoryNotFoundResponse(?int $categoryId): ?\Illuminate\Http\JsonResponse
+    {
+        if ($categoryId === null) {
+            return null;
+        }
+
+        $exists = ProductCategory::where('category_id', $categoryId)->where('status', 1)->exists();
+        if ($exists) {
+            return null;
+        }
+
+        return response()->json([
+            'status' => false,
+            'success' => false,
+            'message' => 'Category not found.',
+        ], 404);
     }
 
     private function restaurantNotFoundResponse(?int $restaurantId): ?\Illuminate\Http\JsonResponse

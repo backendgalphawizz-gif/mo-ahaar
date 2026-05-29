@@ -65,12 +65,12 @@
                 <div class="nav-right col-6 pull-right right-header p-0">
                     <ul class="nav-menus">
                         @if(!$isVendorPanel)
-                        <li class="notification-box">
+                        {{-- <li class="notification-box">
                             <a href="{{ route('admin.notifications.index') }}" title="Notifications">
                                 <i class="ri-notification-3-line"></i>
                                 <span class="dot"></span>
                             </a>
-                        </li>
+                        </li> --}}
                         @endif
                         <li class="profile-nav onhover-dropdown pe-0 me-0">
                             <div class="media profile-media">

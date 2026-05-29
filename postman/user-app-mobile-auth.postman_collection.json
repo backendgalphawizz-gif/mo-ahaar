@@ -165,10 +165,13 @@
           "request": {
             "method": "GET",
             "url": {
-              "raw": "{{base_url}}/customer-app/products/detail/{{vendor_id}}?type=restaurant",
-              "query": [{ "key": "type", "value": "restaurant" }]
+              "raw": "{{base_url}}/customer-app/products/detail?restaurant_id={{vendor_id}}&category_id={{category_id}}",
+              "query": [
+                { "key": "restaurant_id", "value": "{{vendor_id}}" },
+                { "key": "category_id", "value": "{{category_id}}", "disabled": true }
+              ]
             },
-            "description": "Pass restaurant/vendor id in path with type=restaurant. Or use /products/detail?restaurant_id={{vendor_id}}"
+            "description": "Restaurant detail with full product payloads. Optional category_id filters products list. Also: /detail/{{vendor_id}}?type=restaurant"
           }
         },
         {
