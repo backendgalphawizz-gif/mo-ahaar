@@ -307,13 +307,15 @@ Route::middleware(['VendorAuth'])->prefix('vendor')->name('vendor.')->group(func
         Route::post('/profile', [VendorPanelController::class, 'updateProfile'])->name('profile.update');
         Route::get('/payments', [VendorPanelController::class, 'payments'])->name('payments');
         Route::post('/payments/withdraw', [VendorPanelController::class, 'requestWithdraw'])->name('payments.withdraw');
-        Route::get('/addons', [VendorPanelController::class, 'addons'])->name('addons.index');
-        Route::get('/addons/create', [VendorPanelController::class, 'addonCreate'])->name('addons.create');
-        Route::post('/addons', [VendorPanelController::class, 'addonStore'])->name('addons.store');
-        Route::get('/addons/{id}/edit', [VendorPanelController::class, 'addonEdit'])->name('addons.edit');
-        Route::post('/addons/{id}', [VendorPanelController::class, 'addonUpdate'])->name('addons.update');
-        Route::post('/addons/{id}/toggle', [VendorPanelController::class, 'addonToggle'])->name('addons.toggle');
-        Route::post('/addons/{id}/delete', [VendorPanelController::class, 'addonDelete'])->name('addons.delete');
+        
+        // Add-ons functionality removed as per requirement
+        // Route::get('/addons', [VendorPanelController::class, 'addons'])->name('addons.index');
+        // Route::get('/addons/create', [VendorPanelController::class, 'addonCreate'])->name('addons.create');
+        // Route::post('/addons', [VendorPanelController::class, 'addonStore'])->name('addons.store');
+        // Route::get('/addons/{id}/edit', [VendorPanelController::class, 'addonEdit'])->name('addons.edit');
+        // Route::post('/addons/{id}', [VendorPanelController::class, 'addonUpdate'])->name('addons.update');
+        // Route::post('/addons/{id}/toggle', [VendorPanelController::class, 'addonToggle'])->name('addons.toggle');
+        // Route::post('/addons/{id}/delete', [VendorPanelController::class, 'addonDelete'])->name('addons.delete');
 
     });
 

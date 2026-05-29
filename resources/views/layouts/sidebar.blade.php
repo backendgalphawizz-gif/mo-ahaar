@@ -189,11 +189,12 @@
                         </a>
                     </li>
                     @else
-                    <li class="sidebar-list">
+                    {{-- Add-ons menu removed as per requirement --}}
+                    {{-- <li class="sidebar-list">
                         <a class="sidebar-link sidebar-title link-nav" href="{{ route('vendor.addons.index') }}">
                             <i class="ri-file-list-3-line"></i><span>Add On Lists</span>
                         </a>
-                    </li>
+                    </li> --}}
                     @endif
 
                     <li class="sidebar-list">
