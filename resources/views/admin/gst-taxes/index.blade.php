@@ -104,16 +104,14 @@
                                 <td class="fw-medium">{{ $tax->name }}</td>
                                 <td>{{ number_format((float) $tax->percentage, 2) }}%</td>
                                 <td>
-                                    <div class="form-check form-switch mb-0 p-0" title="Toggle status">
-                                        <label class="status-switch" title="Activate / deactivate account">
-                                            <input class="form-check-input gst-status-toggle" type="checkbox"
-                                                data-id="{{ $tax->id }}"
-                                                data-url="{{ route('admin.gst-taxes.toggle-status', $tax->id) }}" {{
-                                                $tax->status === 1 ? 'checked' : '' }}>
-                                            <span class="status-slider"></span>
-
-                                        </label>
-                                    </div>
+                                    <label class="status-switch m-0" title="Toggle GST status">
+                                        <input type="checkbox"
+                                            class="ajax-status-toggle"
+                                            data-toggle-url="{{ route('admin.gst-taxes.toggle-status', $tax->id) }}"
+                                            {{ $tax->status === 1 ? 'checked' : '' }}
+                                            aria-label="Toggle GST tax status">
+                                        <span class="status-slider"></span>
+                                    </label>
                                 </td>
                                 <td class="text-muted small">{{ $tax->created_at->format('M j, Y') }}</td>
                                 <td>
@@ -173,31 +171,6 @@
             });
         });
 
-        // AJAX status toggle
-        document.querySelectorAll('.gst-status-toggle').forEach(function (toggle) {
-            toggle.addEventListener('change', function () {
-                var id = this.getAttribute('data-id');
-                var url = this.getAttribute('data-url');
-                var el = this;
-
-                fetch(url, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                        'Accept': 'application/json',
-                    },
-                })
-                    .then(function (r) { return r.json(); })
-                    .then(function (data) {
-                        if (!data.success) {
-                            el.checked = !el.checked; // revert
-                        }
-                    })
-                    .catch(function () {
-                        el.checked = !el.checked; // revert on error
-                    });
-            });
-        });
     });
 </script>
 @endsection

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Concerns\RespondsWithToggleStatus;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\ProductCategory;
@@ -23,6 +24,7 @@ use Illuminate\Validation\Rule;
 
 class ProductManagementController extends Controller
 {
+    use RespondsWithToggleStatus;
     private function isVendorPanel(): bool
     {
         return (int) session('role_type') === 3;
@@ -507,20 +509,25 @@ class ProductManagementController extends Controller
         return redirect($this->panelRoute('admin.products', 'vendor.products'))->with('success', 'Product deleted successfully.');
     }
 
-    public function toggleStatus($id)
+    public function toggleStatus(Request $request, $id)
     {
         $product = Product::where('product_id', $id)->first();
         if ($product && $this->isVendorPanel() && (int) $product->vendor_id !== (int) $this->currentVendorId()) {
             $product = null;
         }
         if (!$product) {
-            return back()->with('error', 'Product not found.');
+            return $this->respondToggleStatus($request, false, [], 'Product not found.');
         }
 
         $product->is_active_status = (int) $product->is_active_status === 1 ? 0 : 1;
         $product->save();
 
-        return back()->with('success', 'Product status updated successfully.');
+        $active = (int) $product->is_active_status === 1;
+
+        return $this->respondToggleStatus($request, true, [
+            'is_active' => $product->is_active_status,
+            'label'     => $active ? 'Active' : 'Inactive',
+        ], 'Product status updated successfully.');
     }
 
     public function updateApprovalStatus(Request $request, $id)

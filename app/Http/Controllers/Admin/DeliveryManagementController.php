@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Concerns\RespondsWithToggleStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\DriverRequest;
 use App\Models\DeliveryAssignment;
@@ -20,6 +21,7 @@ use Illuminate\Validation\Rule;
 
 class DeliveryManagementController extends Controller
 {
+    use RespondsWithToggleStatus;
     public function __construct(
         private readonly DriverWalletService $walletService
     ) {}
@@ -276,18 +278,23 @@ class DeliveryManagementController extends Controller
         return back()->with('success', 'Driver status updated to ' . ucfirst($validated['approval_status']) . '.');
     }
 
-    public function toggleStatus($id)
+    public function toggleStatus(Request $request, $id)
     {
         $driver = $this->findDriverOrFail($id);
 
         if (strtolower((string) $driver->approval_status) !== 'approved') {
-            return back()->with('error', 'Only approved drivers can be activated or deactivated.');
+            return $this->respondToggleStatus($request, false, [], 'Only approved drivers can be activated or deactivated.');
         }
 
         $driver->status = (int) $driver->status === 1 ? '0' : '1';
         $driver->save();
 
-        return back()->with('success', 'Driver active status updated.');
+        $active = (int) $driver->status === 1;
+
+        return $this->respondToggleStatus($request, true, [
+            'is_active' => $driver->status,
+            'label'     => $active ? 'Active' : 'Inactive',
+        ], 'Driver active status updated.');
     }
 
     public function exportDriversExcel(Request $request)

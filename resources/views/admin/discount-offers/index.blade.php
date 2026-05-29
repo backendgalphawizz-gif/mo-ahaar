@@ -77,15 +77,14 @@
                                     <td class="fw-semibold">{{ $discountLabel }}</td>
                                     <td>{{ $typeLabel }}</td>
                                     <td>
-                                        <form method="POST" action="{{ route('admin.discount-offers.toggle-status', $offer->id) }}">
-                                            @csrf
-                                            <div class="form-check form-switch m-0">
-                                                <input class="form-check-input" type="checkbox" onchange="this.form.submit()" {{ $offer->is_active ? 'checked' : '' }}>
-                                            </div>
-                                        </form>
+                                        @include('admin.partials.ajax-status-toggle', [
+                                            'url' => route('admin.discount-offers.toggle-status', $offer->id),
+                                            'checked' => $offer->is_active,
+                                            'statusPill' => '#discount-status-pill-' . $offer->id,
+                                        ])
                                     </td>
                                     <td>
-                                        <span class="status-pill {{ $offer->is_active ? 'active' : 'inactive' }}">
+                                        <span id="discount-status-pill-{{ $offer->id }}" class="status-pill {{ $offer->is_active ? 'active' : 'inactive' }}">
                                             {{ $offer->is_active ? 'Active' : 'Inactive' }}
                                         </span>
                                     </td>

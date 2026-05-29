@@ -112,16 +112,17 @@
                                                 <small class="text-warning">★</small>
                                             </td>
                                             <td class="text-center">
-                                                <form method="POST" action="{{ route($isVendorPanel ? 'vendor.products.toggle-status' : 'admin.products.toggle-status', $product->product_id) }}" class="status-toggle-form m-0">
-                                                    @csrf
-                                                    @php
-                                                        $isProductActive = (int) $product->is_active_status === 1;
-                                                    @endphp
-                                                    <label class="status-switch" title="Toggle status">
-                                                        <input type="checkbox" aria-label="Toggle product status" {{ $isProductActive ? 'checked' : '' }} onchange="this.form.submit()">
-                                                        <span class="status-slider"></span>
-                                                    </label>
-                                                </form>
+                                                @php
+                                                    $isProductActive = (int) $product->is_active_status === 1;
+                                                @endphp
+                                                <label class="status-switch m-0" title="Toggle status">
+                                                    <input type="checkbox"
+                                                        class="ajax-status-toggle"
+                                                        data-toggle-url="{{ route($isVendorPanel ? 'vendor.products.toggle-status' : 'admin.products.toggle-status', $product->product_id) }}"
+                                                        aria-label="Toggle product status"
+                                                        {{ $isProductActive ? 'checked' : '' }}>
+                                                    <span class="status-slider"></span>
+                                                </label>
                                             </td>
                                             <td>
                                                 <ul class="d-flex gap-2 mb-0 list-unstyled">

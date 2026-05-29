@@ -56,12 +56,10 @@
                                         <small class="text-muted">{{ optional($banner->created_at)->format('h:i A') }}</small>
                                     </td>
                                     <td>
-                                        <div class="form-check form-switch m-0">
-                                            <input class="form-check-input banner-status-toggle" type="checkbox"
-                                                data-id="{{ $banner->id }}"
-                                                data-url="{{ route('admin.banners.toggle-status', $banner->id) }}"
-                                                {{ (int) $banner->status === 1 ? 'checked' : '' }}>
-                                        </div>
+                                        @include('admin.partials.ajax-status-toggle', [
+                                            'url' => route('admin.banners.toggle-status', $banner->id),
+                                            'checked' => (int) $banner->status === 1,
+                                        ])
                                     </td>
                                     <td>
                                         <div class="d-flex gap-2 table-action-icons">
@@ -93,29 +91,6 @@
 </style>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    document.querySelectorAll('.banner-status-toggle').forEach(function (toggle) {
-        toggle.addEventListener('change', function () {
-            var url = this.getAttribute('data-url');
-            var el = this;
-            fetch(url, {
-                method: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                    'Accept': 'application/json',
-                },
-            })
-                .then(function (r) { return r.json(); })
-                .then(function (data) {
-                    if (!data.success) {
-                        el.checked = !el.checked;
-                    }
-                })
-                .catch(function () {
-                    el.checked = !el.checked;
-                });
-        });
-    });
-
     document.querySelectorAll('.delete-banner-btn').forEach(function (btn) {
         btn.addEventListener('click', function () {
             var formId = this.getAttribute('data-form-id');

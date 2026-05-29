@@ -71,14 +71,16 @@
                                     <td class="fw-semibold">{{ number_format((int) ($orderCounts[$customer->customer_id] ?? 0)) }}</td>
                                     <td>{{ $customer->registration_date ? \Carbon\Carbon::parse($customer->registration_date)->format('d/m/Y') : '—' }}</td>
                                     <td>
-                                        <form method="POST" action="{{ route('admin.customers.toggle-status', $customer->customer_id) }}">
-                                            @csrf
-                                            <label class="figma-switch">
-                                                <input type="checkbox" onchange="this.form.submit()" {{ $isActive ? 'checked' : '' }}>
-                                                <span class="slider"></span>
-                                            </label>
-                                        </form>
-                                        <span class="status-label {{ $isActive ? 'on' : 'off' }}">{{ $isActive ? 'ACTIVE' : 'INACTIVE' }}</span>
+                                        <label class="figma-switch">
+                                            <input type="checkbox"
+                                                class="ajax-status-toggle"
+                                                data-toggle-url="{{ route('admin.customers.toggle-status', $customer->customer_id) }}"
+                                                data-status-label="#customer-status-label-{{ $customer->customer_id }}"
+                                                {{ $isActive ? 'checked' : '' }}
+                                                aria-label="Toggle customer status">
+                                            <span class="slider"></span>
+                                        </label>
+                                        <span id="customer-status-label-{{ $customer->customer_id }}" class="status-label {{ $isActive ? 'on' : 'off' }}">{{ $isActive ? 'ACTIVE' : 'INACTIVE' }}</span>
                                     </td>
                                     <td>
                                         <div class="d-flex gap-2 table-action-icons">

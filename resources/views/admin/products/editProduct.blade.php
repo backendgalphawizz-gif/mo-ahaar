@@ -21,7 +21,6 @@
                     <input type="hidden" name="product_id" value="{{ $product->product_id }}">
                     <input type="hidden" name="is_active_status" value="{{ $product->is_active_status }}">
                     <input type="hidden" name="discount" value="{{ old('discount', $product->discount ?? 0) }}">
-                    <input type="hidden" name="gst_calculation_type" value="{{ old('gst_calculation_type', $product->gst_calculation_type ?? \App\Models\Product::GST_EXCLUDED) }}">
                     <input type="hidden" name="status" value="{{ old('status', $product->status ?? 1) }}">
                     <input type="hidden" name="price" id="price_hidden" value="{{ $currentPrice }}">
                     <input type="hidden" name="mrp_price" id="mrp_hidden" value="{{ $currentPrice }}">
@@ -38,6 +37,8 @@
                         @include('admin.partials.field-error', ['field' => 'price'])
                         @include('admin.partials.field-error', ['field' => 'mrp_price'])
                     </div>
+
+                    @include('admin.products.partials.gst-fields', ['product' => $product])
 
                     <div class="col-12">
                         <label class="form-label">Ingredients <span class="text-danger">*</span></label>
@@ -114,4 +115,5 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 });
 </script>
+@include('admin.products.partials.gst-fields-script')
 @endsection

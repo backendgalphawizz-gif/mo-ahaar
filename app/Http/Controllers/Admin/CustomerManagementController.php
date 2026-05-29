@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Concerns\RespondsWithToggleStatus;
 use App\Http\Controllers\Controller;
 use App\Models\CustomerAddress;
 use App\Models\Customers;
@@ -19,6 +20,7 @@ use Illuminate\Validation\ValidationException;
 
 class CustomerManagementController extends Controller
 {
+    use RespondsWithToggleStatus;
     private function customerBaseQuery()
     {
         return Customers::join('users', 'customers.user_id', '=', 'users.user_id')
@@ -446,11 +448,11 @@ class CustomerManagementController extends Controller
             ->with('success', 'Customer Deleted Successfully');
     }
 
-    public function toggleStatus($id)
+    public function toggleStatus(Request $request, $id)
     {
         $customer = Customers::where('customer_id', $id)->first();
         if (!$customer) {
-            return back()->with('error', 'Customer not found.');
+            return $this->respondToggleStatus($request, false, [], 'Customer not found.');
         }
 
         $user = Users::where('user_id', $customer->user_id)
@@ -459,20 +461,25 @@ class CustomerManagementController extends Controller
             ->first();
 
         if (!$user) {
-            return back()->with('error', 'Customer user not found.');
+            return $this->respondToggleStatus($request, false, [], 'Customer user not found.');
         }
 
         if (Schema::hasColumn('users', 'approval_status')) {
             $approval = strtolower((string) ($user->approval_status ?? 'approved'));
             if ($approval !== 'approved') {
-                return back()->with('error', 'Activate or deactivate is only available after registration is approved.');
+                return $this->respondToggleStatus($request, false, [], 'Activate or deactivate is only available after registration is approved.');
             }
         }
 
         $user->status = (int) $user->status === 1 ? 0 : 1;
         $user->save();
 
-        return back()->with('success', 'Customer status updated successfully.');
+        $active = (int) $user->status === 1;
+
+        return $this->respondToggleStatus($request, true, [
+            'is_active' => $user->status,
+            'label'     => $active ? 'Active' : 'Inactive',
+        ], 'Customer status updated successfully.');
     }
 
     public function approveRegistration(int $id)

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Concerns\RespondsWithToggleStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Banner;
 use Illuminate\Http\Request;
@@ -11,6 +12,7 @@ use Illuminate\Validation\Rule;
 
 class BannerController extends Controller
 {
+    use RespondsWithToggleStatus;
     public function index(Request $request)
     {
         $title = 'Homepage Banners';
@@ -121,17 +123,18 @@ class BannerController extends Controller
         return redirect()->route('admin.banners.index')->with('success', 'Banner deleted successfully.');
     }
 
-    public function toggleStatus($id)
+    public function toggleStatus(Request $request, $id)
     {
         $banner = Banner::where('id', $id)->where('status', '!=', 0)->firstOrFail();
         $banner->status = (int) $banner->status === 1 ? 2 : 1;
         $banner->save();
 
-        return response()->json([
-            'success' => true,
-            'status' => $banner->status,
-            'label' => (int) $banner->status === 1 ? 'Active' : 'Inactive',
-        ]);
+        $active = (int) $banner->status === 1;
+
+        return $this->respondToggleStatus($request, true, [
+            'is_active' => $active ? 1 : 0,
+            'label'     => $active ? 'Active' : 'Inactive',
+        ], $active ? 'Banner enabled.' : 'Banner disabled.');
     }
 
     /**

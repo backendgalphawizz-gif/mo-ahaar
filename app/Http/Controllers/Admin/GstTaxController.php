@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Concerns\RespondsWithToggleStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\GstTaxRequest;
 use App\Models\GstTax;
@@ -9,6 +10,7 @@ use Illuminate\Http\Request;
 
 class GstTaxController extends Controller
 {
+    use RespondsWithToggleStatus;
     public function index(Request $request)
     {
         $search = trim((string) $request->query('search', ''));
@@ -60,14 +62,15 @@ class GstTaxController extends Controller
     /**
      * AJAX: toggle active/inactive status.
      */
-    public function toggleStatus(GstTax $gst_tax)
+    public function toggleStatus(Request $request, GstTax $gst_tax)
     {
         $gst_tax->update(['status' => $gst_tax->status === 1 ? 0 : 1]);
 
-        return response()->json([
-            'success' => true,
-            'status'  => $gst_tax->status,
-            'label'   => $gst_tax->status === 1 ? 'Active' : 'Inactive',
-        ]);
+        $active = (int) $gst_tax->status === 1;
+
+        return $this->respondToggleStatus($request, true, [
+            'is_active' => $gst_tax->status,
+            'label'     => $active ? 'Active' : 'Inactive',
+        ], $active ? 'GST tax enabled.' : 'GST tax disabled.');
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Concerns\RespondsWithToggleStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\DiscountOfferRequest;
 use App\Models\DiscountOffer;
@@ -11,6 +12,7 @@ use Illuminate\Http\Request;
 
 class DiscountOfferController extends Controller
 {
+    use RespondsWithToggleStatus;
     // -------------------------------------------------------------------------
     // Index – list all offers
     // -------------------------------------------------------------------------
@@ -134,10 +136,11 @@ class DiscountOfferController extends Controller
         $discountOffer->is_active = $discountOffer->is_active ? 0 : 1;
         $discountOffer->save();
 
-        return response()->json([
-            'status'    => true,
+        $active = (bool) $discountOffer->is_active;
+
+        return $this->respondToggleStatus($request, true, [
             'is_active' => $discountOffer->is_active,
-            'message'   => $discountOffer->is_active ? 'Offer enabled.' : 'Offer disabled.',
-        ]);
+            'label'     => $active ? 'Active' : 'Inactive',
+        ], $active ? 'Offer enabled.' : 'Offer disabled.');
     }
 }

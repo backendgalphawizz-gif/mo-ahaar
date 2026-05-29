@@ -80,12 +80,11 @@
                                     <td>{{ optional($driver->created_at)->format('d-m-Y') ?: '—' }}</td>
                                     <td><span class="badge {{ $badgeClass }}">{{ ucfirst($approval) }}</span></td>
                                     <td>
-                                        <form method="POST" action="{{ route('admin.delivery.toggle-status', $driver->user_id) }}">
-                                            @csrf
-                                            <div class="form-check form-switch m-0">
-                                                <input class="form-check-input" type="checkbox" onchange="this.form.submit()" {{ (int) $driver->status === 1 ? 'checked' : '' }} {{ $approval !== 'approved' ? 'disabled' : '' }}>
-                                            </div>
-                                        </form>
+                                        @include('admin.partials.ajax-status-toggle', [
+                                            'url' => route('admin.delivery.toggle-status', $driver->user_id),
+                                            'checked' => (int) $driver->status === 1,
+                                            'disabled' => $approval !== 'approved',
+                                        ])
                                     </td>
                                     <td>
                                         <div class="d-flex gap-1">

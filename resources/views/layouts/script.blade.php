@@ -51,4 +51,5 @@
     <script src="{{ asset('public/assets/js/myCustomJs.js') }}"></script>
      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
      @include('partials.password-toggle-init')
+     @include('partials.ajax-status-toggle-init')
      
