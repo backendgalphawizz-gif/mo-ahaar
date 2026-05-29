@@ -360,7 +360,7 @@ class AuthController extends Controller
         if (!$this->isValidSignupOtp($mobile, $otp)) {
             return response()->json([
                 'status' => false,
-                'message' => 'Invalid or expired OTP. Please request a new OTP.',
+                'message' => 'Invalid OTP',
             ], 422);
         }
 
@@ -414,7 +414,7 @@ class AuthController extends Controller
 
         return response()->json([
             'status' => true,
-            'message' => 'OTP generated successfully',
+            'message' => 'A new OTP has been sent to your mobile number.',
             'otp' => $otp,
             'otp_expires_at' => $user->login_otp_expires_at,
         ], 200);

@@ -234,29 +234,20 @@
 
                     <div class="d-flex justify-content-between align-items-center gap-2 mt-4 pt-2">
                         <div>
-                            @if($tab !== 'personal')
-                                <button type="button" class="btn btn-outline-secondary" id="driverWizardBack">Back</button>
-                            @endif
+                            <button type="button" class="btn btn-outline-secondary {{ $tab === 'personal' ? 'd-none' : '' }}" id="driverWizardBack">Back</button>
                         </div>
                         <div class="d-flex gap-2 ms-auto">
-                            @if($isEdit && $tab !== 'bank')
-                                <button type="submit" class="btn btn-outline-primary">
+                            @if($isEdit)
+                                <button type="submit" class="btn btn-outline-primary {{ $tab === 'bank' ? 'd-none' : '' }}" id="driverWizardSavePartial">
                                     <i class="ri-save-line me-1"></i>Save Changes
                                 </button>
                             @endif
-                            @if($tab === 'bank')
-                                <button type="submit" class="btn {{ $isEdit ? 'btn-success' : 'btn-figma-primary' }}">
-                                    <i class="ri-save-line me-1"></i>{{ $isEdit ? 'Save Changes' : 'Submit & Add Driver' }}
-                                </button>
-                            @else
-                                <button type="button" class="btn btn-figma-primary" id="driverWizardNext">
-                                    @if($tab === 'personal')
-                                        Next: Vehicle Info
-                                    @else
-                                        Next: Bank Details
-                                    @endif
-                                </button>
-                            @endif
+                            <button type="submit" class="btn {{ $isEdit ? 'btn-success' : 'btn-figma-primary' }} {{ $tab === 'bank' ? '' : 'd-none' }}" id="driverWizardSubmit">
+                                <i class="ri-save-line me-1"></i>{{ $isEdit ? 'Save Changes' : 'Submit & Add Driver' }}
+                            </button>
+                            <button type="button" class="btn btn-figma-primary {{ $tab === 'bank' ? 'd-none' : '' }}" id="driverWizardNext">
+                                <span id="driverWizardNextText">Next: Vehicle Info</span>
+                            </button>
                         </div>
                     </div>
                 </form>
@@ -284,6 +275,9 @@ document.addEventListener('DOMContentLoaded', function () {
     var steps = document.querySelectorAll('#driverStepper .figma-step');
     var nextBtn = document.getElementById('driverWizardNext');
     var backBtn = document.getElementById('driverWizardBack');
+    var submitBtn = document.getElementById('driverWizardSubmit');
+    var savePartialBtn = document.getElementById('driverWizardSavePartial');
+    var nextBtnText = document.getElementById('driverWizardNextText');
 
     function showStep(index) {
         if (index < 0 || index >= stepKeys.length) {
@@ -294,9 +288,13 @@ document.addEventListener('DOMContentLoaded', function () {
         if (tabInput) {
             tabInput.value = tab;
         }
+        
+        // Toggle panes
         panes.forEach(function (pane) {
             pane.classList.toggle('d-none', pane.dataset.pane !== tab);
         });
+        
+        // Update stepper
         steps.forEach(function (step, idx) {
             step.classList.remove('active', 'done');
             if (idx < currentIndex) {
@@ -305,6 +303,39 @@ document.addEventListener('DOMContentLoaded', function () {
                 step.classList.add('active');
             }
         });
+        
+        // Update buttons
+        var isLastStep = currentIndex === stepKeys.length - 1;
+        var isFirstStep = currentIndex === 0;
+        
+        // Back button - hide on first step
+        if (backBtn) {
+            backBtn.classList.toggle('d-none', isFirstStep);
+        }
+        
+        // Submit button - show only on last step
+        if (submitBtn) {
+            submitBtn.classList.toggle('d-none', !isLastStep);
+        }
+        
+        // Next button - hide on last step
+        if (nextBtn) {
+            nextBtn.classList.toggle('d-none', isLastStep);
+            
+            // Update next button text
+            if (nextBtnText) {
+                if (currentIndex === 0) {
+                    nextBtnText.textContent = 'Next: Vehicle Info';
+                } else if (currentIndex === 1) {
+                    nextBtnText.textContent = 'Next: Bank Details';
+                }
+            }
+        }
+        
+        // Save partial button (edit mode only) - hide on last step
+        if (savePartialBtn) {
+            savePartialBtn.classList.toggle('d-none', isLastStep);
+        }
     }
 
     if (nextBtn) {
