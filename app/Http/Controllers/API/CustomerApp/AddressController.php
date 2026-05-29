@@ -43,8 +43,10 @@ class AddressController extends Controller
 
         $validated = $this->validateAddress($request);
 
-        $address = DB::transaction(function () use ($customer, $user, $validated) {
-            $makeDefault = (bool) ($validated['is_default'] ?? false) || !$customer->addresses()->exists();
+        $address = DB::transaction(function () use ($customer, $user, $validated, $request) {
+            $makeDefault = $request->has('is_default')
+                ? $request->boolean('is_default')
+                : !$customer->addresses()->exists();
 
             if ($makeDefault) {
                 $customer->addresses()->update(['is_default' => false]);
@@ -116,8 +118,10 @@ class AddressController extends Controller
 
         $validated = $this->validateAddress($request);
 
-        $address = DB::transaction(function () use ($customer, $user, $validated, $address) {
-            $makeDefault = (bool) ($validated['is_default'] ?? false);
+        $address = DB::transaction(function () use ($customer, $user, $validated, $address, $request) {
+            $makeDefault = $request->has('is_default')
+                ? $request->boolean('is_default')
+                : (bool) $address->is_default;
 
             if ($makeDefault) {
                 $customer->addresses()
@@ -129,13 +133,15 @@ class AddressController extends Controller
                 'contact_name' => $validated['contact_name'] ?? $address->contact_name ?? $user->name,
                 'mobile' => $validated['mobile'] ?? $address->mobile ?? $user->mobile,
                 'address_line' => $validated['address_line'],
-                'landmark' => $validated['landmark'] ?? null,
-                'city' => $validated['city'] ?? null,
-                'state' => $validated['state'] ?? null,
-                'country' => $validated['country'] ?? null,
-                'pincode' => $validated['pincode'] ?? null,
+                'landmark' => array_key_exists('landmark', $validated)
+                    ? $validated['landmark']
+                    : $address->landmark,
+                'city' => $validated['city'] ?? $address->city,
+                'state' => $validated['state'] ?? $address->state,
+                'country' => $validated['country'] ?? $address->country,
+                'pincode' => $validated['pincode'] ?? $address->pincode,
                 'address_type' => $validated['address_type'] ?? $address->address_type ?? 'other',
-                'is_default' => $makeDefault || (bool) $address->is_default,
+                'is_default' => $makeDefault,
             ]);
             $address->save();
 
@@ -221,23 +227,7 @@ class AddressController extends Controller
 
     private function validateAddress(Request $request): array
     {
-        if ($request->filled('full_name') && !$request->filled('contact_name')) {
-            $request->merge(['contact_name' => $request->input('full_name')]);
-        }
-        if ($request->filled('mobile_number') && !$request->filled('mobile')) {
-            $request->merge(['mobile' => $request->input('mobile_number')]);
-        }
-        if ($request->filled('delivery_type') && !$request->filled('address_type')) {
-            $request->merge(['address_type' => strtolower((string) $request->input('delivery_type'))]);
-        }
-        if (!$request->filled('address_line')) {
-            $line1 = trim((string) $request->input('house_no_building_name', ''));
-            $line2 = trim((string) $request->input('road_name_area_colony', ''));
-            $combined = trim($line1 . ($line1 !== '' && $line2 !== '' ? ', ' : '') . $line2);
-            if ($combined !== '') {
-                $request->merge(['address_line' => $combined]);
-            }
-        }
+        $this->prepareAddressRequest($request);
 
         return $request->validate([
             'contact_name' => ['nullable', 'string', 'max:120'],
@@ -256,6 +246,61 @@ class AddressController extends Controller
             'delivery_type' => ['nullable', 'string', 'max:50'],
             'is_default' => ['nullable', 'boolean'],
         ]);
+    }
+
+    private function prepareAddressRequest(Request $request): void
+    {
+        if ($request->filled('full_name') && !$request->filled('contact_name')) {
+            $request->merge(['contact_name' => $request->input('full_name')]);
+        }
+        if ($request->filled('mobile_number') && !$request->filled('mobile')) {
+            $request->merge(['mobile' => $request->input('mobile_number')]);
+        }
+        if ($request->filled('delivery_type') && !$request->filled('address_type')) {
+            $request->merge(['address_type' => strtolower((string) $request->input('delivery_type'))]);
+        }
+        if (!$request->filled('address_line')) {
+            $line1 = trim((string) $request->input('house_no_building_name', ''));
+            $line2 = trim((string) $request->input('road_name_area_colony', ''));
+            $combined = trim($line1 . ($line1 !== '' && $line2 !== '' ? ', ' : '') . $line2);
+            if ($combined !== '') {
+                $request->merge(['address_line' => $combined]);
+            }
+        }
+
+        if ($request->has('is_default')) {
+            $normalized = $this->normalizeBooleanInput($request->input('is_default'));
+            if ($normalized !== null) {
+                $request->merge(['is_default' => $normalized]);
+            }
+        }
+    }
+
+    private function normalizeBooleanInput(mixed $value): ?bool
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        if (is_int($value) || is_float($value)) {
+            return (bool) $value;
+        }
+
+        $normalized = strtolower(trim((string) $value));
+
+        if (in_array($normalized, ['1', 'true', 'yes', 'on'], true)) {
+            return true;
+        }
+
+        if (in_array($normalized, ['0', 'false', 'no', 'off'], true)) {
+            return false;
+        }
+
+        return null;
     }
 
     private function transformAddress(CustomerAddress $address): array

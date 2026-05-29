@@ -282,9 +282,10 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"full_name\": \"Shreya Shah\",\n  \"mobile_number\": \"9517530286\",\n  \"house_no_building_name\": \"G - 14 1st\",\n  \"road_name_area_colony\": \"Sabari Nagar, Sukhliya\",\n  \"city\": \"Indore\",\n  \"state\": \"M.P\",\n  \"country\": \"India\",\n  \"pincode\": \"452001\",\n  \"delivery_type\": \"home\"\n}"
+              "raw": "{\n  \"contact_name\": \"Rahul\",\n  \"mobile\": \"9633258858\",\n  \"address_line\": \"Vijay nagar\",\n  \"city\": \"Indore\",\n  \"state\": \"Madhya Pradesh\",\n  \"country\": \"India\",\n  \"pincode\": \"451028\",\n  \"address_type\": \"office\",\n  \"is_default\": true\n}"
             },
-            "url": "{{base_url}}/customer-app/addresses/{{address_id}}"
+            "url": "{{base_url}}/customer-app/addresses/{{address_id}}",
+            "description": "POST, PUT, or PATCH. For form-data use is_default=1 or true (normalized). Bearer token required."
           }
         },
         {

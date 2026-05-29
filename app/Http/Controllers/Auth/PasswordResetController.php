@@ -39,8 +39,8 @@ class PasswordResetController extends Controller
             return redirect()->route('forgot.password')->withInput($request->only('email'));
         }
 
-        // Generate OTP (6 digits)
-        $otp = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        // Generate OTP (4 digits — matches admin auth UI)
+        $otp = str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT);
 
         // Store OTP in database with expiration (10 minutes)
         $user->update([
@@ -52,7 +52,7 @@ class PasswordResetController extends Controller
         try {
             Mail::raw("Your password reset OTP is: {$otp}\n\nThis OTP will expire in 10 minutes.", function ($message) use ($user) {
                 $message->to($user->email)
-                    ->subject('Password Reset OTP - E-Commerce Admin');
+                    ->subject('Password Reset OTP - Moaahar Admin');
             });
 
             Session::flash('success', 'OTP has been sent to your email address.');
@@ -88,7 +88,7 @@ class PasswordResetController extends Controller
     public function verifyOtp(Request $request)
     {
         $request->validate([
-            'otp' => 'required|digits:6',
+            'otp' => 'required|digits:4',
         ]);
 
         $reset_email = Session::get('reset_email');
@@ -108,7 +108,7 @@ class PasswordResetController extends Controller
         }
 
         // Check if OTP exists and is not expired
-        if (!$user->password_reset_otp || $user->password_reset_otp !== $request->otp) {
+        if (!$user->password_reset_otp || $user->password_reset_otp !== str_pad($request->otp, 4, '0', STR_PAD_LEFT)) {
             Session::flash('error', 'Invalid OTP. Please try again.');
             return redirect()->route('verify.otp');
         }
@@ -199,7 +199,7 @@ class PasswordResetController extends Controller
         }
 
         // Generate new OTP
-        $otp = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        $otp = str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT);
 
         // Store OTP in database with expiration (10 minutes)
         $user->update([
@@ -211,7 +211,7 @@ class PasswordResetController extends Controller
         try {
             Mail::raw("Your password reset OTP is: {$otp}\n\nThis OTP will expire in 10 minutes.", function ($message) use ($user) {
                 $message->to($user->email)
-                    ->subject('Password Reset OTP - E-Commerce Admin');
+                    ->subject('Password Reset OTP - Moaahar Admin');
             });
 
             Session::flash('success', 'OTP has been resent to your email address.');

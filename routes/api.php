@@ -75,11 +75,11 @@ Route::prefix('customer-app')->middleware('set.customer.locale')->name('customer
         Route::post('/update', [CustomerProfileController::class, 'update'])->name('profile.update');
     });
 
-    Route::middleware(['auth:sanctum', 'customer.active'])->prefix('addresses')->group(function () {
+    Route::middleware(['inject.bearer', 'auth:sanctum', 'customer.active'])->prefix('addresses')->group(function () {
         Route::get('/', [CustomerAddressController::class, 'index'])->name('addresses.index');
         Route::post('/', [CustomerAddressController::class, 'store'])->name('addresses.store');
         Route::get('/{addressId}', [CustomerAddressController::class, 'show'])->name('addresses.show');
-        Route::post('/{addressId}', [CustomerAddressController::class, 'update'])->name('addresses.update');
+        Route::match(['post', 'put', 'patch'], '/{addressId}', [CustomerAddressController::class, 'update'])->name('addresses.update');
         Route::delete('/{addressId}', [CustomerAddressController::class, 'destroy'])->name('addresses.destroy');
     });
 
