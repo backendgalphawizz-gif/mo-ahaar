@@ -139,8 +139,10 @@ class DeliveryManagementController extends Controller
             }
 
             $profile = $this->syncDriverProfile($driver->user_id, $validated, $request, null);
-            $profile->driver_code = $this->generateDriverCode();
-            $profile->save();
+            if (empty($profile->driver_code)) {
+                $profile->driver_code = DriverProfile::generateUniqueDriverCode();
+                $profile->save();
+            }
 
             $this->walletService->getOrCreateWallet((int) $driver->user_id);
 
@@ -233,7 +235,7 @@ class DeliveryManagementController extends Controller
             $this->syncDriverProfile($driver->user_id, $validated, $request, $profile);
 
             if (empty($profile->driver_code)) {
-                $profile->driver_code = $this->generateDriverCode();
+                $profile->driver_code = DriverProfile::generateUniqueDriverCode($profile->profile_id);
                 $profile->save();
             }
 
@@ -326,19 +328,6 @@ class DeliveryManagementController extends Controller
             ->where('role_type', Users::DRIVER_APP_ROLE_TYPE)
             ->where('status', '!=', 2)
             ->firstOrFail();
-    }
-
-    private function generateDriverCode(): string
-    {
-        $lastProfile = DriverProfile::whereNotNull('driver_code')->orderByDesc('profile_id')->first();
-        $next = 1;
-        if ($lastProfile && preg_match('/DP-(\d+)/', (string) $lastProfile->driver_code, $matches)) {
-            $next = ((int) $matches[1]) + 1;
-        } else {
-            $next = DriverProfile::count() + 1;
-        }
-
-        return 'DP-' . str_pad((string) $next, 3, '0', STR_PAD_LEFT);
     }
 
     private function syncDriverProfile(int $driverId, array $validated, Request $request, ?DriverProfile $profile): DriverProfile

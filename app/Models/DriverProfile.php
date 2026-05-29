@@ -91,4 +91,38 @@ class DriverProfile extends Model
             ? $this->pan_card_uploaded_at
             : $this->aadhar_card_uploaded_at;
     }
+
+    /**
+     * Next available DP-XXX code based on the highest numeric suffix in use (not profile_id order).
+     */
+    public static function generateUniqueDriverCode(?int $excludeProfileId = null): string
+    {
+        $maxSuffix = 0;
+
+        static::query()
+            ->whereNotNull('driver_code')
+            ->when($excludeProfileId, fn ($query) => $query->where('profile_id', '!=', $excludeProfileId))
+            ->pluck('driver_code')
+            ->each(function ($code) use (&$maxSuffix) {
+                if (preg_match('/^DP-(\d+)$/i', (string) $code, $matches)) {
+                    $maxSuffix = max($maxSuffix, (int) $matches[1]);
+                }
+            });
+
+        $next = max(1, $maxSuffix + 1);
+
+        do {
+            $candidate = 'DP-' . str_pad((string) $next, 3, '0', STR_PAD_LEFT);
+            $exists = static::query()
+                ->where('driver_code', $candidate)
+                ->when($excludeProfileId, fn ($query) => $query->where('profile_id', '!=', $excludeProfileId))
+                ->exists();
+            if (!$exists) {
+                return $candidate;
+            }
+            $next++;
+        } while ($next < 100000);
+
+        return 'DP-' . str_pad((string) $next, 3, '0', STR_PAD_LEFT);
+    }
 }

@@ -237,6 +237,10 @@ class CartController extends Controller
 
         CartItem::where('cart_item_id', '=', $cartItem->cart_item_id)->delete();
 
+        if (!$this->customerHasCartItems((int) $customer->customer_id)) {
+            $this->clearCartForCustomer($customer, true);
+        }
+
         return response()->json([
             'status'  => true,
             'message' => 'Item removed from cart',
@@ -263,6 +267,7 @@ class CartController extends Controller
         }
 
         $this->clearCartForCustomer($customer, true);
+        $customer->refresh();
 
         return response()->json([
             'status'  => true,
@@ -454,6 +459,12 @@ class CartController extends Controller
 
     private function buildCartResponse($items, ?Customers $customer = null, ?int $activeVendorId = null): array
     {
+        if ($items->isEmpty() && $customer) {
+            CustomerPromoResolver::clearCustomerCartPromo($customer);
+
+            return $this->emptyCartPayload($customer, $activeVendorId);
+        }
+
         $cartItems = $items->map(fn (CartItem $item) => $this->formatCartItem($item))->values();
 
         $subtotal = $cartItems->sum(fn ($i) => (float) $i['line_total']);
@@ -510,6 +521,48 @@ class CartController extends Controller
             'grand_total' => number_format($totalAmount, 2, '.', ''),
             'total_amount' => number_format($totalAmount, 2, '.', ''),
             'applied_offers' => array_values($appliedOffers),
+        ];
+    }
+
+    private function emptyCartPayload(?Customers $customer, ?int $activeVendorId): array
+    {
+        $selectedAddress = null;
+        if ($customer && Schema::hasTable('customer_addresses')) {
+            if ($customer->cart_selected_address_id) {
+                $selectedAddress = $customer->addresses
+                    ?->firstWhere('customer_address_id', (int) $customer->cart_selected_address_id);
+            }
+            $selectedAddress = $selectedAddress ?: $customer->defaultAddress ?: $customer->addresses?->first();
+        }
+
+        return [
+            'active_vendor_id' => $activeVendorId,
+            'items' => [],
+            'items_count' => 0,
+            'other_vendor_groups' => [],
+            'cooking_instructions' => $customer?->cart_cooking_instructions,
+            'promo_code' => null,
+            'promo_applied' => false,
+            'has_promo_applied' => false,
+            'promo_message' => null,
+            'delivery_address' => $selectedAddress ? $this->transformAddress($selectedAddress) : null,
+            'order_info' => [
+                'subtotal' => '0.00',
+                'delivery_fee' => '0.00',
+                'gst_and_other_charges' => '0.00',
+                'tax_amount' => '0.00',
+                'offer_discount' => '0.00',
+                'promo_discount' => '0.00',
+                'total_amount' => '0.00',
+            ],
+            'subtotal' => '0.00',
+            'delivery_fee' => '0.00',
+            'tax_amount' => '0.00',
+            'offer_discount' => '0.00',
+            'promo_discount' => '0.00',
+            'grand_total' => '0.00',
+            'total_amount' => '0.00',
+            'applied_offers' => [],
         ];
     }
 

@@ -67,11 +67,19 @@ class CustomerPromoResolver
 
     public static function clearCustomerCartPromo(Customers $customer): void
     {
+        $updates = [];
+
         if (Schema::hasColumn('customers', 'cart_promo_code')) {
             $customer->cart_promo_code = null;
+            $updates['cart_promo_code'] = null;
         }
         if (Schema::hasColumn('customers', 'cart_discount_offer_id')) {
             $customer->cart_discount_offer_id = null;
+            $updates['cart_discount_offer_id'] = null;
+        }
+
+        if ($updates !== [] && $customer->customer_id) {
+            Customers::where('customer_id', $customer->customer_id)->update($updates);
         }
     }
 
