@@ -20,12 +20,12 @@
                 </div>
 
                 @if(session('error'))<div class="alert alert-danger">{{ session('error') }}</div>@endif
-                @if($errors->any())
+                {{-- @if($errors->any())
                     <div class="alert alert-danger alert-dismissible fade show" role="alert">
                         Please fix the highlighted fields below and try again.
                         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
-                @endif
+                @endif --}}
 
                 <form method="POST" action="{{ $formAction }}" enctype="multipart/form-data" id="driverForm" novalidate>
                     @csrf

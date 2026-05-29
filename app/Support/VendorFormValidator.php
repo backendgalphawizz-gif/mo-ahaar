@@ -42,7 +42,6 @@ class VendorFormValidator
             ],
             'dob' => ['nullable', 'date', 'before:today'],
             'gender' => ['nullable', Rule::in(['male', 'female', 'others'])],
-            'address' => ['required', 'string', 'min:5', 'max:500'],
             'profile_image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
         ];
 
@@ -78,15 +77,11 @@ class VendorFormValidator
             'business_logo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
             'business_banner' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
             'shop_image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
-            'aadhaar_card' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:4096'],
             'aadhaar_card_front' => self::documentFileRules('aadhaar_card_front', $vendor, $isCreate),
             'aadhaar_card_back' => self::documentFileRules('aadhaar_card_back', $vendor, $isCreate),
             'pan_card' => self::documentFileRules('pan_card', $vendor, $isCreate),
-            'gst_file' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:4096'],
+            'gst_file' => self::documentFileRules('gst_file', $vendor, $isCreate),
             'food_license_file' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:4096'],
-            'bank_passbook_file' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:4096'],
-            'address_proof_file' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:4096'],
-            'national_identity_card_file' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:4096'],
         ];
 
         return match ($tab) {
@@ -136,9 +131,16 @@ class VendorFormValidator
             'pan_number.regex' => 'PAN must be in format ABCDE1234F (5 letters, 4 digits, 1 letter).',
             'gst_number.required' => 'GST number is required.',
             'gst_number.regex' => 'Please enter a valid 15-character GSTIN.',
+            'latitude.required' => 'Please select a valid address from Google suggestions to set location.',
+            'latitude.between' => 'Invalid latitude. Select address from suggestions.',
+            'longitude.required' => 'Please select a valid address from Google suggestions to set location.',
+            'longitude.between' => 'Invalid longitude. Select address from suggestions.',
             'aadhaar_card_front.required' => 'Aadhaar card (front) upload is required.',
             'aadhaar_card_back.required' => 'Aadhaar card (back) upload is required.',
             'pan_card.required' => 'PAN card document upload is required.',
+            'gst_file.required' => 'GST certificate upload is required.',
+            'gst_file.mimes' => 'GST certificate must be JPG, PNG or PDF.',
+            'gst_file.max' => 'GST certificate file may not be greater than 4MB.',
             'aadhaar_card_front.mimes' => 'Aadhaar front must be JPG, PNG or PDF.',
             'aadhaar_card_back.mimes' => 'Aadhaar back must be JPG, PNG or PDF.',
             'pan_card.mimes' => 'PAN card must be JPG, PNG or PDF.',
@@ -159,6 +161,37 @@ class VendorFormValidator
             'profile_image.image' => 'Profile image must be a valid image file.',
             'profile_image.max' => 'Profile image may not be greater than 2MB.',
         ];
+    }
+
+    /**
+     * Pick wizard tab to reopen when validation fails on final submit.
+     *
+     * @param  array<int, string>  $errorKeys
+     */
+    public static function tabForFirstError(array $errorKeys): string
+    {
+        $fieldsByTab = [
+            'personal' => ['owner_name', 'mobile', 'email', 'dob', 'gender', 'password', 'password_confirmation', 'profile_image'],
+            'business' => [
+                'business_name', 'business_email', 'business_phone', 'business_description',
+                'tax_name', 'tax_number', 'pan_number', 'gst_number', 'address', 'latitude', 'longitude',
+            ],
+            'bank' => ['bank_name', 'account_holder_name', 'bank_account', 'account_type', 'ifsc_code', 'branch_name', 'commission_percent', 'approval_status'],
+            'documents' => [
+                'business_logo', 'business_banner', 'shop_image',
+                'aadhaar_card_front', 'aadhaar_card_back', 'pan_card', 'gst_file', 'food_license_file',
+            ],
+        ];
+
+        foreach (self::TABS as $tab) {
+            foreach ($errorKeys as $key) {
+                if (in_array($key, $fieldsByTab[$tab], true)) {
+                    return $tab;
+                }
+            }
+        }
+
+        return 'documents';
     }
 
     public static function validateTab(Request $request, string $tab, ?Vendor $vendor, bool $isCreate): array

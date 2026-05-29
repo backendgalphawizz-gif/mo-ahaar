@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use App\Support\VendorFormValidator;
 
 class VendorManagementController extends Controller
@@ -151,7 +152,7 @@ class VendorManagementController extends Controller
         return view('admin.vendors.addVendor', [
             'title' => 'Add New Vendor',
             'vendor' => null,
-            'tab' => request('tab', 'personal'),
+            'tab' => old('tab', request('tab', 'personal')),
             'wizard' => session('admin.vendor_wizard.create', []),
         ]);
     }
@@ -168,7 +169,13 @@ class VendorManagementController extends Controller
         $wizard = session('admin.vendor_wizard.create', []);
         $this->normalizeVendorRequest($request);
         $this->mergeWizardIntoRequest($request, $wizard);
-        $validated = VendorFormValidator::validateComplete($request, null, true);
+
+        try {
+            $validated = VendorFormValidator::validateComplete($request, null, true);
+        } catch (ValidationException $e) {
+            return $this->redirectVendorWizardWithErrors($e, true, $request);
+        }
+
         $merged = array_merge($wizard, $validated);
         $merged = $this->mergeWizardFileUploads($request, 'documents', $merged);
         $merged = $this->mergeWizardFileUploads($request, 'personal', $merged);
@@ -248,7 +255,7 @@ class VendorManagementController extends Controller
         return view('admin.vendors.editVendor', [
             'title' => 'Edit Vendor',
             'vendor' => $vendor,
-            'tab' => request('tab', 'personal'),
+            'tab' => old('tab', request('tab', 'personal')),
             'wizard' => [],
         ]);
     }
@@ -264,7 +271,12 @@ class VendorManagementController extends Controller
         }
 
         $this->normalizeVendorRequest($request);
-        $validated = VendorFormValidator::validateComplete($request, $vendor, false);
+
+        try {
+            $validated = VendorFormValidator::validateComplete($request, $vendor, false);
+        } catch (ValidationException $e) {
+            return $this->redirectVendorWizardWithErrors($e, false, $request, $vendor);
+        }
 
         DB::beginTransaction();
         try {
@@ -287,6 +299,28 @@ class VendorManagementController extends Controller
         return redirect()
             ->route('admin.vendors')
             ->with('success', 'Vendor updated successfully.');
+    }
+
+    private function redirectVendorWizardWithErrors(
+        ValidationException $e,
+        bool $isCreate,
+        Request $request,
+        ?Vendor $vendor = null
+    ) {
+        $tab = VendorFormValidator::tabForFirstError($e->validator->errors()->keys());
+        $except = array_keys($request->allFiles());
+
+        if ($isCreate) {
+            return redirect()
+                ->route('admin.add-vendor', ['tab' => $tab])
+                ->withErrors($e->validator)
+                ->withInput($request->except(array_merge($except, ['password', 'password_confirmation'])));
+        }
+
+        return redirect()
+            ->route('admin.edit-vendor', ['id' => $vendor->vendor_id, 'tab' => $tab])
+            ->withErrors($e->validator)
+            ->withInput($request->except($except));
     }
 
     private function normalizeVendorRequest(Request $request): void
@@ -394,9 +428,6 @@ class VendorManagementController extends Controller
                 'pan_card' => 'vendors/documents',
                 'gst_file' => 'vendors/documents',
                 'food_license_file' => 'vendors/documents',
-                'bank_passbook_file' => 'vendors/documents',
-                'address_proof_file' => 'vendors/documents',
-                'national_identity_card_file' => 'vendors/documents',
             ],
             default => [],
         };
@@ -526,9 +557,6 @@ class VendorManagementController extends Controller
             'pan_card' => 'vendors/documents',
             'gst_file' => 'vendors/documents',
             'food_license_file' => 'vendors/documents',
-            'bank_passbook_file' => 'vendors/documents',
-            'address_proof_file' => 'vendors/documents',
-            'national_identity_card_file' => 'vendors/documents',
         ];
 
         foreach ($fileMap as $field => $dir) {

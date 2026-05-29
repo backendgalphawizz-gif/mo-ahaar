@@ -36,8 +36,13 @@
                 @if(session('error'))<div class="alert alert-danger">{{ session('error') }}</div>@endif
                 @if($errors->any())
                     <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                        Please fix the highlighted fields below and try again.
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        <strong class="d-block mb-1">Please fix the following:</strong>
+                        <ul class="mb-0 ps-3 small">
+                            @foreach($errors->all() as $message)
+                                <li>{{ $message }}</li>
+                            @endforeach
+                        </ul>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
                 @endif
 
@@ -92,11 +97,6 @@
                                         @endforeach
                                     </select>
                                     @include('admin.partials.field-error', ['field' => 'gender'])
-                                </div>
-                                <div class="col-12">
-                                    <label class="form-label">Address <span class="text-danger">*</span></label>
-                                    <input type="text" name="address" class="form-control @error('address') is-invalid @enderror" value="{{ $val('address') }}" placeholder="Enter full address" maxlength="500" autocomplete="street-address">
-                                    @include('admin.partials.field-error', ['field' => 'address'])
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label">Profile Image</label>
@@ -153,22 +153,31 @@
                                     <textarea name="business_description" class="form-control @error('business_description') is-invalid @enderror" rows="2" maxlength="2000">{{ $val('business_description') }}</textarea>
                                     @include('admin.partials.field-error', ['field' => 'business_description'])
                                 </div>
-                                <div class="col-md-3">
-                                    <label class="form-label">Latitude</label>
-                                    <input type="text" name="latitude" class="form-control @error('latitude') is-invalid @enderror" value="{{ $val('latitude') }}">
+                                <div class="col-12">
+                                    <label class="form-label" for="vendor_business_address">Restaurant Address <span class="text-danger">*</span></label>
+                                    <input type="text"
+                                        id="vendor_business_address"
+                                        name="address"
+                                        class="form-control @error('address') is-invalid @enderror"
+                                        value="{{ $val('address') }}"
+                                        placeholder="Type address and select from Google suggestions"
+                                        maxlength="500"
+                                        autocomplete="off">
+                                    @include('admin.partials.field-error', ['field' => 'address'])
+                                    <small class="text-muted d-block mt-1">Suggestions से address चुनें — location automatically save होगी।</small>
+                                    <small id="vendor-address-maps-help" class="text-warning d-none d-block mt-1">Google Maps API key (.env में GOOGLE_MAPS_API_KEY) configure नहीं है।</small>
+                                    <small id="vendor-address-coords-error" class="text-danger d-none d-block mt-1">कृपया dropdown से valid address select करें (lat/long required)।</small>
+                                    <input type="hidden" name="latitude" id="vendor_latitude" value="{{ $val('latitude') }}">
+                                    <input type="hidden" name="longitude" id="vendor_longitude" value="{{ $val('longitude') }}">
                                     @include('admin.partials.field-error', ['field' => 'latitude'])
-                                </div>
-                                <div class="col-md-3">
-                                    <label class="form-label">Longitude</label>
-                                    <input type="text" name="longitude" class="form-control @error('longitude') is-invalid @enderror" value="{{ $val('longitude') }}">
                                     @include('admin.partials.field-error', ['field' => 'longitude'])
                                 </div>
-                                <div class="col-md-3">
+                                <div class="col-md-6">
                                     <label class="form-label">Tax Name</label>
                                     <input type="text" name="tax_name" class="form-control @error('tax_name') is-invalid @enderror" value="{{ $val('tax_name') }}" maxlength="100">
                                     @include('admin.partials.field-error', ['field' => 'tax_name'])
                                 </div>
-                                <div class="col-md-3">
+                                <div class="col-md-6">
                                     <label class="form-label">Tax Number</label>
                                     <input type="text" name="tax_number" class="form-control @error('tax_number') is-invalid @enderror" value="{{ $val('tax_number') }}" maxlength="50">
                                     @include('admin.partials.field-error', ['field' => 'tax_number'])
@@ -221,31 +230,48 @@
                         <div class="figma-form-block">
                             <h6>Documents Information</h6>
                             <hr class="figma-section-rule">
-                            <p class="text-muted small mb-3">Upload verification documents (JPG, PNG or PDF, max 4MB each)</p>
+                            <p class="text-muted small mb-3">Upload verification documents (JPG, PNG or PDF, max 4MB each). Fields marked <span class="text-danger">*</span> are required.</p>
+                            @php
+                                $documentUploads = [
+                                    ['field' => 'aadhaar_card_front', 'label' => 'Aadhaar Card (Front)', 'required' => true, 'folder' => 'documents'],
+                                    ['field' => 'aadhaar_card_back', 'label' => 'Aadhaar Card (Back)', 'required' => true, 'folder' => 'documents'],
+                                    ['field' => 'pan_card', 'label' => 'PAN Card', 'required' => true, 'folder' => 'documents'],
+                                    ['field' => 'gst_file', 'label' => 'GST Certificate', 'required' => true, 'folder' => 'documents'],
+                                    ['field' => 'food_license_file', 'label' => 'Food/Gumasta License', 'required' => false, 'folder' => 'documents'],
+                                    ['field' => 'business_logo', 'label' => 'Shop Logo', 'required' => false, 'folder' => 'vendors'],
+                                    ['field' => 'shop_image', 'label' => 'Shop Image', 'required' => false, 'folder' => 'vendors'],
+                                    ['field' => 'business_banner', 'label' => 'Shop Banner', 'required' => false, 'folder' => 'vendors'],
+                                ];
+                            @endphp
                             <div class="row g-3">
-                                @foreach([
-                                    'aadhaar_card' => 'Aadhaar Card',
-                                    'pan_card' => 'PAN Card',
-                                    'gst_file' => 'GST File',
-                                    'food_license_file' => 'Food/Gumasta License',
-                                    'bank_passbook_file' => 'Bank Passbook',
-                                    'address_proof_file' => 'Address Proof',
-                                    'national_identity_card_file' => 'National Identity Card',
-                                    'business_logo' => 'Shop Logo',
-                                    'shop_image' => 'Shop Image',
-                                    'business_banner' => 'Shop Banner',
-                                ] as $field => $label)
+                                @foreach($documentUploads as $doc)
+                                    @php
+                                        $field = $doc['field'];
+                                        $existingFile = $isEdit && !empty($vendor->{$field});
+                                        $showRequired = $doc['required'] && (!$isEdit || !$existingFile);
+                                    @endphp
                                     <div class="col-md-3">
-                                        <label class="form-label">{{ $label }}</label>
-                                        <input type="file" name="{{ $field }}" class="form-control @error($field) is-invalid @enderror" accept="image/jpeg,image/png,image/webp,application/pdf">
-                                        @include('admin.partials.field-error', ['field' => $field])
-                                        @if($isEdit && !empty($vendor->{$field}))
+                                        <label class="form-label">
+                                            {{ $doc['label'] }}
+                                            @if($showRequired)
+                                                <span class="text-danger">*</span>
+                                            @endif
+                                        </label>
+                                        <input type="file"
+                                            name="{{ $field }}"
+                                            class="form-control @if($errors->has($field)) is-invalid @endif"
+                                            accept="image/jpeg,image/png,image/webp,application/pdf"
+                                            @if($showRequired) required @endif>
+                                        @if($errors->has($field))
+                                            <div class="text-danger small mt-1 fw-semibold">{{ $errors->first($field) }}</div>
+                                        @endif
+                                        @if($existingFile)
                                             @php
-                                                $docPath = in_array($field, ['aadhaar_card', 'pan_card', 'gst_file', 'food_license_file', 'bank_passbook_file', 'address_proof_file', 'national_identity_card_file'], true)
+                                                $docPath = $doc['folder'] === 'documents'
                                                     ? 'public/uploads/vendors/documents/' . $vendor->{$field}
                                                     : 'public/uploads/vendors/' . $vendor->{$field};
                                             @endphp
-                                            <small><a href="{{ asset($docPath) }}" target="_blank">View File</a></small>
+                                            <small class="d-block mt-1"><a href="{{ asset($docPath) }}" target="_blank" rel="noopener">View uploaded file</a></small>
                                         @endif
                                     </div>
                                 @endforeach

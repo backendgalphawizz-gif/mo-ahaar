@@ -11,7 +11,7 @@
             </div>
         </div>
 
-        @if($errors->any())
+        {{-- @if($errors->any())
             <div class="alert alert-danger alert-dismissible fade show" role="alert">
                 <div class="fw-semibold mb-1">Please fix the errors below.</div>
                 <ul class="mb-0 ps-3">
@@ -21,7 +21,7 @@
                 </ul>
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
-        @endif
+        @endif --}}
 
         <form method="POST" action="{{ route('admin.discount-offers.update', $discountOffer->id) }}" novalidate>
             @csrf
