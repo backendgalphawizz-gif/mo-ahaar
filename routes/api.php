@@ -152,6 +152,7 @@ Route::prefix('customer-app')->middleware('set.customer.locale')->name('customer
     Route::middleware(['auth:sanctum', 'customer.active'])->prefix('promo')->group(function () {
         Route::get('/list', [CustomerPromoController::class, 'list'])->name('promo.list');
         Route::post('/apply', [CustomerPromoController::class, 'apply'])->name('promo.apply');
+        Route::post('/remove', [CustomerPromoController::class, 'remove'])->name('promo.remove');
     });
 
     Route::middleware(['auth:sanctum', 'customer.active'])->prefix('cart')->group(function () {

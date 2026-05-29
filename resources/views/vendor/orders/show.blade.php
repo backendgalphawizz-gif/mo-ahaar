@@ -33,6 +33,24 @@
                     </div>
                 </div>
 
+                @if(!empty($order->cooking_instructions))
+                <div class="card dashboard-card mb-3">
+                    <div class="card-body">
+                        <h6 class="mb-2">Cooking Instructions</h6>
+                        <p class="mb-0 text-muted">{{ $order->cooking_instructions }}</p>
+                    </div>
+                </div>
+                @endif
+
+                @if(!empty($order->notes))
+                <div class="card dashboard-card mb-3">
+                    <div class="card-body">
+                        <h6 class="mb-2">Order Notes</h6>
+                        <p class="mb-0 text-muted">{{ $order->notes }}</p>
+                    </div>
+                </div>
+                @endif
+
                 <div class="card dashboard-card">
                     <div class="card-body">
                         <h6 class="mb-3">Update Order Status</h6>

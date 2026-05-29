@@ -120,6 +120,32 @@
             </div>
         </div>
 
+        @if(!empty($order->cooking_instructions) || !empty($order->notes))
+        <div class="row g-4 mb-4">
+            @if(!empty($order->cooking_instructions))
+            <div class="col-lg-6">
+                <div class="card dashboard-card">
+                    <div class="card-body">
+                        <h6 class="mb-2"><i class="ri-restaurant-line me-1"></i>Cooking Instructions</h6>
+                        <p class="mb-0 text-muted">{{ $order->cooking_instructions }}</p>
+                    </div>
+                </div>
+            </div>
+            @endif
+            
+            @if(!empty($order->notes))
+            <div class="col-lg-6">
+                <div class="card dashboard-card">
+                    <div class="card-body">
+                        <h6 class="mb-2"><i class="ri-file-text-line me-1"></i>Order Notes</h6>
+                        <p class="mb-0 text-muted">{{ $order->notes }}</p>
+                    </div>
+                </div>
+            </div>
+            @endif
+        </div>
+        @endif
+
         <div class="card dashboard-card">
             <div class="card-header bg-transparent"><h6 class="mb-0">Line Items</h6></div>
             <div class="card-body p-0">

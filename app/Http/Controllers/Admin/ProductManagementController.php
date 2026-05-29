@@ -193,12 +193,7 @@ class ProductManagementController extends Controller
         $product->sale_price = null;
         $product->sku = $validated['sku'];
         $product->min_quantity = $validated['min_quantity'] ?? null;
-        if (Schema::hasColumn('products', 'stock')) {
-            $product->stock = null;
-        }
-        if (Schema::hasColumn('products', 'stock_status')) {
-            $product->stock_status = null;
-        }
+        $product->applyLegacyStockDefaults();
         $product->video = $validated['video'] ?? null;
         $product->tags = $validated['tags'] ?? null;
         $product->featured = (int) ($validated['featured'] ?? 0);
@@ -374,12 +369,7 @@ class ProductManagementController extends Controller
         }
         $product->sale_price = null;
         $product->min_quantity = $validated['min_quantity'] ?? null;
-        if (Schema::hasColumn('products', 'stock')) {
-            $product->stock = null;
-        }
-        if (Schema::hasColumn('products', 'stock_status')) {
-            $product->stock_status = null;
-        }
+        $product->applyLegacyStockDefaults();
         $product->sku = $validated['sku'];
         $product->status = (int) $validated['status'];
         $product->is_active_status = $request->boolean('is_active_status') ? 1 : 0;

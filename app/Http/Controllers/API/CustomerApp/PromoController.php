@@ -43,10 +43,16 @@ class PromoController extends Controller
         }
 
         $customer = $this->resolveCustomer($user);
-        $appliedCode = $customer?->cart_promo_code;
+        if ($customer) {
+            CustomerPromoResolver::sanitizeCustomerPromo($customer);
+        }
+        $appliedCode = CustomerPromoResolver::customerHasExplicitCartPromo($customer)
+            ? strtoupper((string) $customer->cart_promo_code)
+            : null;
 
         $offers = DiscountOffer::active()
             ->currentlyValid()
+            ->where('apply_to', DiscountOffer::APPLY_ALL)
             ->orderBy('title')
             ->get();
 
@@ -93,11 +99,14 @@ class PromoController extends Controller
             return response()->json(['status' => false, 'message' => 'Customer profile not found'], 404);
         }
 
+        CustomerPromoResolver::sanitizeCustomerPromo($customer);
+
         $orderAmount = round((float) $validated['order_amount'], 2);
         $code = strtoupper(trim($validated['code']));
 
         $offer = DiscountOffer::active()
             ->currentlyValid()
+            ->where('apply_to', DiscountOffer::APPLY_ALL)
             ->whereRaw('UPPER(title) = ?', [$code])
             ->first();
 
@@ -138,6 +147,35 @@ class PromoController extends Controller
                 'discount_amount' => number_format($discountAmount, 2, '.', ''),
                 'payable_amount' => number_format($payableAmount, 2, '.', ''),
                 'promo' => $this->mapPromoOffer($offer, $orderAmount, true),
+            ],
+        ]);
+    }
+
+    /**
+     * POST /api/customer-app/promo/remove
+     */
+    public function remove(Request $request)
+    {
+        $user = $request->user();
+        if (!$this->isAuthorizedCustomer($user)) {
+            return response()->json(['status' => false, 'message' => 'Unauthorized customer access'], 403);
+        }
+
+        $customer = $this->resolveCustomer($user);
+        if (!$customer) {
+            return response()->json(['status' => false, 'message' => 'Customer profile not found'], 404);
+        }
+
+        CustomerPromoResolver::clearCustomerCartPromo($customer);
+        $customer->save();
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Promo code removed',
+            'data' => [
+                'promo_code' => null,
+                'promo_applied' => false,
+                'has_promo_applied' => false,
             ],
         ]);
     }

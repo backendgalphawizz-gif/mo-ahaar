@@ -3,12 +3,17 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Schema;
 
 class Product extends Model
 {
     public const GST_EXCLUDED = 'excluded';
 
     public const GST_INCLUDED = 'included';
+
+    public const STOCK_STATUS_IN_STOCK = 'in_stock';
+
+    public const STOCK_STATUS_OUT_OF_STOCK = 'out_of_stock';
 
     /**
      * @return list<string>
@@ -74,6 +79,22 @@ class Product extends Model
     ];
 
     public $timestamps = true;
+
+    /**
+     * Legacy inventory columns still exist on some databases and may be NOT NULL.
+     */
+    public function applyLegacyStockDefaults(): self
+    {
+        if (Schema::hasColumn($this->getTable(), 'stock_status')) {
+            $this->stock_status = $this->stock_status ?: self::STOCK_STATUS_IN_STOCK;
+        }
+
+        if (Schema::hasColumn($this->getTable(), 'stock') && $this->stock === null) {
+            $this->stock = 0;
+        }
+
+        return $this;
+    }
 
     public function details()
     {

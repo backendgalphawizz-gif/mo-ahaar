@@ -320,6 +320,7 @@ class CartController extends Controller
         $code = strtoupper(trim($validated['promo_code']));
         $offer = DiscountOffer::active()
             ->currentlyValid()
+            ->where('apply_to', DiscountOffer::APPLY_ALL)
             ->whereRaw('UPPER(title) = ?', [$code])
             ->first();
 
@@ -354,8 +355,7 @@ class CartController extends Controller
             return response()->json(['status' => false, 'message' => 'Customer profile not found'], 404);
         }
 
-        $customer->cart_promo_code = null;
-        $customer->cart_discount_offer_id = null;
+        CustomerPromoResolver::clearCustomerCartPromo($customer);
         $customer->save();
 
         return response()->json([
@@ -439,6 +439,9 @@ class CartController extends Controller
             ]);
         }
         $customer = $customerQuery->first();
+        if ($customer) {
+            CustomerPromoResolver::sanitizeCustomerPromo($customer);
+        }
 
         $activeVendorId = $this->resolveCartVendorId($customerId);
 
@@ -451,83 +454,18 @@ class CartController extends Controller
 
     private function buildCartResponse($items, ?Customers $customer = null, ?int $activeVendorId = null): array
     {
-        $offers = Schema::hasTable('discount_offers')
-            ? DiscountOffer::active()->currentlyValid()->get()
-            : collect();
-
         $cartItems = $items->map(fn (CartItem $item) => $this->formatCartItem($item))->values();
 
         $subtotal = $cartItems->sum(fn ($i) => (float) $i['line_total']);
 
-        $totalOfferDiscount = 0.0;
-        $appliedOffers = [];
-
-        foreach ($items as $item) {
-            $product = $item->product;
-            if (!$product) {
-                continue;
-            }
-
-            $unitPrice = (float) ($item->sale_price ?: $item->unit_price);
-            $qty = (int) $item->quantity;
-            $categoryId = $product->category_id ? (int) $product->category_id : null;
-
-            foreach ($offers as $offer) {
-                if (!$offer->appliesToProduct((int) $product->product_id, $categoryId)) {
-                    continue;
-                }
-
-                $lineDiscount = $offer->calculateLineDiscount($qty, $unitPrice);
-                if ($lineDiscount <= 0) {
-                    continue;
-                }
-
-                $totalOfferDiscount += $lineDiscount;
-                $appliedOffers[$offer->id] = [
-                    'offer_id' => $offer->id,
-                    'title' => $offer->title,
-                    'type' => $offer->discount_type,
-                    'value' => number_format((float) $offer->discount_value, 2, '.', ''),
-                ];
-            }
-        }
-
-        foreach ($offers as $offer) {
-            if (!$offer->cartAmountConditionMet($subtotal)) {
-                unset($appliedOffers[$offer->id]);
-            }
-        }
-
-        $totalOfferDiscount = 0.0;
-        foreach ($items as $item) {
-            $product = $item->product;
-            if (!$product) {
-                continue;
-            }
-            $unitPrice = (float) ($item->sale_price ?: $item->unit_price);
-            $qty = (int) $item->quantity;
-            $categoryId = $product->category_id ? (int) $product->category_id : null;
-
-            foreach ($offers as $offer) {
-                if (!isset($appliedOffers[$offer->id])) {
-                    continue;
-                }
-                if (!$offer->appliesToProduct((int) $product->product_id, $categoryId)) {
-                    continue;
-                }
-                $totalOfferDiscount += $offer->calculateLineDiscount($qty, $unitPrice);
-            }
-        }
+        $lineOffers = CustomerPromoResolver::calculateAutomaticLineOfferDiscounts($items, $subtotal);
+        $totalOfferDiscount = (float) $lineOffers['discount'];
+        $appliedOffers = $lineOffers['applied'];
 
         $eligiblePromoSubtotal = max(0, round($subtotal - $totalOfferDiscount, 2));
-        $promo = CustomerPromoResolver::resolve($customer, $eligiblePromoSubtotal);
+        $promo = CustomerPromoResolver::resolveExplicitCartPromo($customer, $eligiblePromoSubtotal);
         $promoDiscount = (float) $promo['discount'];
         $promoCode = $promo['code'];
-
-        if ($customer && $promo['offer']) {
-            CustomerPromoResolver::syncCustomerCartPromo($customer, $promo['offer']);
-            $customer->save();
-        }
 
         $deliveryFee = $items->isEmpty() ? 0.0 : (float) config('customer-app.delivery_fee', 40);
         $taxAmount = $this->estimateCartTaxAmount($items);
@@ -549,8 +487,8 @@ class CartController extends Controller
             'other_vendor_groups' => [],
             'cooking_instructions' => $customer?->cart_cooking_instructions,
             'promo_code' => $promoCode,
-            'promo_applied' => $promoCode !== null,
-            'has_promo_applied' => $promoCode !== null,
+            'promo_applied' => CustomerPromoResolver::customerHasExplicitCartPromo($customer) && $promoCode !== null,
+            'has_promo_applied' => CustomerPromoResolver::customerHasExplicitCartPromo($customer) && $promoCode !== null,
             'promo_message' => $promoCode
                 ? "Code '{$promoCode}' applied! You saved ₹" . number_format($promoDiscount, 2, '.', '')
                 : null,
@@ -620,12 +558,7 @@ class CartController extends Controller
         if (Schema::hasColumn('customers', 'cart_cooking_instructions')) {
             $customer->cart_cooking_instructions = null;
         }
-        if (Schema::hasColumn('customers', 'cart_promo_code')) {
-            $customer->cart_promo_code = null;
-        }
-        if (Schema::hasColumn('customers', 'cart_discount_offer_id')) {
-            $customer->cart_discount_offer_id = null;
-        }
+        CustomerPromoResolver::clearCustomerCartPromo($customer);
         if (Schema::hasColumn('customers', 'active_cart_vendor_id')) {
             $customer->active_cart_vendor_id = null;
         }

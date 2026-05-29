@@ -56,6 +56,8 @@ class CheckoutController extends Controller
             return response()->json(['status' => false, 'message' => 'Customer profile not found'], 404);
         }
 
+        CustomerPromoResolver::sanitizeCustomerPromo($customer);
+
         $items = $this->activeCartItems((int) $customer->customer_id);
 
         if ($items->isEmpty()) {
@@ -67,7 +69,7 @@ class CheckoutController extends Controller
         }
 
         $totals = $this->calculateCheckoutTotals($items, $customer);
-        $promoApplied = CustomerPromoResolver::customerHasPromoInCart($customer)
+        $promoApplied = CustomerPromoResolver::customerHasExplicitCartPromo($customer)
             && !empty($totals['promo_code']);
 
         $selectedAddress = $this->resolveSelectedCartAddress($customer);
@@ -87,7 +89,7 @@ class CheckoutController extends Controller
                 'offer_discount'   => number_format($totals['offer_discount'], 2, '.', ''),
                 'total_amount'     => number_format($totals['total_amount'], 2, '.', ''),
                 'cooking_instructions' => $customer->cart_cooking_instructions,
-                'promo_code' => $totals['promo_code'] ?? $customer->cart_promo_code,
+                'promo_code' => $totals['promo_code'],
                 'promo_applied' => $promoApplied,
                 'has_promo_applied' => $promoApplied,
                 'shipping_details' => [
@@ -154,6 +156,8 @@ class CheckoutController extends Controller
         if (!$customer) {
             return response()->json(['status' => false, 'message' => 'Customer profile not found'], 404);
         }
+
+        CustomerPromoResolver::sanitizeCustomerPromo($customer);
 
         // $shippingAddress = $this->resolveShippingAddress($customer, $validated['customer_address_id'] ?? null);
         // if (!$shippingAddress) {
@@ -334,6 +338,7 @@ class CheckoutController extends Controller
             'address_id' => ['nullable', 'integer'],
             'shipping_address' => ['nullable', 'string', 'max:1000'],
             'notes' => ['nullable', 'string', 'max:500'],
+            'cooking_instructions' => ['nullable', 'string', 'max:1000'],
             'razorpay_order_id' => ['nullable', 'string', 'max:255'],
             'razorpay_payment_id' => ['nullable', 'string', 'max:255'],
             'razorpay_signature' => ['nullable', 'string', 'max:255'],
@@ -356,6 +361,8 @@ class CheckoutController extends Controller
             return response()->json(['status' => false, 'message' => 'Customer profile not found'], 404);
         }
 
+        CustomerPromoResolver::sanitizeCustomerPromo($customer);
+
         $addressId = $validated['customer_address_id'] ?? $validated['address_id'] ?? $customer->cart_selected_address_id;
         $shippingAddressJson = $this->buildShippingAddressJson($customer, $user, $addressId, $validated['shipping_address'] ?? null);
         if ($shippingAddressJson === null) {
@@ -369,13 +376,6 @@ class CheckoutController extends Controller
 
         if ($validationError = $this->validateCheckoutItems($items, $user)) {
             return $validationError;
-        }
-
-        // Save notes to cooking instructions if provided
-        if (!empty($validated['notes']) && \Illuminate\Support\Facades\Schema::hasColumn('customers', 'cart_cooking_instructions')) {
-            $customer->cart_cooking_instructions = trim($validated['notes']);
-            $customer->save();
-            $customer->refresh();
         }
 
         $totals = $this->calculateCheckoutTotals($items, $customer);
@@ -397,7 +397,8 @@ class CheckoutController extends Controller
                 $paymentMethod,
                 $isCod ? 'pending' : $onlinePaymentStatus,
                 $isCod ? 'pending' : $onlineOrderStatus,
-                $notes
+                $notes,
+                $validated['cooking_instructions'] ?? null
             );
 
             if ($isOnline) {
@@ -414,12 +415,7 @@ class CheckoutController extends Controller
             CartItem::where('customer_id', $customer->customer_id)
                 ->whereIn('product_id', $orderedProductIds)
                 ->delete();
-            if (\Illuminate\Support\Facades\Schema::hasColumn('customers', 'cart_promo_code')) {
-                $customer->cart_promo_code = null;
-            }
-            if (\Illuminate\Support\Facades\Schema::hasColumn('customers', 'cart_discount_offer_id')) {
-                $customer->cart_discount_offer_id = null;
-            }
+            CustomerPromoResolver::clearCustomerCartPromo($customer);
             if (\Illuminate\Support\Facades\Schema::hasColumn('customers', 'cart_cooking_instructions')) {
                 $customer->cart_cooking_instructions = null;
             }
@@ -803,23 +799,19 @@ class CheckoutController extends Controller
     {
         [$cartPayload, $subtotal, $totalTax] = $this->buildCartSummary($items);
 
-        $lineSubtotal = $cartPayload ? array_sum(array_map(
+        $merchandiseTotal = $cartPayload ? array_sum(array_map(
             fn ($row) => (float) $row['line_total'],
             $cartPayload
         )) : 0.0;
 
-        $offerDiscount = max(0, $lineSubtotal - $subtotal);
-        $eligiblePromoSubtotal = max(0, round($lineSubtotal - $offerDiscount, 2));
-        $promo = CustomerPromoResolver::resolve($customer, $eligiblePromoSubtotal);
+        $lineOffers = CustomerPromoResolver::calculateAutomaticLineOfferDiscounts($items, $merchandiseTotal);
+        $offerDiscount = (float) $lineOffers['discount'];
+        $eligiblePromoSubtotal = max(0, round($merchandiseTotal - $offerDiscount, 2));
+        $promo = CustomerPromoResolver::resolveExplicitCartPromo($customer, $eligiblePromoSubtotal);
         $promoDiscount = (float) $promo['discount'];
 
-        if ($promo['offer'] && ($promo['code'] || $promo['offer_id'])) {
-            CustomerPromoResolver::syncCustomerCartPromo($customer, $promo['offer']);
-            $customer->save();
-        }
-
         $deliveryFee = $items->isEmpty() ? 0.0 : (float) config('customer-app.delivery_fee', 40);
-        $totalAmount = max(0, $subtotal - $promoDiscount + $deliveryFee + $totalTax);
+        $totalAmount = max(0, $merchandiseTotal - $offerDiscount - $promoDiscount + $deliveryFee);
 
         return [
             'cart_payload' => $cartPayload,
@@ -842,7 +834,8 @@ class CheckoutController extends Controller
         string $paymentMethod,
         string $paymentStatus,
         string $orderStatus,
-        string $notes
+        string $notes,
+        ?string $cookingInstructions = null
     ): Orders {
         $vendorId = $items->first()->product->vendor_id ?? null;
 
@@ -860,6 +853,10 @@ class CheckoutController extends Controller
             'shipping_address' => $shippingAddressJson,
             'notes' => $notes !== '' ? $notes : null,
         ];
+
+        if (\Illuminate\Support\Facades\Schema::hasColumn('orders', 'cooking_instructions')) {
+            $orderData['cooking_instructions'] = $cookingInstructions;
+        }
 
         if (\Illuminate\Support\Facades\Schema::hasColumn('orders', 'gst_amount')) {
             $orderData['gst_amount'] = $totals['tax_amount'];
@@ -880,6 +877,24 @@ class CheckoutController extends Controller
         }
 
         $order = Orders::create($orderData);
+
+        if (!empty($totals['promo_code']) || (float) ($totals['promo_discount'] ?? 0) > 0) {
+            $promoUpdates = [];
+            if (\Illuminate\Support\Facades\Schema::hasColumn('orders', 'promo_code')) {
+                $promoUpdates['promo_code'] = strtoupper(trim((string) $totals['promo_code']));
+            }
+            if (\Illuminate\Support\Facades\Schema::hasColumn('orders', 'promo_discount')) {
+                $promoUpdates['promo_discount'] = $totals['promo_discount'] ?? 0;
+            }
+            if (\Illuminate\Support\Facades\Schema::hasColumn('orders', 'discount_offer_id')) {
+                $promoUpdates['discount_offer_id'] = $totals['discount_offer_id'] ?? null;
+            }
+            if ($promoUpdates !== []) {
+                Orders::where('order_id', $order->order_id)->update($promoUpdates);
+            }
+        }
+
+        $order->refresh();
 
         foreach ($items as $item) {
             $product = $item->product;
