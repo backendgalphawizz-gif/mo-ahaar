@@ -94,7 +94,7 @@ class OrderController extends DriverAppController
 
         return response()->json([
             'status' => true,
-            'message' => 'Order filters retrieved successfully',
+            'message' => 'Order filter options retrieved successfully',
             'data' => [
                 'filters' => $this->myOrdersFilterCounts((int) $driver->user_id),
             ],
@@ -152,7 +152,7 @@ class OrderController extends DriverAppController
 
         return response()->json([
             'status' => true,
-            'message' => 'Order retrieved successfully',
+            'message' => 'Order details retrieved successfully',
             'data' => [
                 'order' => $detail,
             ],

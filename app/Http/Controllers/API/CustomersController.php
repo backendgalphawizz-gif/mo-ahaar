@@ -17,13 +17,13 @@ class CustomersController extends Controller
 
             return response()->json([
                 'status' => true,
-                'message' => 'Customers retrieved successfully',
+                'message' => 'Customers loaded successfully',
                 'data' => $customers
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
                 'status' => false,
-                'message' => 'Error retrieving customers',
+                'message' => 'Unable to load customers. Please try again',
                 'error' => $e->getMessage()
             ], 500);
         }

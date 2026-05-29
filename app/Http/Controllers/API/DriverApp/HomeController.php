@@ -59,7 +59,7 @@ class HomeController extends DriverAppController
 
         return response()->json([
             'status' => true,
-            'message' => 'Dashboard retrieved successfully',
+            'message' => 'Dashboard loaded successfully',
             'data' => [
                 'total_earnings' => $totalEarnings,
                 'currency' => 'INR',
@@ -105,7 +105,7 @@ class HomeController extends DriverAppController
 
         return response()->json([
             'status' => true,
-            'message' => 'New deliveries retrieved successfully',
+            'message' => 'Available deliveries retrieved successfully',
             'data' => [
                 'deliveries' => $items,
                 'pagination' => [

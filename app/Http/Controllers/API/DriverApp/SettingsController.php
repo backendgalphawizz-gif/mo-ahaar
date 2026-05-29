@@ -40,7 +40,7 @@ class SettingsController extends DriverAppController
 
         return response()->json([
             'status' => true,
-            'message' => 'Business settings retrieved successfully',
+            'message' => 'App settings loaded successfully',
             'data' => [
                 'pages' => $pages,
                 'privacy_policy' => $pages['privacy_policy'],

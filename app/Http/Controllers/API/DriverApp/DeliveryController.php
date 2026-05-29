@@ -30,7 +30,7 @@ class DeliveryController extends DriverAppController
         if ($assignment->status !== DeliveryAssignment::STATUS_NEW || $assignment->driver_id !== null) {
             return response()->json([
                 'status' => false,
-                'message' => 'This delivery is no longer available to accept.',
+                'message' => 'This delivery has already been assigned to another driver',
             ], 422);
         }
 
@@ -41,7 +41,7 @@ class DeliveryController extends DriverAppController
         if ($alreadyRejected) {
             return response()->json([
                 'status' => false,
-                'message' => 'You have already rejected this delivery.',
+                'message' => 'You have already declined this delivery',
             ], 422);
         }
 
@@ -64,7 +64,7 @@ class DeliveryController extends DriverAppController
 
         return response()->json([
             'status' => true,
-            'message' => 'Delivery accepted successfully',
+            'message' => 'Delivery accepted successfully! You can now start the pickup',
             'data' => [
                 'delivery' => $this->formatAssignmentItem($assignment),
             ],
@@ -132,7 +132,7 @@ class DeliveryController extends DriverAppController
 
         return response()->json([
             'status' => false,
-            'message' => 'You cannot reject this delivery.',
+            'message' => 'You cannot decline this delivery at this stage',
         ], 422);
     }
 }

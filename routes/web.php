@@ -144,6 +144,8 @@ Route::middleware(['AdminAuth'])->prefix('admin')->group(function(){
         Route::post('/toggle-product-status/{id}',[ProductManagementController::class,'toggleStatus'])->name('admin.products.toggle-status');
         Route::get('/products/export-excel', [ProductManagementController::class, 'exportProductsExcel'])->name('admin.products.export-excel');
         Route::get('/products/export-pdf', [ProductManagementController::class, 'exportProductsPdf'])->name('admin.products.export-pdf');
+        Route::get('/products/bulk-import/sample', [ProductManagementController::class, 'downloadBulkImportSample'])->name('admin.products.bulk-import.sample');
+        Route::post('/products/bulk-import', [ProductManagementController::class, 'importProductsBulk'])->name('admin.products.bulk-import');
 
         // AJAX: Change product category
         Route::post('/products/change-category', [ProductManagementController::class, 'changeProductCategory'])->name('admin.products.change-category');
@@ -299,6 +301,8 @@ Route::middleware(['VendorAuth'])->prefix('vendor')->name('vendor.')->group(func
         Route::post('/update-product',[ProductManagementController::class,'updateProduct'])->name('update-product');
         Route::post('/delete-product/{id}',[ProductManagementController::class,'deleteProduct'])->name('delete-product');
         Route::post('/toggle-product-status/{id}',[ProductManagementController::class,'toggleStatus'])->name('products.toggle-status');
+        Route::get('/products/bulk-import/sample', [ProductManagementController::class, 'downloadBulkImportSample'])->name('products.bulk-import.sample');
+        Route::post('/products/bulk-import', [ProductManagementController::class, 'importProductsBulk'])->name('products.bulk-import');
 
         Route::get('/orders',[VendorPanelController::class,'orders'])->name('orders');
         Route::get('/order-details/{id}',[VendorPanelController::class,'orderDetails'])->name('order-details');

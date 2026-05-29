@@ -33,16 +33,35 @@
                     </div>
                 @endif
 
+                @php $bulkImportErrors = session('bulk_import_errors', []); @endphp
+                @if(!empty($bulkImportErrors))
+                    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                        <strong>Some rows could not be imported:</strong>
+                        <ul class="mb-0 mt-2 small">
+                            @foreach($bulkImportErrors as $line => $errorMessage)
+                                <li>Row {{ $line }}: {{ $errorMessage }}</li>
+                            @endforeach
+                        </ul>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                @endif
+
                 <div class="card dashboard-card">
                     <div class="card-body">
-                        <div class="d-flex justify-content-end align-items-center gap-2 mb-3">
+                        <div class="d-flex flex-wrap justify-content-end align-items-center gap-2 mb-3">
                             <form method="GET" action="{{ route($isVendorPanel ? 'vendor.products' : 'admin.products') }}" class="d-flex align-items-center gap-2" style="max-width: 360px;">
                                 <i class="ri-search-line"></i>
                                 <input type="text" name="search" class="form-control form-control-sm" value="{{ $search ?? '' }}" placeholder="Search food items...">
                                 <button type="submit" class="btn btn-outline-secondary btn-sm">Search</button>
                             </form>
+                            <a href="{{ route($isVendorPanel ? 'vendor.products.bulk-import.sample' : 'admin.products.bulk-import.sample') }}" class="btn btn-outline-primary btn-sm">
+                                <i class="ri-file-download-line me-1"></i>Sample Excel
+                            </a>
+                            <button type="button" class="btn btn-figma-primary btn-sm" data-bs-toggle="modal" data-bs-target="#bulkImportModal">
+                                <i class="ri-upload-2-line me-1"></i>Bulk Upload
+                            </button>
+                            @if(!$isVendorPanel)
                             <div class="dropdown">
-                                @if(!$isVendorPanel)
                                 <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
                                     <i class="ri-download-line me-1"></i>Export Data
                                 </button>
@@ -50,8 +69,8 @@
                                     <li><a class="dropdown-item" href="{{ route('admin.products.export-excel', array_filter(['search' => $search ?? ''])) }}">Export Excel</a></li>
                                     <li><a class="dropdown-item" href="{{ route('admin.products.export-pdf', array_filter(['search' => $search ?? ''])) }}">Export PDF</a></li>
                                 </ul>
-                                @endif
                             </div>
+                            @endif
                         </div>
                       
                         <div class="table-responsive">
@@ -143,6 +162,50 @@
                                 </div>
                             </div>
                         @endif
+                    </div>
+                </div>
+
+                <div class="modal fade" id="bulkImportModal" tabindex="-1" aria-labelledby="bulkImportModalLabel" aria-hidden="true">
+                    <div class="modal-dialog modal-lg modal-dialog-centered">
+                        <div class="modal-content">
+                            <form method="POST" action="{{ route($isVendorPanel ? 'vendor.products.bulk-import' : 'admin.products.bulk-import') }}" enctype="multipart/form-data">
+                                @csrf
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="bulkImportModalLabel">Bulk Upload Products</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <p class="text-muted small mb-3">
+                                        Download the sample Excel, fill in your menu items, and upload the file here.
+                                        Thumbnail images use a default placeholder for bulk rows (edit each product later to add photos).
+                                    </p>
+                                    <div class="mb-3">
+                                        <a href="{{ route($isVendorPanel ? 'vendor.products.bulk-import.sample' : 'admin.products.bulk-import.sample') }}" class="btn btn-outline-primary btn-sm">
+                                            <i class="ri-file-download-line me-1"></i>Download Sample Excel
+                                        </a>
+                                    </div>
+                                    <div class="border rounded p-3 bg-light small mb-3">
+                                        <strong>Required columns (*):</strong>
+                                        <span class="d-block mt-1">product_name*, category*, product_type* (veg / non-veg), price*, ingredients*</span>
+                                        <strong class="d-block mt-2">Optional:</strong>
+                                        sub_category, discount, gst_percentage, gst_calculation_type (excluded / included), min_quantity, sku, tags, featured (0 or 1)
+                                        @if(!$isVendorPanel)
+                                            , vendor_id (restaurant ID for admin uploads)
+                                        @endif
+                                    </div>
+                                    <div class="mb-0">
+                                        <label for="import_file" class="form-label">Upload file (.csv, .xls, .xlsx)</label>
+                                        <input type="file" name="import_file" id="import_file" class="form-control" accept=".csv,.xls,.xlsx,.txt" required>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                                    <button type="submit" class="btn btn-figma-primary">
+                                        <i class="ri-upload-cloud-line me-1"></i>Upload &amp; Import
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
                 </div>
 

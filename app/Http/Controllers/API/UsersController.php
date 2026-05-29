@@ -17,13 +17,13 @@ class UsersController extends Controller
 
             return response()->json([
                 'status' => true,
-                'message' => 'Users retrieved successfully',
+                'message' => 'Users loaded successfully',
                 'data' => $users
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
                 'status' => false,
-                'message' => 'Error retrieving users',
+                'message' => 'Unable to load users. Please try again',
                 'error' => $e->getMessage()
             ], 500);
         }

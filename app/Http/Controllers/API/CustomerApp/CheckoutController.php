@@ -76,7 +76,7 @@ class CheckoutController extends Controller
 
         return response()->json([
             'status'  => true,
-            'message' => 'Checkout summary',
+            'message' => 'Checkout summary retrieved successfully',
             'data'    => [
                 'cart_items'       => $totals['cart_payload'],
                 'items_count'      => count($totals['cart_payload']),
@@ -116,7 +116,7 @@ class CheckoutController extends Controller
     {
         $user = $request->user();
         if (!$this->isAuthorizedCustomer($user)) {
-            return response()->json(['status' => false, 'message' => 'Unauthorized customer access'], 403);
+            return response()->json(['status' => false, 'message' => 'Please log in to view payment options'], 403);
         }
 
         return response()->json([
@@ -139,7 +139,7 @@ class CheckoutController extends Controller
     {
         $user = $request->user();
         if (!$this->isAuthorizedCustomer($user)) {
-            return response()->json(['status' => false, 'message' => 'Unauthorized customer access'], 403);
+            return response()->json(['status' => false, 'message' => 'Please log in to create your order'], 403);
         }
 
         if ($denied = $this->denyCustomerOrder($user)) {
@@ -154,20 +154,20 @@ class CheckoutController extends Controller
 
         $customer = Customers::with(['addresses', 'defaultAddress'])->where('user_id', $user->user_id)->first();
         if (!$customer) {
-            return response()->json(['status' => false, 'message' => 'Customer profile not found'], 404);
+            return response()->json(['status' => false, 'message' => 'Unable to load your profile. Please try logging in again'], 404);
         }
 
         CustomerPromoResolver::sanitizeCustomerPromo($customer);
 
         // $shippingAddress = $this->resolveShippingAddress($customer, $validated['customer_address_id'] ?? null);
         // if (!$shippingAddress) {
-        //     return response()->json(['status' => false, 'message' => 'Shipping address not found'], 404);
+        //     return response()->json(['status' => false, 'message' => 'Please add a delivery address to continue'], 404);
         // }
 
         $items = $this->activeCartItems((int) $customer->customer_id);
 
         if ($items->isEmpty()) {
-            return response()->json(['status' => false, 'message' => 'Your cart is empty'], 422);
+            return response()->json(['status' => false, 'message' => 'Your cart is empty. Please add items before checkout'], 422);
         }
 
         if ($validationError = $this->validateCheckoutItems($items, $user)) {
@@ -269,7 +269,7 @@ class CheckoutController extends Controller
 
             return response()->json([
                 'status'  => true,
-                'message' => 'Order created. Complete payment to confirm.',
+                'message' => 'Order created successfully! Please complete the payment to confirm your order',
                 'data'    => [
                     // 'order_id'        => $order->order_id,
                     // 'order_number'    => $order->order_number,
@@ -325,7 +325,7 @@ class CheckoutController extends Controller
     {
         $user = $request->user();
         if (!$this->isAuthorizedCustomer($user)) {
-            return response()->json(['status' => false, 'message' => 'Unauthorized customer access'], 403);
+            return response()->json(['status' => false, 'message' => 'Please log in to place your order'], 403);
         }
 
         if ($denied = $this->denyCustomerOrder($user)) {
@@ -366,7 +366,7 @@ class CheckoutController extends Controller
         $addressId = $validated['customer_address_id'] ?? $validated['address_id'] ?? $customer->cart_selected_address_id;
         $shippingAddressJson = $this->buildShippingAddressJson($customer, $user, $addressId, $validated['shipping_address'] ?? null);
         if ($shippingAddressJson === null) {
-            return response()->json(['status' => false, 'message' => 'Shipping address not found'], 404);
+            return response()->json(['status' => false, 'message' => 'Please add a delivery address to continue'], 404);
         }
 
         $items = $this->activeCartItems((int) $customer->customer_id);
@@ -436,7 +436,7 @@ class CheckoutController extends Controller
 
             return response()->json([
                 'status' => true,
-                'message' => 'Order placed successfully',
+                'message' => 'Your order has been placed successfully!',
                 'data' => [
                     'order_id' => $order->order_id,
                     'order_number' => $order->order_number,
@@ -458,7 +458,7 @@ class CheckoutController extends Controller
 
             return response()->json([
                 'status' => false,
-                'message' => 'Failed to place order. Please try again.',
+                'message' => 'We couldn\'t process your order. Please try again or contact support if the issue persists',
             ], 500);
         }
     }
@@ -558,7 +558,7 @@ class CheckoutController extends Controller
             if (!$product) {
                 return response()->json([
                     'status' => false,
-                    'message' => 'One or more products in your cart are no longer available.',
+                    'message' => 'Some items in your cart are no longer available. Please review and update your cart',
                     'data' => [
                         'reason' => 'missing_product',
                         'product_id' => $item->product_id,
@@ -595,7 +595,7 @@ class CheckoutController extends Controller
         if (count($vendorIds) > 1) {
             return response()->json([
                 'status' => false,
-                'message' => 'Your cart contains products from multiple vendors. Please place separate orders for each vendor.',
+                'message' => 'Your cart contains items from different restaurants. Please place separate orders for each restaurant',
                 'data' => [
                     'reason' => 'mixed_vendor_cart',
                     'vendor_ids' => $vendorIds,

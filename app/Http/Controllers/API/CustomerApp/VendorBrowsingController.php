@@ -70,7 +70,7 @@ class VendorBrowsingController extends Controller
 
         return response()->json([
             'status' => true,
-            'message' => 'Nearby restaurants retrieved successfully',
+            'message' => 'Nearby restaurants loaded successfully',
             'data' => [
                 'search_center' => [
                     'latitude' => $latitude,
@@ -115,7 +115,7 @@ class VendorBrowsingController extends Controller
 
         return response()->json([
             'status' => true,
-            'message' => 'Restaurant details retrieved successfully',
+            'message' => 'Restaurant details loaded successfully',
             'data' => [
                 'restaurant' => array_merge($this->mapVendorModel($vendor), [
                     'distance_km' => $distanceKm !== null ? round($distanceKm, 1) : null,

@@ -78,11 +78,11 @@ class TicketController extends Controller
 
         $ticket = $this->tickets->findForUser($ticketId, (int) $user->user_id);
         if (!$ticket) {
-            return response()->json(['status' => false, 'message' => 'Ticket not found'], 404);
+            return response()->json(['status' => false, 'message' => 'Support ticket not found'], 404);
         }
 
         if ($ticket->status === Ticket::STATUS_CLOSED) {
-            return response()->json(['status' => false, 'message' => 'Closed tickets cannot be replied to.'], 422);
+            return response()->json(['status' => false, 'message' => 'This ticket has been closed and cannot be replied to'], 422);
         }
 
         $validated = $request->validate([

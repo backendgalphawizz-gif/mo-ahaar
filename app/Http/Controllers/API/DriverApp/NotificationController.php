@@ -112,7 +112,7 @@ class NotificationController extends DriverAppController
 
         return response()->json([
             'status' => true,
-            'message' => 'Notification marked as read',
+            'message' => 'Notification marked as read successfully',
         ], 200);
     }
 
@@ -200,7 +200,7 @@ class NotificationController extends DriverAppController
 
         return response()->json([
             'status' => true,
-            'message' => 'Notifications deleted successfully',
+            'message' => 'All selected notifications have been deleted successfully',
             'data' => [
                 'deleted_count' => $deleted,
             ],

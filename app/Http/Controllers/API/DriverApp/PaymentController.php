@@ -33,7 +33,7 @@ class PaymentController extends DriverAppController
 
         return response()->json([
             'status' => true,
-            'message' => 'Wallet retrieved successfully',
+            'message' => 'Wallet information retrieved successfully',
             'data' => [
                 'total_earnings' => $totalBalance,
                 'available_balance' => $available,
@@ -59,7 +59,7 @@ class PaymentController extends DriverAppController
         if (!Schema::hasTable('driver_transactions')) {
             return response()->json([
                 'status' => true,
-                'message' => 'Transactions retrieved successfully',
+                'message' => 'Transaction history retrieved successfully',
                 'data' => [
                     'transactions' => [],
                     'pagination' => [
@@ -154,13 +154,13 @@ class PaymentController extends DriverAppController
         if (!$transaction) {
             return response()->json([
                 'status' => false,
-                'message' => 'Transaction not found.',
+                'message' => 'Transaction not found. Please contact support if you believe this is an error',
             ], 404);
         }
 
         return response()->json([
             'status' => true,
-            'message' => 'Transaction retrieved successfully',
+            'message' => 'Transaction details retrieved successfully',
             'data' => [
                 'transaction' => $this->formatTransaction($transaction),
             ],
@@ -200,7 +200,7 @@ class PaymentController extends DriverAppController
 
         return response()->json([
             'status' => true,
-            'message' => 'Withdrawal request submitted successfully',
+            'message' => 'Your withdrawal request has been submitted successfully. Funds will be processed within 2-3 business days',
             'data' => [
                 'withdrawal_id' => $result['withdrawal']->withdrawal_id,
                 'transaction_ref' => '#' . $txn->transaction_ref,

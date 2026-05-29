@@ -59,7 +59,7 @@ class AuthController extends DriverAppController
 
         return response()->json([
             'status' => true,
-            'message' => 'Login successful',
+            'message' => 'Login successful! Welcome back',
             'token' => $token,
             'token_type' => 'Bearer',
             'data' => [
@@ -96,7 +96,7 @@ class AuthController extends DriverAppController
         if (!$this->otpMatches($user, $validated['otp'])) {
             return response()->json([
                 'status' => false,
-                'message' => 'Invalid or expired OTP.',
+                'message' => 'Invalid or expired OTP. Please request a new OTP and try again',
                 'errors' => ['otp' => ['Invalid or expired OTP.']],
             ], 422);
         }
@@ -114,7 +114,7 @@ class AuthController extends DriverAppController
 
         return response()->json([
             'status' => true,
-            'message' => 'OTP verified successfully',
+            'message' => 'OTP verified successfully! Redirecting to dashboard',
             'data' => [
                 'reset_token' => $resetToken,
                 'reset_token_expires_at' => now()->addMinutes(self::RESET_TOKEN_MINUTES)->toIso8601String(),
@@ -140,7 +140,7 @@ class AuthController extends DriverAppController
         if (!$userId) {
             return response()->json([
                 'status' => false,
-                'message' => 'Invalid or expired reset token.',
+                'message' => 'Invalid or expired reset link. Please request a new password reset',
             ], 422);
         }
 
@@ -151,7 +151,7 @@ class AuthController extends DriverAppController
         if (!$user) {
             return response()->json([
                 'status' => false,
-                'message' => 'Driver account not found.',
+                'message' => 'Driver account not found. Please contact support',
             ], 404);
         }
 
@@ -164,7 +164,7 @@ class AuthController extends DriverAppController
 
         return response()->json([
             'status' => true,
-            'message' => 'Password created successfully',
+            'message' => 'Password created successfully! You can now log in with your new password',
             'token' => $token,
             'token_type' => 'Bearer',
             'data' => [
@@ -179,7 +179,7 @@ class AuthController extends DriverAppController
         if (!$user) {
             return response()->json([
                 'status' => false,
-                'message' => 'Unauthorized driver access',
+                'message' => 'Session expired. Please log in again',
             ], 403);
         }
 
@@ -200,7 +200,7 @@ class AuthController extends DriverAppController
 
         return response()->json([
             'status' => true,
-            'message' => 'Logged out successfully',
+            'message' => 'You have been logged out successfully',
         ], 200);
     }
 
@@ -219,7 +219,7 @@ class AuthController extends DriverAppController
 
             return response()->json([
                 'status' => false,
-                'message' => 'Too many OTP requests. Please try again later.',
+                'message' => 'Too many OTP requests. Please wait a few minutes before trying again',
             ], 429)->header('Retry-After', (string) $seconds);
         }
 
@@ -231,7 +231,7 @@ class AuthController extends DriverAppController
 
                 return response()->json([
                     'status' => false,
-                    'message' => "Please wait {$wait} seconds before requesting a new OTP.",
+                    'message' => "Please wait {$wait} seconds before requesting a new OTP",
                     'data' => ['resend_after_seconds' => $wait],
                 ], 429);
             }
@@ -257,7 +257,7 @@ class AuthController extends DriverAppController
 
         $payload = [
             'status' => true,
-            'message' => 'OTP sent successfully',
+            'message' => 'OTP sent successfully to your mobile number. Please check your messages',
             'data' => [
                 'masked_mobile' => $this->maskMobile($mobile),
                 'otp_expires_at' => $expiresAt->toIso8601String(),

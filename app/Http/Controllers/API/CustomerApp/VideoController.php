@@ -92,7 +92,7 @@ class VideoController extends Controller
 
         return response()->json([
             'status' => true,
-            'message' => 'Video feed retrieved successfully',
+            'message' => 'Video feed loaded successfully',
             'data' => [
                 'videos' => $videos,
             ],
@@ -126,7 +126,7 @@ class VideoController extends Controller
         if (!Schema::hasTable('customer_video_likes')) {
             return response()->json([
                 'status' => false,
-                'message' => 'Video likes feature is not available yet. Please run migrations.',
+                'message' => 'This feature is currently unavailable. Please try again later',
             ], 500);
         }
 
@@ -159,7 +159,7 @@ class VideoController extends Controller
 
         return response()->json([
             'status' => true,
-            'message' => $isLiked ? 'Video liked successfully' : 'Video unliked successfully',
+            'message' => $isLiked ? 'Video liked successfully!' : 'Video unliked successfully',
             'data' => [
                 'video_key' => $videoKey,
                 'is_liked' => $isLiked,
@@ -196,7 +196,7 @@ class VideoController extends Controller
         if (!Schema::hasTable('customer_video_shares')) {
             return response()->json([
                 'status' => false,
-                'message' => 'Video sharing feature is not available yet. Please run migrations.',
+                'message' => 'This feature is currently unavailable. Please try again later',
             ], 500);
         }
 
@@ -217,7 +217,7 @@ class VideoController extends Controller
 
         return response()->json([
             'status' => true,
-            'message' => 'Video shared successfully',
+            'message' => 'Video shared successfully!',
             'data' => [
                 'video_key' => $videoKey,
                 'shares' => (int) $totalShares,

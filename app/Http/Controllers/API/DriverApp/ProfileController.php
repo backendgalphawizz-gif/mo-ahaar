@@ -118,7 +118,7 @@ class ProfileController extends DriverAppController
 
         return response()->json([
             'status' => true,
-            'message' => 'Personal information updated successfully',
+            'message' => 'Your profile has been updated successfully',
             'data' => [
                 'personal_information' => $this->formatPersonalInformation($driver->fresh(), $profile->fresh()),
             ],
@@ -153,7 +153,7 @@ class ProfileController extends DriverAppController
 
         return response()->json([
             'status' => true,
-            'message' => 'Bank information updated successfully',
+            'message' => 'Bank information updated successfully! Changes will be reflected in your next payout',
             'data' => [
                 'bank_information' => $this->formatBankInformation($profile->fresh()),
             ],
@@ -230,7 +230,7 @@ class ProfileController extends DriverAppController
             && empty($validated['document_type'])) {
             return response()->json([
                 'status' => false,
-                'message' => 'At least one document update is required.',
+                'message' => 'Please upload at least one document to update',
             ], 422);
         }
 
@@ -250,7 +250,7 @@ class ProfileController extends DriverAppController
 
         return response()->json([
             'status' => true,
-            'message' => 'Documents updated successfully',
+            'message' => 'Documents uploaded successfully! They will be reviewed shortly',
             'data' => [
                 'personal_information' => $this->formatPersonalInformation($driver, $profile->fresh()),
                 'vehicle_information' => $this->formatVehicleInformation($profile->fresh()),

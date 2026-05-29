@@ -13,6 +13,7 @@ use App\Models\GstTax;
 use App\Models\DiscountOffer;
 use App\Models\ProductReview;
 use App\Models\StoreSetting;
+use App\Services\ProductBulkImportService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Crypt;
@@ -797,6 +798,72 @@ class ProductManagementController extends Controller
         } while (Product::where('sku', $sku)->exists());
 
         return $sku;
+    }
+
+    public function downloadBulkImportSample()
+    {
+        $includeVendor = !$this->isVendorPanel();
+        $headers = ProductBulkImportService::SAMPLE_HEADERS;
+        if (!$includeVendor) {
+            $headers = array_values(array_filter($headers, fn ($h) => $h !== 'vendor_id'));
+        }
+
+        $service = new ProductBulkImportService();
+        $rows = $service->sampleDataRows($includeVendor);
+
+        $fileName = 'products-bulk-import-sample-' . date('Y-m-d') . '.xls';
+        $displayHeaders = array_map(
+            fn ($h) => in_array($h, ['product_name', 'category', 'product_type', 'price', 'ingredients'], true) ? $h . '*' : $h,
+            $headers
+        );
+
+        $callback = function () use ($displayHeaders, $rows, $headers) {
+            echo implode("\t", $displayHeaders) . "\n";
+            foreach ($rows as $row) {
+                $line = [];
+                foreach ($headers as $key) {
+                    $line[] = str_replace(["\t", "\r", "\n"], ' ', (string) ($row[$key] ?? ''));
+                }
+                echo implode("\t", $line) . "\n";
+            }
+        };
+
+        return response()->stream($callback, 200, [
+            'Content-Type' => 'application/vnd.ms-excel',
+            'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
+            'Pragma' => 'no-cache',
+            'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
+            'Expires' => '0',
+        ]);
+    }
+
+    public function importProductsBulk(Request $request, ProductBulkImportService $bulkImport)
+    {
+        $request->validate([
+            'import_file' => ['required', 'file', 'mimes:csv,txt,xls,xlsx', 'max:5120'],
+        ], [
+            'import_file.required' => 'Please choose a file to upload.',
+            'import_file.mimes' => 'File must be CSV or Excel (.csv, .xls, .xlsx).',
+            'import_file.max' => 'File may not be greater than 5MB.',
+        ]);
+
+        $forcedVendorId = $this->isVendorPanel() ? $this->currentVendorId() : null;
+        $allowVendorColumn = !$this->isVendorPanel();
+
+        $result = $bulkImport->import(
+            $request->file('import_file'),
+            $forcedVendorId,
+            $allowVendorColumn
+        );
+
+        $message = $result['created'] . ' product(s) imported successfully.';
+        if ($result['failed'] > 0) {
+            $message .= ' ' . $result['failed'] . ' row(s) failed.';
+        }
+
+        return redirect($this->panelRoute('admin.products', 'vendor.products'))
+            ->with('success', $message)
+            ->with('bulk_import_errors', $result['errors']);
     }
 
     public function exportProductsExcel(Request $request)

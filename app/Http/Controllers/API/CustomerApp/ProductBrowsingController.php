@@ -35,7 +35,7 @@ class ProductBrowsingController extends Controller
     {
         $user = $request->user();
         if (!$user || (int) $user->role_type !== self::CUSTOMER_ROLE_TYPE) {
-            return response()->json(['status' => false, 'message' => 'Unauthorized customer access'], 403);
+            return response()->json(['status' => false, 'message' => 'Please log in to browse products'], 403);
         }
 
         $validated = $request->validate([
