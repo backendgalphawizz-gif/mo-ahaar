@@ -14443,9 +14443,13 @@ strong ~ p {
 }
 
 .form-switch .form-check-input:checked {
-  background-color: var(--theme-color);
-  border-color: var(--theme-color);
-  background-image:url("../images/status-circle.png") !important;
+background-color: #fef2f2 !important;
+    border-color: #e31e24 !important;
+    padding: 2px;
+    height: 17px;
+    width: 34px;
+    border-width: 2px;
+    background-image: url(../images/status-circle.png) !important;
 }
 
 .nav-pills .nav-link.active,
