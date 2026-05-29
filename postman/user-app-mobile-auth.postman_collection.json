@@ -463,7 +463,15 @@
           "name": "Order History",
           "request": {
             "method": "GET",
-            "url": "{{base_url}}/customer-app/orders/history"
+            "url": {
+              "raw": "{{base_url}}/customer-app/orders/history?date=2026-05-28",
+              "query": [
+                { "key": "date", "value": "2026-05-28", "disabled": true },
+                { "key": "from_date", "value": "2026-05-01", "disabled": true },
+                { "key": "to_date", "value": "2026-05-31", "disabled": true }
+              ]
+            },
+            "description": "Date filter: date (single day), or from_date + to_date range. Figma-matched status, vendor, items."
           }
         },
         {

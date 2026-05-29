@@ -11,7 +11,9 @@ use App\Models\OrderTracking;
 use App\Models\ProductReview;
 use App\Models\StoreSetting;
 use App\Models\Users;
+use App\Models\Vendor;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -32,9 +34,8 @@ class OrdersController extends Controller
     }
 
     // -----------------------------------------------------------------------
-    // GET /api/customer-app/orders
-    // List all orders for the authenticated customer (paginated)
-    // Query: status (optional), page (optional, default 1), per_page (optional, default 15)
+    // GET /api/customer-app/orders | /orders/history
+    // List orders (paginated). Query: status, date | from_date + to_date, page, per_page
     // -----------------------------------------------------------------------
     public function index(Request $request)
     {
@@ -65,6 +66,8 @@ class OrdersController extends Controller
             $statusFilter = $this->normalizeStatus((string) $request->input('status'));
             $query->where('order_status', $statusFilter);
         }
+
+        $this->applyOrderDateFilter($query, $request);
 
         $orders = $query->orderByDesc('order_id')->paginate($perPage);
 
@@ -382,12 +385,17 @@ class OrdersController extends Controller
         $itemCount = $order->orderItems->count();
         $firstItem = $order->orderItems->first();
         $normalizedStatus = $this->normalizeStatus((string) $order->order_status);
-        $statusLabel = Orders::statusLabel($normalizedStatus);
+        $displayStatus = $this->historyDisplayStatus($normalizedStatus);
+        $statusTheme = $this->historyStatusTheme($displayStatus['key']);
+        $placedAt = $order->created_at;
+        $isFinalStatus = in_array($displayStatus['key'], ['delivered', 'cancelled'], true);
 
         $firstItemImageUrl = null;
         if ($firstItem && $firstItem->product && !empty($firstItem->product->product_image)) {
             $firstItemImageUrl = url('public/uploads/products/' . $firstItem->product->product_image);
         }
+
+        $vendorPayload = $this->formatOrderVendor($order, $firstItemImageUrl);
 
         $productImages = $order->orderItems->map(function (OrderItem $item) {
             return [
@@ -402,25 +410,34 @@ class OrdersController extends Controller
         $previewItems = $order->orderItems->take(2)->map(function (OrderItem $item) {
             return [
                 'product_name' => $item->product_name,
-                'quantity' => $item->quantity,
+                'display_name' => $this->formatOrderItemDisplayName($item),
+                'quantity' => (int) $item->quantity,
                 'line_total' => number_format((float) $item->line_total, 2, '.', ''),
-                'is_vegetarian' => true,
+                'is_vegetarian' => $this->orderItemIsVegetarian($item),
             ];
         })->values();
 
         $moreCount = max(0, $itemCount - $previewItems->count());
+        $totalAmount = (float) $order->total_amount;
 
         return [
             'order_id'              => $order->order_id,
             'order_number'          => $order->order_number,
-            'order_status'       => $statusLabel,
-            'order_status_label' => $statusLabel,
-            'raw_order_status' => $normalizedStatus,
+            'order_status'          => $displayStatus['label'],
+            'order_status_label'    => $displayStatus['label'],
+            'order_status_key'      => $displayStatus['key'],
+            'raw_order_status'      => $normalizedStatus,
+            'order_status_color'    => $statusTheme['color'],
+            'order_status_bg_color' => $statusTheme['bg_color'],
             'payment_method'        => $order->payment_method,
             'payment_status'        => $order->payment_status,
             'can_cancel'            => $this->canCancelOrder($order),
-            'total_amount'          => number_format((float) $order->total_amount, 2, '.', ''),
-            'bill_total'            => number_format((float) $order->total_amount, 2, '.', ''),
+            'show_cancel_button'    => $this->canCancelOrder($order),
+            'total_amount'          => number_format($totalAmount, 2, '.', ''),
+            'total_amount_formatted' => $this->formatIndianCurrency($totalAmount),
+            'bill_total'            => number_format($totalAmount, 2, '.', ''),
+            'bill_total_formatted'  => $this->formatIndianCurrency($totalAmount),
+            'bill_total_label'      => $isFinalStatus ? 'BILL TOTAL' : 'TOTAL AMOUNT',
             'items_count'           => $itemCount,
             'items_preview'         => $previewItems,
             'more_items_count'      => $moreCount,
@@ -428,13 +445,182 @@ class OrdersController extends Controller
             'first_item_name'       => $firstItem?->product_name,
             'first_item_image_url'  => $firstItemImageUrl,
             'products'              => $productImages,
-            'vendor' => ($order->relationLoaded('vendor') && $order->vendor) ? [
-                'vendor_id' => $order->vendor->vendor_id,
-                'restaurant_name' => $order->vendor->business_name,
-                'location' => $order->vendor->address,
-            ] : null,
-            'placed_at'             => $order->created_at ? $order->created_at->toDateTimeString() : null,
+            'vendor'                => $vendorPayload,
+            'restaurant'            => $vendorPayload,
+            'placed_at'             => $placedAt ? $placedAt->toDateTimeString() : null,
+            'placed_at_formatted'   => $placedAt ? $placedAt->format('j M Y, g:i A') : null,
+            'placed_at_date'        => $placedAt ? $placedAt->format('Y-m-d') : null,
+            'placed_at_time'        => $placedAt ? $placedAt->format('g:i A') : null,
         ];
+    }
+
+    private function applyOrderDateFilter($query, Request $request): void
+    {
+        $date = $request->input('date', $request->input('placed_on'));
+        if ($date) {
+            try {
+                $query->whereDate('created_at', Carbon::parse($date)->toDateString());
+            } catch (\Throwable) {
+                // ignore invalid date
+            }
+
+            return;
+        }
+
+        $fromDate = $request->input('from_date', $request->input('start_date'));
+        $toDate = $request->input('to_date', $request->input('end_date'));
+
+        if ($fromDate && $toDate) {
+            try {
+                $from = Carbon::parse($fromDate)->startOfDay();
+                $to = Carbon::parse($toDate)->endOfDay();
+                $query->whereBetween('created_at', [$from, $to]);
+            } catch (\Throwable) {
+                // ignore invalid range
+            }
+
+            return;
+        }
+
+        if ($fromDate) {
+            try {
+                $query->whereDate('created_at', '>=', Carbon::parse($fromDate)->toDateString());
+            } catch (\Throwable) {
+                // ignore
+            }
+        }
+
+        if ($toDate) {
+            try {
+                $query->whereDate('created_at', '<=', Carbon::parse($toDate)->toDateString());
+            } catch (\Throwable) {
+                // ignore
+            }
+        }
+    }
+
+    /**
+     * UI status buckets for order history (Figma).
+     *
+     * @return array{key: string, label: string}
+     */
+    private function historyDisplayStatus(string $normalizedStatus): array
+    {
+        return match ($normalizedStatus) {
+            self::STATUS_CANCELLED => ['key' => 'cancelled', 'label' => 'Cancelled'],
+            self::STATUS_DELIVERED => ['key' => 'delivered', 'label' => 'Delivered'],
+            self::STATUS_OUT_FOR_DELIVERY, self::STATUS_PICKED_UP => ['key' => 'out_for_delivery', 'label' => 'Out For Delivery'],
+            default => ['key' => 'preparing', 'label' => 'Preparing'],
+        };
+    }
+
+    /**
+     * @return array{color: string, bg_color: string}
+     */
+    private function historyStatusTheme(string $statusKey): array
+    {
+        return match ($statusKey) {
+            'delivered' => ['color' => '#16A34A', 'bg_color' => '#DCFCE7'],
+            'cancelled' => ['color' => '#DC2626', 'bg_color' => '#FEE2E2'],
+            'out_for_delivery' => ['color' => '#EA580C', 'bg_color' => '#FFEDD5'],
+            default => ['color' => '#7C3AED', 'bg_color' => '#EDE9FE'],
+        };
+    }
+
+    private function resolveOrderVendor(Orders $order): ?Vendor
+    {
+        if ($order->relationLoaded('vendor') && $order->vendor) {
+            return $order->vendor;
+        }
+
+        if (!empty($order->vendor_id) && Schema::hasTable('vendors')) {
+            $vendor = Vendor::find($order->vendor_id);
+            if ($vendor) {
+                return $vendor;
+            }
+        }
+
+        foreach ($order->orderItems as $item) {
+            $vendorId = $item->product?->vendor_id;
+            if ($vendorId && Schema::hasTable('vendors')) {
+                $vendor = Vendor::find($vendorId);
+                if ($vendor) {
+                    return $vendor;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function formatOrderVendor(Orders $order, ?string $fallbackImageUrl = null): ?array
+    {
+        $vendor = $this->resolveOrderVendor($order);
+        if (!$vendor) {
+            if ($fallbackImageUrl === null) {
+                return null;
+            }
+
+            return [
+                'vendor_id' => null,
+                'restaurant_id' => null,
+                'restaurant_name' => null,
+                'name' => null,
+                'location' => null,
+                'branch' => null,
+                'image_url' => $fallbackImageUrl,
+            ];
+        }
+
+        $image = $vendor->business_banner ?: ($vendor->shop_image ?: $vendor->business_logo);
+        $imageUrl = $image
+            ? url('public/uploads/vendors/' . $image)
+            : $fallbackImageUrl;
+
+        return [
+            'vendor_id' => $vendor->vendor_id,
+            'restaurant_id' => $vendor->vendor_id,
+            'restaurant_name' => $vendor->business_name,
+            'name' => $vendor->business_name,
+            'location' => $vendor->address,
+            'branch' => $vendor->address,
+            'image_url' => $imageUrl,
+            'logo_url' => !empty($vendor->business_logo)
+                ? url('public/uploads/vendors/' . $vendor->business_logo)
+                : null,
+        ];
+    }
+
+    private function formatOrderItemDisplayName(OrderItem $item): string
+    {
+        $name = trim((string) $item->product_name);
+        $qty = (int) $item->quantity;
+
+        return $qty > 1 ? "{$name} x{$qty}" : $name;
+    }
+
+    private function orderItemIsVegetarian(OrderItem $item): bool
+    {
+        $product = $item->product;
+        if (!$product) {
+            return true;
+        }
+
+        if (Schema::hasColumn('products', 'is_vegetarian')) {
+            return (bool) $product->is_vegetarian;
+        }
+
+        $tags = strtolower((string) ($product->tags ?? ''));
+
+        return str_contains($tags, 'veg') && !str_contains($tags, 'non');
+    }
+
+    private function formatIndianCurrency(float $amount): string
+    {
+        return '₹' . number_format($amount, 0, '.', ',');
     }
 
     public function invoice(Request $request, int $orderId)
