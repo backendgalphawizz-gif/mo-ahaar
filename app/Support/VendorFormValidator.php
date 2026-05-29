@@ -20,6 +20,16 @@ class VendorFormValidator
         return self::TABS[$index + 1];
     }
 
+    public static function prevTab(string $tab): ?string
+    {
+        $index = array_search($tab, self::TABS, true);
+        if ($index === false || $index <= 0) {
+            return null;
+        }
+
+        return self::TABS[$index - 1];
+    }
+
     public static function rulesForTab(string $tab, ?Vendor $vendor, bool $isCreate): array
     {
         $userId = $vendor?->user_id;
@@ -58,6 +68,7 @@ class VendorFormValidator
             'tax_number' => ['nullable', 'string', 'max:50'],
             'pan_number' => ['required', 'regex:/^[A-Z]{5}[0-9]{4}[A-Z]$/'],
             'gst_number' => ['required', 'regex:/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/'],
+            'address' => ['required', 'string', 'min:5', 'max:500'],
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
         ];

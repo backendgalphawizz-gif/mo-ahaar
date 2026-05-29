@@ -281,25 +281,36 @@
 
                     <div class="d-flex justify-content-between align-items-center gap-2 mt-4 pt-2">
                         @if($tab !== 'personal')
-                            <a href="{{ $isEdit ? route('admin.edit-vendor', ['id' => $vendor->vendor_id, 'tab' => $stepKeys[max(0, $currentIndex - 1)] ?? 'personal']) : route('admin.add-vendor', ['tab' => $stepKeys[max(0, $currentIndex - 1)] ?? 'personal']) }}" class="btn btn-outline-secondary">Back</a>
+                            @if($isEdit)
+                                <button type="submit" name="wizard_action" value="back" class="btn btn-outline-secondary">Back</button>
+                            @else
+                                <a href="{{ route('admin.add-vendor', ['tab' => $stepKeys[max(0, $currentIndex - 1)] ?? 'personal']) }}" class="btn btn-outline-secondary">Back</a>
+                            @endif
                         @else
                             <span class="d-none d-md-block"></span>
                         @endif
-                        @if($tab === 'documents')
-                            <button type="submit" name="wizard_action" value="submit" class="btn btn-figma-primary">
-                                <i class="ri-save-line me-1"></i>{{ $isEdit ? 'Save Changes' : 'Submit & Add Restaurant' }}
-                            </button>
-                        @else
-                            <button type="submit" name="wizard_action" value="next" class="btn btn-figma-primary">
-                                @if($tab === 'personal')
-                                    Next: Business Info
-                                @elseif($tab === 'business')
-                                    Next: Bank Details
-                                @else
-                                    Next: Documents
-                                @endif
-                            </button>
-                        @endif
+                        <div class="d-flex gap-2 ms-auto">
+                            @if($isEdit && $tab !== 'documents')
+                                <button type="submit" name="wizard_action" value="submit" class="btn btn-outline-primary">
+                                    <i class="ri-save-line me-1"></i>Save Changes
+                                </button>
+                            @endif
+                            @if($tab === 'documents')
+                                <button type="submit" name="wizard_action" value="submit" class="btn btn-figma-primary">
+                                    <i class="ri-save-line me-1"></i>{{ $isEdit ? 'Save Changes' : 'Submit & Add Restaurant' }}
+                                </button>
+                            @else
+                                <button type="submit" name="wizard_action" value="next" class="btn btn-figma-primary">
+                                    @if($tab === 'personal')
+                                        Next: Business Info
+                                    @elseif($tab === 'business')
+                                        Next: Bank Details
+                                    @else
+                                        Next: Documents
+                                    @endif
+                                </button>
+                            @endif
+                        </div>
                     </div>
                 </form>
             </div>

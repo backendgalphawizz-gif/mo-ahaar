@@ -2,11 +2,12 @@
   "info": {
     "_postman_id": "a8c4e2f1-9b3d-4e7a-8f2c-1d5e6a7b8c9d",
     "name": "Mo Aahar - Driver App",
-    "description": "Driver mobile app APIs: auth, profile, documents, home, deliveries, My Orders, notifications, wallet.",
+    "description": "Driver mobile app APIs (production). Base: https://mo-aahar.developmentalphawizz.com/api — Run Login first; token is saved to {{token}}.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "base_url", "value": "http://localhost/mo-ahaar/public/api" },
+    { "key": "base_url", "value": "https://mo-aahar.developmentalphawizz.com/api" },
+    { "key": "site_url", "value": "https://mo-aahar.developmentalphawizz.com" },
     { "key": "email", "value": "driver@example.com" },
     { "key": "password", "value": "Driver@123" },
     { "key": "mobile", "value": "9876543210" },

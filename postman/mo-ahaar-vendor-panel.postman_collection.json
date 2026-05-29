@@ -1,0 +1,316 @@
+{
+  "info": {
+    "_postman_id": "b7e2c4a1-5d8f-4e9b-a3c2-8f1e6d7a9b0c",
+    "name": "Mo Aahar - Vendor Panel",
+    "description": "Vendor restaurant panel (web session + CSRF). Site: https://mo-aahar.developmentalphawizz.com — paths are under /vendor (not /api). Mobile customer/driver APIs use {{api_base_url}}. Enable Postman cookies. Run: 1) Get CSRF → 2) Send OTP → 3) Verify OTP, then protected routes.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "site_url", "value": "https://mo-aahar.developmentalphawizz.com" },
+    { "key": "api_base_url", "value": "https://mo-aahar.developmentalphawizz.com/api" },
+    { "key": "mobile", "value": "9876543210" },
+    { "key": "otp", "value": "1234" },
+    { "key": "csrf_token", "value": "" },
+    { "key": "order_id", "value": "1" },
+    { "key": "product_id", "value": "1" },
+    { "key": "withdraw_amount", "value": "100" }
+  ],
+  "item": [
+    {
+      "name": "Auth (OTP login)",
+      "item": [
+        {
+          "name": "0. Get CSRF (vendor login page)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const html = pm.response.text();",
+                  "const m = html.match(/name=\"_token\"\\s+value=\"([^\"]+)\"/);",
+                  "if (m && m[1]) {",
+                  "    pm.collectionVariables.set('csrf_token', m[1]);",
+                  "    pm.test('CSRF token captured', function () {",
+                  "        pm.expect(m[1].length).to.be.above(10);",
+                  "    });",
+                  "} else {",
+                  "    pm.test('CSRF token found in HTML', function () {",
+                  "        pm.expect.fail('Could not parse _token from login page');",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "text/html" }],
+            "url": "{{site_url}}/vendor/login"
+          }
+        },
+        {
+          "name": "1. Send OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "text/html" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "_token", "value": "{{csrf_token}}" },
+                { "key": "mobile", "value": "{{mobile}}" }
+              ]
+            },
+            "url": "{{site_url}}/vendor/login/send-otp",
+            "description": "Requires session cookie from step 0. On APP_DEBUG=true, check redirect flash for dev_otp."
+          }
+        },
+        {
+          "name": "2. Verify OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "text/html" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "_token", "value": "{{csrf_token}}" },
+                { "key": "mobile", "value": "{{mobile}}" },
+                { "key": "otp", "value": "{{otp}}" }
+              ]
+            },
+            "url": "{{site_url}}/vendor/login/verify-otp",
+            "description": "Sets vendor session; redirects to /vendor/dashboard on success."
+          }
+        },
+        {
+          "name": "3. Resend OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "text/html" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [{ "key": "_token", "value": "{{csrf_token}}" }]
+            },
+            "url": "{{site_url}}/vendor/login/resend-otp"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "item": [
+        {
+          "name": "Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "text/html" }],
+            "url": "{{site_url}}/vendor/dashboard"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Orders",
+      "item": [
+        {
+          "name": "Orders list",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "text/html" }],
+            "url": "{{site_url}}/vendor/orders"
+          }
+        },
+        {
+          "name": "Order details",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "text/html" }],
+            "url": "{{site_url}}/vendor/order-details/{{order_id}}"
+          }
+        },
+        {
+          "name": "Update order status",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "text/html" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "_token", "value": "{{csrf_token}}" },
+                { "key": "order_status", "value": "accepted" }
+              ]
+            },
+            "url": "{{site_url}}/vendor/update-order-status/{{order_id}}",
+            "description": "Valid statuses include: pending, payment_pending, accepted, confirmed, processing, picked_up, out_for_delivery, delivered, completed, success, cancelled, rejected."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Profile",
+      "item": [
+        {
+          "name": "View profile",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "text/html" }],
+            "url": "{{site_url}}/vendor/profile"
+          }
+        },
+        {
+          "name": "Update profile (sample fields)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "text/html" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "_token", "value": "{{csrf_token}}" },
+                { "key": "tab", "value": "personal" },
+                { "key": "owner_name", "value": "Demo Vendor" },
+                { "key": "email", "value": "vendor@example.com" },
+                { "key": "mobile", "value": "{{mobile}}" },
+                { "key": "business_name", "value": "Demo Restaurant" }
+              ]
+            },
+            "url": "{{site_url}}/vendor/profile"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payments",
+      "item": [
+        {
+          "name": "Payments page",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "text/html" }],
+            "url": "{{site_url}}/vendor/payments"
+          }
+        },
+        {
+          "name": "Request withdraw",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "text/html" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "_token", "value": "{{csrf_token}}" },
+                { "key": "amount", "value": "{{withdraw_amount}}" }
+              ]
+            },
+            "url": "{{site_url}}/vendor/payments/withdraw"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Products",
+      "item": [
+        {
+          "name": "Products list",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "text/html" }],
+            "url": "{{site_url}}/vendor/products"
+          }
+        },
+        {
+          "name": "Add product page",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "text/html" }],
+            "url": "{{site_url}}/vendor/add-product"
+          }
+        },
+        {
+          "name": "View product",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "text/html" }],
+            "url": "{{site_url}}/vendor/view-product/{{product_id}}"
+          }
+        },
+        {
+          "name": "Edit product page",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "text/html" }],
+            "url": "{{site_url}}/vendor/edit-product/{{product_id}}"
+          }
+        },
+        {
+          "name": "Toggle product status",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "text/html" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [{ "key": "_token", "value": "{{csrf_token}}" }]
+            },
+            "url": "{{site_url}}/vendor/toggle-product-status/{{product_id}}"
+          }
+        },
+        {
+          "name": "Delete product",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "text/html" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [{ "key": "_token", "value": "{{csrf_token}}" }]
+            },
+            "url": "{{site_url}}/vendor/delete-product/{{product_id}}"
+          }
+        },
+        {
+          "name": "Bulk import sample CSV",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "text/csv" }],
+            "url": "{{site_url}}/vendor/products/bulk-import/sample"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Register (public)",
+      "item": [
+        {
+          "name": "Register form",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "text/html" }],
+            "url": "{{site_url}}/vendor/register"
+          }
+        }
+      ]
+    }
+  ]
+}

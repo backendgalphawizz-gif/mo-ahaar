@@ -270,36 +270,45 @@ class VendorManagementController extends Controller
             return $this->advanceVendorWizard($request, $vendor, false, $tab);
         }
 
-        $this->mergeExistingVendorIntoRequest($request, $vendor);
-        $this->normalizeVendorRequest($request);
+        if ($action === 'back') {
+            try {
+                $this->persistVendorWizardTab($request, $vendor, $tab);
+            } catch (ValidationException $e) {
+                return $this->redirectVendorWizardWithErrors($e, false, $request, $vendor);
+            } catch (\Throwable $e) {
+                return back()->withInput()->with('error', 'Failed to update vendor: ' . $e->getMessage());
+            }
 
-        try {
-            $validated = VendorFormValidator::validateComplete($request, $vendor, false);
-        } catch (ValidationException $e) {
-            return $this->redirectVendorWizardWithErrors($e, false, $request, $vendor);
+            $prevTab = VendorFormValidator::prevTab($tab) ?? 'personal';
+
+            return redirect()
+                ->route('admin.edit-vendor', ['id' => $vendor->vendor_id, 'tab' => $prevTab])
+                ->with('success', 'Changes saved successfully.');
         }
 
         DB::beginTransaction();
         try {
-            if ($vendor->user_id) {
-                Users::where('user_id', $vendor->user_id)->update([
-                    'name' => $validated['owner_name'],
-                    'email' => $this->resolveVendorEmail($validated),
-                    'mobile' => $validated['mobile'],
-                ]);
-            }
-
-            $vendor->update($this->mapVendorPayload($request, $validated));
+            $this->persistVendorWizardTab($request, $vendor, $tab);
             DB::commit();
+        } catch (ValidationException $e) {
+            DB::rollBack();
+
+            return $this->redirectVendorWizardWithErrors($e, false, $request, $vendor);
         } catch (\Throwable $e) {
             DB::rollBack();
 
             return back()->withInput()->with('error', 'Failed to update vendor: ' . $e->getMessage());
         }
 
+        if ($tab === 'documents') {
+            return redirect()
+                ->route('admin.vendors')
+                ->with('success', 'Restaurant updated successfully.');
+        }
+
         return redirect()
-            ->route('admin.vendors')
-            ->with('success', 'Vendor updated successfully.');
+            ->route('admin.edit-vendor', ['id' => $vendor->vendor_id, 'tab' => $tab])
+            ->with('success', 'Changes saved successfully.');
     }
 
     private function redirectVendorWizardWithErrors(
@@ -359,10 +368,10 @@ class VendorManagementController extends Controller
             $tab = 'personal';
         }
 
-        $this->normalizeVendorRequest($request);
-        $validated = VendorFormValidator::validateTab($request, $tab, $vendor, $isCreate);
-
         if ($isCreate) {
+            $this->normalizeVendorRequest($request);
+            $validated = VendorFormValidator::validateTab($request, $tab, $vendor, true);
+
             $wizard = array_merge(session('admin.vendor_wizard.create', []), $validated);
             $wizard = $this->mergeWizardFileUploads($request, $tab, $wizard);
             session(['admin.vendor_wizard.create' => $wizard]);
@@ -379,16 +388,12 @@ class VendorManagementController extends Controller
 
         DB::beginTransaction();
         try {
-            if ($tab === 'personal' && $vendor->user_id) {
-                Users::where('user_id', $vendor->user_id)->update([
-                    'name' => $validated['owner_name'],
-                    'email' => $this->resolveVendorEmail($validated),
-                    'mobile' => $validated['mobile'],
-                ]);
-            }
-
-            $vendor->update($this->mapVendorPayload($request, $validated));
+            $this->persistVendorWizardTab($request, $vendor, $tab);
             DB::commit();
+        } catch (ValidationException $e) {
+            DB::rollBack();
+
+            return $this->redirectVendorWizardWithErrors($e, false, $request, $vendor);
         } catch (\Throwable $e) {
             DB::rollBack();
 
@@ -400,6 +405,29 @@ class VendorManagementController extends Controller
         return redirect()
             ->route('admin.edit-vendor', ['id' => $vendor->vendor_id, 'tab' => $nextTab ?? $tab])
             ->with('success', 'Step saved. Continue with the next section.');
+    }
+
+    /**
+     * Validate and persist a single wizard tab for an existing vendor.
+     */
+    private function persistVendorWizardTab(Request $request, Vendor $vendor, string $tab): void
+    {
+        if (!in_array($tab, VendorFormValidator::TABS, true)) {
+            $tab = 'personal';
+        }
+
+        $this->normalizeVendorRequest($request);
+        $validated = VendorFormValidator::validateTab($request, $vendor, false);
+
+        if ($tab === 'personal' && $vendor->user_id) {
+            Users::where('user_id', $vendor->user_id)->update([
+                'name' => $validated['owner_name'],
+                'email' => $this->resolveVendorEmail($validated),
+                'mobile' => $validated['mobile'],
+            ]);
+        }
+
+        $vendor->update($this->mapVendorPayload($request, $validated));
     }
 
     /**
