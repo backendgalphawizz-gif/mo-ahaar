@@ -15,13 +15,13 @@
 
         <div class="card dashboard-card mx-auto" style="max-width: 760px;">
             <div class="card-body">
-                <form method="POST" action="{{ route('admin.banners.store') }}" enctype="multipart/form-data" class="row g-3">
+                <form method="POST" action="{{ route('admin.banners.store') }}" enctype="multipart/form-data" class="row g-3" novalidate>
                     @csrf
 
                     <div class="col-12">
-                        <label class="form-label">Banner Title</label>
-                        <input type="text" name="title" class="form-control @error('title') is-invalid @enderror" value="{{ old('title') }}" placeholder="Enter banner title">
-                        @error('title')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        <label class="form-label">Banner Title <span class="text-danger">*</span></label>
+                        <input type="text" name="title" class="form-control @error('title') is-invalid @enderror" value="{{ old('title') }}" placeholder="Enter banner title" maxlength="190">
+                        @include('admin.partials.field-error', ['field' => 'title'])
                     </div>
 
                     <div class="col-12">
@@ -30,15 +30,15 @@
                             <i class="ri-image-2-line upload-icon"></i>
                             <div>Click to upload image</div>
                             <small class="text-muted">Recommended size: 1200 x 400 pixels</small>
-                            <input type="file" name="banner_image" class="upload-input @error('banner_image') is-invalid @enderror" accept=".jpg,.jpeg,.png,.webp" required>
+                            <input type="file" name="banner_image" class="upload-input @error('banner_image') is-invalid @enderror" accept=".jpg,.jpeg,.png,.webp">
                         </div>
-                        @error('banner_image')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
+                        @include('admin.partials.field-error', ['field' => 'banner_image'])
                     </div>
 
                     @if(!empty($hasBannerType))
                     <div class="col-md-6">
                         <label class="form-label">Home screen section <span class="text-danger">*</span></label>
-                        <select name="banner_type" class="form-select @error('banner_type') is-invalid @enderror" required>
+                        <select name="banner_type" class="form-select @error('banner_type') is-invalid @enderror">
                             @php
                                 $typeLabels = [
                                     'slider' => 'Slider / hero carousel',
@@ -51,7 +51,7 @@
                                 <option value="{{ $opt }}" {{ old('banner_type', 'slider') === $opt ? 'selected' : '' }}>{{ $typeLabels[$opt] ?? $opt }}</option>
                             @endforeach
                         </select>
-                        @error('banner_type')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        @include('admin.partials.field-error', ['field' => 'banner_type'])
                         <small class="text-muted">Controls where this creative appears in the customer app home API.</small>
                     </div>
                     @endif
@@ -59,24 +59,24 @@
                     <div class="col-md-3">
                         <label class="form-label">Visible from</label>
                         <input type="date" name="visible_from" class="form-control @error('visible_from') is-invalid @enderror" value="{{ old('visible_from') }}">
-                        @error('visible_from')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        @include('admin.partials.field-error', ['field' => 'visible_from'])
                         <small class="text-muted">Optional. Leave empty to show with no start limit.</small>
                     </div>
 
                     <div class="col-md-3">
                         <label class="form-label">Visible to</label>
                         <input type="date" name="visible_to" class="form-control @error('visible_to') is-invalid @enderror" value="{{ old('visible_to') }}">
-                        @error('visible_to')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        @include('admin.partials.field-error', ['field' => 'visible_to'])
                         <small class="text-muted">Optional. Leave empty for no end date.</small>
                     </div>
 
                     <div class="col-md-4">
                         <label class="form-label">Status <span class="text-danger">*</span></label>
-                        <select name="status" class="form-select @error('status') is-invalid @enderror" required>
+                        <select name="status" class="form-select @error('status') is-invalid @enderror">
                             <option value="1" {{ old('status', '1') === '1' ? 'selected' : '' }}>Active</option>
                             <option value="2" {{ old('status') === '2' ? 'selected' : '' }}>Inactive</option>
                         </select>
-                        @error('status')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        @include('admin.partials.field-error', ['field' => 'status'])
                     </div>
 
                     <div class="col-12 d-flex justify-content-end gap-2 pt-2 border-top mt-2">

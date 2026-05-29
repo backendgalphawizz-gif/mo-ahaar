@@ -21,7 +21,7 @@
                     </select>
                     <button type="submit" class="btn btn-outline-secondary btn-sm">Apply</button>
                     <span class="toolbar-spacer"></span>
-                    <a href="{{ route('admin.orders.export-excel') }}" class="btn btn-outline-secondary btn-sm"><i class="ri-download-line me-1"></i>Export All</a>
+                    <a href="{{ route('admin.orders.export-excel', array_filter(['search' => $search ?? null, 'payment_status' => $status ?? null])) }}" class="btn btn-outline-secondary btn-sm"><i class="ri-download-line me-1"></i>Export Orders (Excel)</a>
                 </form>
 
                 <div class="table-responsive">

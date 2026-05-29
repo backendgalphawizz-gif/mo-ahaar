@@ -50,7 +50,6 @@
                 <th>Name</th>
                 <th>Email</th>
                 <th>Mobile</th>
-                <th>User Type</th>
                 <th>Account Status</th>
                 @if($hasApproval)
                 <th>Approval</th>
@@ -65,7 +64,6 @@
                     <td>{{ $customer->name ?? 'N/A' }}</td>
                     <td>{{ $customer->email ?? '' }}</td>
                     <td>{{ $customer->mobile ?? '-' }}</td>
-                    <td>{{ $customer->user_type ?? '-' }}</td>
                     <td>
                         @if((int)($customer->status ?? 0) === 1)
                             <span class="badge badge-active">Active</span>

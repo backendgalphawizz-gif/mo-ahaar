@@ -42,18 +42,9 @@ class ProductManagementController extends Controller
     {
         $title = 'Products List';
         $search = trim((string) $request->query('search', ''));
-        $segmentFilter = in_array($request->query('segment'), ['retailer', 'wholesaler'], true)
-            ? $request->query('segment')
-            : null;
-        $segmentType = match ($segmentFilter) {
-            'retailer' => Product::TARGET_RETAILER,
-            'wholesaler' => Product::TARGET_WHOLESALER,
-            default => null,
-        };
 
         $statsQuery = Product::where('status', '!=', 0)
-            ->when($this->isVendorPanel(), fn ($q) => $q->where('vendor_id', $this->currentVendorId()))
-            ->when($segmentType, fn ($q) => $q->where('target_user_type', $segmentType));
+            ->when($this->isVendorPanel(), fn ($q) => $q->where('vendor_id', $this->currentVendorId()));
         $approved = (clone $statsQuery)->where('status', 1)->count();
         $pending = (clone $statsQuery)->where('status', 2)->count();
         $rejected = (clone $statsQuery)->where('status', 3)->count();
@@ -74,7 +65,6 @@ class ProductManagementController extends Controller
             // ->leftJoin('vendors', 'vendors.vendor_id', '=', 'products.vendor_id')
             ->where('products.status', '!=', 0)
             ->when($this->isVendorPanel(), fn ($q) => $q->where('products.vendor_id', $this->currentVendorId()))
-            ->when($segmentType, fn ($q) => $q->where('products.target_user_type', $segmentType))
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($subQuery) use ($search) {
                     $subQuery->where('products.product_name', 'like', '%' . $search . '%')
@@ -95,7 +85,7 @@ class ProductManagementController extends Controller
             ->paginate(10)
             ->withQueryString();
         $categoryList = ProductCategory::where('status', '!=', 0)->get();
-        return view('admin.products.productList', compact('title', 'allProducts', 'approved', 'pending', 'rejected', 'search', 'categoryList', 'segmentFilter'));
+        return view('admin.products.productList', compact('title', 'allProducts', 'approved', 'pending', 'rejected', 'search', 'categoryList'));
     
     }
 
@@ -105,16 +95,7 @@ class ProductManagementController extends Controller
         $categoryList = ProductCategory::where('status', '!=', 0)->get();
         $gstTaxes = GstTax::active()->orderBy('percentage')->get();
         $promoCodes = DiscountOffer::active()->currentlyValid()->orderBy('title')->get(['id', 'title']);
-        $segment = in_array($request->query('segment'), ['retailer', 'wholesaler'], true)
-            ? $request->query('segment')
-            : null;
-        $defaultTarget = match ($segment) {
-            'retailer' => Product::TARGET_RETAILER,
-            'wholesaler' => Product::TARGET_WHOLESALER,
-            default => null,
-        };
-
-        return view('admin.products.addProduct', compact('title', 'categoryList', 'gstTaxes', 'segment', 'defaultTarget', 'promoCodes'));
+        return view('admin.products.addProduct', compact('title', 'categoryList', 'gstTaxes', 'promoCodes'));
     }
 
     public function storeProduct(Request $request)
@@ -132,7 +113,6 @@ class ProductManagementController extends Controller
             'sub_category_id' => $request->filled('sub_category_id') ? $request->input('sub_category_id') : null,
             'short_description' => $shortFromDesc,
             'gst_calculation_type' => $request->input('gst_calculation_type', Product::GST_EXCLUDED),
-            'target_user_type' => $request->input('target_user_type', Product::TARGET_RETAILER),
             'price' => $singlePrice,
             'mrp_price' => $singlePrice,
         ]);
@@ -144,10 +124,6 @@ class ProductManagementController extends Controller
             }
         }
 
-        if ($request->input('target_user_type') !== Product::TARGET_WHOLESALER) {
-            $request->merge(['min_quantity' => null]);
-        }
-
         $rules = [
             'product_name' => ['required', 'string', 'max:100', 'regex:/^[a-zA-Z0-9 &()\-\/.,]+$/', 'not_regex:/(.)(\1{3,})/'],
             'category_id' => ['nullable', 'exists:product_categories,category_id'],
@@ -155,13 +131,7 @@ class ProductManagementController extends Controller
             'sku' => ['nullable', 'string', 'max:100', Rule::unique('products', 'sku')->whereNotNull('sku')],
             'mrp_price' => ['required', 'numeric', 'min:0', 'regex:/^\d{1,10}(\.\d{1,2})?$/'],
             'price' => ['required', 'numeric', 'min:0', 'regex:/^\d{1,10}(\.\d{1,2})?$/'],
-            'min_quantity' => [
-                'nullable',
-                'integer',
-                'min:1',
-                Rule::requiredIf($request->input('target_user_type') === Product::TARGET_WHOLESALER),
-            ],
-            'target_user_type' => ['nullable', Rule::in(Product::targetUserTypeOptions())],
+            'min_quantity' => ['nullable', 'integer', 'min:1'],
             'product_image' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
             'gallery_images' => ['nullable', 'array'],
             'gallery_images.*' => ['image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
@@ -193,7 +163,6 @@ class ProductManagementController extends Controller
             'product_description.required' => 'Ingredients are required.',
             'product_type.required' => 'Please select veg or non-veg.',
             'product_type.in' => 'Food type must be veg or non-veg.',
-            'min_quantity.required' => 'Minimum order quantity is required for wholesaler products.',
             'min_quantity.integer' => 'Minimum order quantity must be a whole number.',
             'min_quantity.min' => 'Minimum order quantity must be at least 1.',
             'sub_category_id.exists' => 'Selected sub-category is invalid.',
@@ -216,7 +185,6 @@ class ProductManagementController extends Controller
         $product->category_id = $validated['category_id'];
         $product->sub_category_id = $validated['sub_category_id'] ?? null;
         $product->sub_sub_category_id = null;
-        $product->target_user_type = $validated['target_user_type'];
         $product->price = $validated['price'];
         $product->discount = $validated['discount'] ?? 0;
         if (Schema::hasColumn('products', 'mrp_price')) {
@@ -284,16 +252,7 @@ class ProductManagementController extends Controller
             return redirect()->back()->withInput()->with('error', 'Product details could not be saved. Please try again.');
         }
 
-        $listSegment = match ($validated['target_user_type'] ?? '') {
-            Product::TARGET_RETAILER => 'retailer',
-            Product::TARGET_WHOLESALER => 'wholesaler',
-            default => null,
-        };
-        $listQuery = array_filter([
-            'segment' => $listSegment,
-        ], fn ($v) => $v !== null && $v !== '');
-
-        return redirect($this->panelRoute('admin.products', 'vendor.products', $listQuery))->with('success', 'Product created successfully!');
+        return redirect($this->panelRoute('admin.products', 'vendor.products'))->with('success', 'Product created successfully!');
     }
 
     public function viewProduct($id)
@@ -342,11 +301,7 @@ class ProductManagementController extends Controller
         $categoryList = ProductCategory::where('status', '!=', 0)->get();
         $gstTaxes = GstTax::active()->orderBy('percentage')->get();
         $promoCodes = DiscountOffer::active()->currentlyValid()->orderBy('title')->get(['id', 'title']);
-        $segment = in_array(request()->query('segment'), ['retailer', 'wholesaler'], true)
-            ? request()->query('segment')
-            : null;
-
-        return view('admin.products.editProduct', compact('title', 'product', 'categoryList', 'gstTaxes', 'segment', 'promoCodes'));
+        return view('admin.products.editProduct', compact('title', 'product', 'categoryList', 'gstTaxes', 'promoCodes'));
     }
 
     public function updateProduct(Request $request)
@@ -366,17 +321,12 @@ class ProductManagementController extends Controller
             'short_description' => Str::limit($plainDesc !== '' ? $plainDesc : (string) $request->input('product_name', $product->product_name), 300),
             'sub_category_id' => $request->filled('sub_category_id') ? $request->input('sub_category_id') : null,
             'gst_calculation_type' => $request->input('gst_calculation_type', $product->gst_calculation_type ?? Product::GST_EXCLUDED),
-            'target_user_type' => $request->input('target_user_type', $product->target_user_type ?: Product::TARGET_RETAILER),
             'price' => $singlePrice,
             'mrp_price' => $singlePrice,
         ]);
         if (!$request->filled('category_id')) {
             $request->merge(['category_id' => $product->category_id ?: ProductCategory::where('status', '!=', 0)->value('category_id')]);
         }
-        if ($request->input('target_user_type') !== Product::TARGET_WHOLESALER) {
-            $request->merge(['min_quantity' => null]);
-        }
-
         $validated = $request->validate([
             'product_id' => ['required', 'integer', 'exists:products,product_id'],
             'product_name' => ['required', 'string', 'max:100', 'regex:/^[a-zA-Z0-9 &()\-\/.,]+$/', 'not_regex:/(.)(\1{3,})/'],
@@ -385,15 +335,9 @@ class ProductManagementController extends Controller
             'product_description' => ['required', 'string'],
             'category_id' => ['nullable', 'exists:product_categories,category_id'],
             'sub_category_id' => ['nullable', 'exists:sub_categories,sub_category_id'],
-            'target_user_type' => ['nullable', Rule::in(Product::targetUserTypeOptions())],
             'mrp_price' => ['required', 'numeric', 'min:0', 'regex:/^\d{1,10}(\.\d{1,2})?$/'],
             'price' => ['required', 'numeric', 'min:0', 'regex:/^\d{1,10}(\.\d{1,2})?$/'],
-            'min_quantity' => [
-                'nullable',
-                'integer',
-                'min:1',
-                Rule::requiredIf($request->input('target_user_type') === Product::TARGET_WHOLESALER),
-            ],
+            'min_quantity' => ['nullable', 'integer', 'min:1'],
             'sku' => ['nullable', 'string', 'max:100', Rule::unique('products', 'sku')->ignore($product->product_id, 'product_id')->whereNotNull('sku')],
             'status' => ['required', Rule::in(['1', '2', '3'])],
             'product_image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
@@ -413,7 +357,6 @@ class ProductManagementController extends Controller
             'mrp_price.regex' => 'MRP price may not be greater than 10 digits.',
             'sku.unique' => 'This SKU is already in use.',
             'sub_category_id.exists' => 'Selected sub-category is invalid.',
-            'min_quantity.required' => 'Minimum order quantity is required for wholesaler products.',
             'price.lte' => 'Discounted price cannot be greater than MRP price.',
             'price.regex' => 'Price may not be greater than 10 digits.',
         ]);
@@ -424,7 +367,6 @@ class ProductManagementController extends Controller
         $product->category_id = $validated['category_id'];
         $product->sub_category_id = $validated['sub_category_id'] ?? null;
         $product->sub_sub_category_id = null;
-        $product->target_user_type = $validated['target_user_type'];
         $product->price = $validated['price'];
         $product->discount = $validated['discount'] ?? 0;
         if (Schema::hasColumn('products', 'mrp_price')) {
@@ -555,16 +497,7 @@ class ProductManagementController extends Controller
             }
         }
 
-        $listSegment = match ($validated['target_user_type'] ?? '') {
-            Product::TARGET_RETAILER => 'retailer',
-            Product::TARGET_WHOLESALER => 'wholesaler',
-            default => null,
-        };
-        $listQuery = array_filter([
-            'segment' => $listSegment,
-        ], fn ($v) => $v !== null && $v !== '');
-
-        return redirect($this->panelRoute('admin.products', 'vendor.products', $listQuery))->with('success', 'Product updated successfully!');
+        return redirect($this->panelRoute('admin.products', 'vendor.products'))->with('success', 'Product updated successfully!');
     }
 
     public function deleteProduct($id)
@@ -660,7 +593,8 @@ class ProductManagementController extends Controller
         }
 
         $category->save();
-        return redirect()->back()->withInput()->with('success', 'Category Created Successfully');
+
+        return redirect()->route('admin.categories')->with('success', 'Category Created Successfully');
     }
 
     public function editCategory($id)
@@ -878,14 +812,6 @@ class ProductManagementController extends Controller
     public function exportProductsExcel(Request $request)
     {
         $search = trim((string) $request->query('search', ''));
-        $segmentFilter = in_array($request->query('segment'), ['retailer', 'wholesaler'], true)
-            ? $request->query('segment')
-            : null;
-        $segmentType = match ($segmentFilter) {
-            'retailer'   => Product::TARGET_RETAILER,
-            'wholesaler' => Product::TARGET_WHOLESALER,
-            default      => null,
-        };
 
         $products = Product::join('product_categories', 'product_categories.category_id', '=', 'products.category_id', 'inner', false)
             ->leftJoin('sub_categories', 'sub_categories.sub_category_id', '=', 'products.sub_category_id')
@@ -894,7 +820,6 @@ class ProductManagementController extends Controller
                     ->whereRaw('product_details.product_details_id = (SELECT MAX(pd2.product_details_id) FROM product_details pd2 WHERE pd2.product_id = products.product_id)');
             })
             ->where('products.status', '!=', 0)
-            ->when($segmentType, fn ($q) => $q->where('products.target_user_type', $segmentType))
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($subQuery) use ($search) {
                     $subQuery->where('products.product_name', 'like', '%' . $search . '%')
@@ -918,7 +843,7 @@ class ProductManagementController extends Controller
         ];
 
         $callback = function () use ($products, $statusLabels) {
-            echo "S.No.\tProduct Name\tCategory\tSKU\tSegment\tMRP (INR)\tPrice (INR)\tApproval\n";
+            echo "S.No.\tProduct Name\tCategory\tSKU\tMRP (INR)\tPrice (INR)\tApproval\n";
             foreach ($products as $index => $product) {
                 $cat = ($product->category_name ?? '-');
                 if (!empty($product->sub_cat_name)) {
@@ -928,7 +853,6 @@ class ProductManagementController extends Controller
                 echo ($product->product_name ?? 'N/A') . "\t";
                 echo $cat . "\t";
                 echo ($product->sku ?? '-') . "\t";
-                echo ($product->target_user_type ?? '-') . "\t";
                 echo number_format((float)($product->mrp ?? 0), 2, '.', '') . "\t";
                 echo number_format((float)($product->price ?? 0), 2, '.', '') . "\t";
                 echo ($statusLabels[(int)($product->status ?? 0)] ?? 'Unknown') . "\n";
@@ -941,14 +865,6 @@ class ProductManagementController extends Controller
     public function exportProductsPdf(Request $request)
     {
         $search = trim((string) $request->query('search', ''));
-        $segmentFilter = in_array($request->query('segment'), ['retailer', 'wholesaler'], true)
-            ? $request->query('segment')
-            : null;
-        $segmentType = match ($segmentFilter) {
-            'retailer'   => Product::TARGET_RETAILER,
-            'wholesaler' => Product::TARGET_WHOLESALER,
-            default      => null,
-        };
 
         $products = Product::join('product_categories', 'product_categories.category_id', '=', 'products.category_id', 'inner', false)
             ->leftJoin('sub_categories', 'sub_categories.sub_category_id', '=', 'products.sub_category_id')
@@ -957,7 +873,6 @@ class ProductManagementController extends Controller
                     ->whereRaw('product_details.product_details_id = (SELECT MAX(pd2.product_details_id) FROM product_details pd2 WHERE pd2.product_id = products.product_id)');
             })
             ->where('products.status', '!=', 0)
-            ->when($segmentType, fn ($q) => $q->where('products.target_user_type', $segmentType))
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($subQuery) use ($search) {
                     $subQuery->where('products.product_name', 'like', '%' . $search . '%')
@@ -971,7 +886,7 @@ class ProductManagementController extends Controller
 
         $storeSetting = StoreSetting::first();
 
-        $pdf = Pdf::loadView('admin.products.productsExportPdf', compact('products', 'storeSetting', 'search', 'segmentFilter'))
+        $pdf = Pdf::loadView('admin.products.productsExportPdf', compact('products', 'storeSetting', 'search'))
             ->setPaper('a4', 'landscape');
 
         return $pdf->download('products-export-' . date('Y-m-d-H-i-s') . '.pdf');

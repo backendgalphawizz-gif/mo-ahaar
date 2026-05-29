@@ -3,13 +3,9 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Schema;
 
 class Product extends Model
-{    public const TARGET_RETAILER = 'Retailer';
-
-    public const TARGET_WHOLESALER = 'Wholesaler';
-
+{
     public const GST_EXCLUDED = 'excluded';
 
     public const GST_INCLUDED = 'included';
@@ -17,41 +13,9 @@ class Product extends Model
     /**
      * @return list<string>
      */
-    public static function targetUserTypeOptions(): array
-    {
-        return [self::TARGET_RETAILER, self::TARGET_WHOLESALER];
-    }
-
-    /**
-     * @return list<string>
-     */
     public static function gstCalculationTypeOptions(): array
     {
         return [self::GST_EXCLUDED, self::GST_INCLUDED];
-    }
-
-    /**
-     * Limit catalog to products tagged for the customer's segment (or untagged legacy rows).
-     */
-    public function scopeVisibleToCustomerUser($query, $user)
-    {
-        if (!Schema::hasColumn((new static())->getTable(), 'target_user_type')) {
-            return $query;
-        }
-
-        if (!$user) {
-            return $query;
-        }
-
-        $segment = $user->user_type ?? null;
-        if (!in_array($segment, [self::TARGET_RETAILER, self::TARGET_WHOLESALER], true)) {
-            return $query;
-        }
-
-        return $query->where(function ($q) use ($segment) {
-            $q->whereNull('target_user_type')
-                ->orWhere('target_user_type', $segment);
-        });
     }
 
     protected $table = 'products';
@@ -101,7 +65,6 @@ class Product extends Model
         'status',
         'gst_percentage',
         'gst_calculation_type',
-        'target_user_type',
     ];
 
     /** Not used — kept out of API responses and mass assignment. */

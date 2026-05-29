@@ -65,17 +65,17 @@ Route::prefix('customer-app')->middleware('set.customer.locale')->name('customer
         Route::post('/logout', [CustomerAuthController::class, 'logout'])->name('logout');
     });
 
-    Route::middleware('auth:sanctum')->prefix('language')->group(function () {
+    Route::middleware(['auth:sanctum', 'customer.active'])->prefix('language')->group(function () {
         Route::get('/current', [CustomerLanguageController::class, 'current'])->name('language.current');
         Route::post('/update', [CustomerLanguageController::class, 'update'])->name('language.update');
     });
 
-    Route::middleware('auth:sanctum')->prefix('profile')->group(function () {
+    Route::middleware(['auth:sanctum', 'customer.active'])->prefix('profile')->group(function () {
         Route::get('/', [CustomerProfileController::class, 'show'])->name('profile.show');
         Route::post('/update', [CustomerProfileController::class, 'update'])->name('profile.update');
     });
 
-    Route::middleware('auth:sanctum')->prefix('addresses')->group(function () {
+    Route::middleware(['auth:sanctum', 'customer.active'])->prefix('addresses')->group(function () {
         Route::get('/', [CustomerAddressController::class, 'index'])->name('addresses.index');
         Route::post('/', [CustomerAddressController::class, 'store'])->name('addresses.store');
         Route::get('/{addressId}', [CustomerAddressController::class, 'show'])->name('addresses.show');
@@ -85,30 +85,30 @@ Route::prefix('customer-app')->middleware('set.customer.locale')->name('customer
 
     Route::get('/settings/business', [CustomerSettingsController::class, 'business'])->name('settings.business');
 
-    Route::middleware('auth:sanctum')->prefix('home')->group(function () {
+    Route::middleware(['auth:sanctum', 'customer.active'])->prefix('home')->group(function () {
         Route::get('/dashboard', [CustomerHomeController::class, 'dashboard'])->name('home.dashboard');
         /** Same payload as dashboard — home screen (banners + featured products). */
         Route::get('/screen', [CustomerHomeController::class, 'dashboard'])->name('home.screen');
     });
 
-    Route::middleware('auth:sanctum')->prefix('vendors')->group(function () {
+    Route::middleware(['auth:sanctum', 'customer.active'])->prefix('vendors')->group(function () {
         Route::get('/nearby', [CustomerVendorBrowsingController::class, 'nearby'])->name('vendors.nearby');
         Route::get('/{vendorId}/menu', [CustomerVendorBrowsingController::class, 'menu'])->name('vendors.menu');
         Route::get('/{vendorId}', [CustomerVendorBrowsingController::class, 'show'])->name('vendors.show');
     });
 
-    Route::middleware('auth:sanctum')->prefix('location')->group(function () {
+    Route::middleware(['auth:sanctum', 'customer.active'])->prefix('location')->group(function () {
         Route::post('/enable', [CustomerLocationController::class, 'enable'])->name('location.enable');
         Route::get('/nearby-products', [CustomerLocationController::class, 'nearbyProducts'])->name('location.nearby-products');
     });
 
-    Route::middleware('auth:sanctum')->prefix('videos')->group(function () {
+    Route::middleware(['auth:sanctum', 'customer.active'])->prefix('videos')->group(function () {
         Route::get('/feed', [CustomerVideoController::class, 'feed'])->name('videos.feed');
         Route::post('/like', [CustomerVideoController::class, 'toggleLike'])->name('videos.like');
         Route::post('/share', [CustomerVideoController::class, 'share'])->name('videos.share');
     });
 
-    Route::middleware('auth:sanctum')->prefix('products')->group(function () {
+    Route::middleware(['auth:sanctum', 'customer.active'])->prefix('products')->group(function () {
         Route::get('/search', [CustomerProductBrowsingController::class, 'search'])->name('products.search');
         Route::get('/categories', [CustomerProductBrowsingController::class, 'categories'])->name('products.categories');
         // Category details by category id
@@ -119,7 +119,7 @@ Route::prefix('customer-app')->middleware('set.customer.locale')->name('customer
         Route::get('/detail/{id?}', [CustomerProductBrowsingController::class, 'productDetail'])->name('products.detail');
     });  
 
-    Route::middleware('auth:sanctum')->prefix('orders')->group(function () {
+    Route::middleware(['auth:sanctum', 'customer.active'])->prefix('orders')->group(function () {
         Route::get('/history', [CustomerOrdersController::class, 'history'])->name('orders.history');
         Route::get('/', [CustomerOrdersController::class, 'index'])->name('orders.index');
         Route::get('/{orderId}/invoice', [CustomerOrdersController::class, 'invoice'])->name('orders.invoice');
@@ -128,7 +128,7 @@ Route::prefix('customer-app')->middleware('set.customer.locale')->name('customer
         Route::post('/{orderId}/cancel', [CustomerOrdersController::class, 'cancel'])->name('orders.cancel');
     });
 
-    Route::middleware('auth:sanctum')->prefix('reviews')->group(function () {
+    Route::middleware(['auth:sanctum', 'customer.active'])->prefix('reviews')->group(function () {
         Route::post('/products/{productId}', [CustomerProductReviewController::class, 'store'])->name('reviews.products.store');
         Route::get('/products/{productId}', [CustomerProductReviewController::class, 'index'])->name('reviews.products.index');
         Route::post('/restaurants/{vendorId}', [CustomerProductReviewController::class, 'storeRestaurantReview'])->name('reviews.restaurants.store');
@@ -136,25 +136,25 @@ Route::prefix('customer-app')->middleware('set.customer.locale')->name('customer
         Route::get('/my', [CustomerProductReviewController::class, 'myReviews'])->name('reviews.my');
     });
 
-    Route::middleware('auth:sanctum')->prefix('notifications')->group(function () {
+    Route::middleware(['auth:sanctum', 'customer.active'])->prefix('notifications')->group(function () {
         Route::get('/', [CustomerNotificationController::class, 'index'])->name('notifications.index');
         Route::get('/unread-count', [CustomerNotificationController::class, 'unreadCount'])->name('notifications.unread-count');
         Route::post('/{notificationId}/read', [CustomerNotificationController::class, 'markRead'])->name('notifications.mark-read');
         Route::post('/read-all', [CustomerNotificationController::class, 'markAllRead'])->name('notifications.mark-all-read');
     });
 
-    Route::middleware('auth:sanctum')->prefix('tickets')->group(function () {
+    Route::middleware(['auth:sanctum', 'customer.active'])->prefix('tickets')->group(function () {
         Route::get('/', [CustomerTicketController::class, 'index'])->name('tickets.index');
         Route::post('/', [CustomerTicketController::class, 'store'])->name('tickets.store');
         Route::post('/{ticketId}/reply', [CustomerTicketController::class, 'reply'])->name('tickets.reply');
     });
 
-    Route::middleware('auth:sanctum')->prefix('promo')->group(function () {
+    Route::middleware(['auth:sanctum', 'customer.active'])->prefix('promo')->group(function () {
         Route::get('/list', [CustomerPromoController::class, 'list'])->name('promo.list');
         Route::post('/apply', [CustomerPromoController::class, 'apply'])->name('promo.apply');
     });
 
-    Route::middleware('auth:sanctum')->prefix('cart')->group(function () {
+    Route::middleware(['auth:sanctum', 'customer.active'])->prefix('cart')->group(function () {
         Route::get('/', [CustomerCartController::class, 'index'])->name('cart.index');
         Route::post('/add', [CustomerCartController::class, 'add'])->name('cart.add');
         Route::post('/update', [CustomerCartController::class, 'update'])->name('cart.update');
@@ -166,20 +166,20 @@ Route::prefix('customer-app')->middleware('set.customer.locale')->name('customer
         Route::post('/select-address', [CustomerCartController::class, 'selectAddress'])->name('cart.select-address');
     });
 
-    Route::middleware('auth:sanctum')->prefix('checkout')->group(function () {
+    Route::middleware(['auth:sanctum', 'customer.active'])->prefix('checkout')->group(function () {
         Route::get('/summary', [CustomerCheckoutController::class, 'summary'])->name('checkout.summary');
         Route::post('/create-order', [CustomerCheckoutController::class, 'createOrder'])->name('checkout.create-order');
         Route::post('/place-order', [CustomerCheckoutController::class, 'placeOrder'])->name('checkout.place-order');
     });
 
-    Route::middleware('auth:sanctum')->prefix('payment')->group(function () {
+    Route::middleware(['auth:sanctum', 'customer.active'])->prefix('payment')->group(function () {
         Route::get('/methods', [CustomerCheckoutController::class, 'paymentMethods'])->name('payment.methods');
         Route::post('/razorpay/create-order', [CustomerPaymentController::class, 'createRazorpayOrder'])->name('payment.razorpay.create-order');
         Route::post('/razorpay/verify', [CustomerPaymentController::class, 'verifyRazorpayPayment'])->name('payment.razorpay.verify');
         Route::post('/update-status', [CustomerPaymentController::class, 'updatePaymentStatus'])->name('payment.update-status');
     });
 
-    Route::middleware('auth:sanctum')->prefix('feedback')->group(function () {
+    Route::middleware(['auth:sanctum', 'customer.active'])->prefix('feedback')->group(function () {
         Route::post('/', [CustomerRatingsReviewController::class, 'submitFeedback'])->name('feedback.submit');
         Route::get('/', [CustomerRatingsReviewController::class, 'getFeedback'])->name('feedback.index');
     });

@@ -39,11 +39,15 @@ class AuthController extends DriverAppController
             ], 401);
         }
 
-        if ((int) $user->status !== 1) {
+        if ($restriction = $user->apiAccessRestriction()) {
             return response()->json([
                 'status' => false,
-                'message' => 'Your driver account is inactive. Please contact support.',
-            ], 403);
+                'message' => $restriction['message'],
+                'data' => [
+                    'account_status' => $restriction['account_status'],
+                    'force_logout' => $restriction['force_logout'],
+                ],
+            ], $restriction['http_status']);
         }
 
         if (!empty($validated['fcm_id'])) {

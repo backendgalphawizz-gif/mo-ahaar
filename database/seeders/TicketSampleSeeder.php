@@ -44,7 +44,6 @@ class TicketSampleSeeder extends Seeder
                 'role_type' => Users::CUSTOMER_APP_ROLE_TYPE,
                 'status' => 1,
                 'approval_status' => 'approved',
-                'user_type' => 'Retailer',
             ]
         );
 

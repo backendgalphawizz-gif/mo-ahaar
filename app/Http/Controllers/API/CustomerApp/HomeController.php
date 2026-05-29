@@ -52,7 +52,7 @@ class HomeController extends Controller
         }
         $featuredProducts = collect();
         if ($visibility['featured_products']) {
-            $productsQuery = Product::query()->visibleToCustomerUser($user);
+            $productsQuery = Product::query();
             if (Schema::hasColumn('products', 'featured')) {
                 $productsQuery->where('featured', 1);
             }
@@ -104,7 +104,6 @@ class HomeController extends Controller
             ->whereHas('subCategories', function ($q) use ($user) {
                 $q->where('status', 1)
                     ->whereHas('products', function ($p) use ($user) {
-                        $p->visibleToCustomerUser($user);
                         $p->where('status', 1);
                     });
             })
@@ -302,7 +301,6 @@ class HomeController extends Controller
         $row = [
             'product_id' => $product->product_id,
             'product_name' => $product->product_name,
-            'target_user_type' => $product->target_user_type,
             'short_description' => $product->short_description,
             'price' => $product->price,
             'sale_price' => $product->sale_price,

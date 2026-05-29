@@ -4,10 +4,3 @@
     @include('admin.vendors._form', ['vendor' => $vendor, 'tab' => $tab ?? 'personal', 'isEdit' => true])
 @endsection
 
-@section('scripts')
-<style>
-.vendor-form-tabs .nav-link.active { border-bottom: 2px solid #c9973a; color: #111827; font-weight: 600; }
-.form-section { background: #fafafa; border: 1px solid #ececec; border-radius: 12px; padding: 20px; }
-.form-section h6 { margin-bottom: 4px; font-weight: 700; }
-</style>
-@endsection

@@ -14,9 +14,11 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'AdminAuth' => \App\Http\Middleware\AdminAuth::class,
+            'VendorAuth' => \App\Http\Middleware\VendorAuth::class,
             'inject.bearer' => \App\Http\Middleware\InjectBearerTokenFromInput::class,
             'set.customer.locale' => \App\Http\Middleware\SetCustomerLocale::class,
             'driver' => \App\Http\Middleware\EnsureDriverUser::class,
+            'customer.active' => \App\Http\Middleware\EnsureActiveCustomerUser::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

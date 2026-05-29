@@ -130,7 +130,10 @@
             </div>
             <div class="modal-footer justify-content-center">
                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                <a href="#" id="deleteCustomerConfirm" class="btn btn-danger">Yes, Delete</a>
+                <form method="POST" id="deleteCustomerForm" action="#" class="d-inline">
+                    @csrf
+                    <button type="submit" class="btn btn-danger">Yes, Delete</button>
+                </form>
             </div>
         </div>
     </div>
@@ -237,7 +240,10 @@ document.getElementById('deleteCustomerModal')?.addEventListener('show.bs.modal'
     var btn = e.relatedTarget;
     if (!btn) return;
     document.getElementById('deleteCustomerName').textContent = btn.getAttribute('data-customer-name') || 'this user';
-    document.getElementById('deleteCustomerConfirm').href = '{{ url('admin/delete-customer') }}/' + encodeURIComponent(btn.getAttribute('data-customer-id'));
+    var deleteForm = document.getElementById('deleteCustomerForm');
+    if (deleteForm) {
+        deleteForm.action = '{{ url('admin/delete-customer') }}/' + encodeURIComponent(btn.getAttribute('data-customer-id'));
+    }
 });
 </script>
 @endsection

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\API\CustomerApp;
 
+use App\Http\Controllers\API\Concerns\RespondsWithAccountRestrictions;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\API\CustomerApp\NotificationController;
 use App\Models\CartItem;
@@ -20,6 +21,7 @@ use Razorpay\Api\Errors\BadRequestError;
 
 class CheckoutController extends Controller
 {
+    use RespondsWithAccountRestrictions;
     private const CUSTOMER_ROLE_TYPE = Users::CUSTOMER_APP_ROLE_TYPE;
     private const ONLINE_PAYMENT_METHODS = ['online', 'upi', 'card', 'net_banking'];
     private const DEFAULT_PAYMENT_METHOD = 'online';
@@ -35,15 +37,8 @@ class CheckoutController extends Controller
             return response()->json(['status' => false, 'message' => 'Unauthorized customer access'], 403);
         }
 
-        if (!$user->canPlaceOrdersAsCustomer()) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Your account is pending admin approval. You cannot place orders until your GST details are verified and the account is activated.',
-                'data' => [
-                    'account_status' => $user->customerAccountApprovalLabel(),
-                    'can_place_orders' => false,
-                ],
-            ], 403);
+        if ($denied = $this->denyCustomerOrder($user)) {
+            return $denied;
         }
 
         $customerQuery = Customers::query()->where('user_id', $user->user_id);
@@ -140,15 +135,8 @@ class CheckoutController extends Controller
             return response()->json(['status' => false, 'message' => 'Unauthorized customer access'], 403);
         }
 
-        if (!$user->canPlaceOrdersAsCustomer()) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Your account is pending admin approval. You cannot place orders until your GST details are verified and the account is activated.',
-                'data' => [
-                    'account_status' => $user->customerAccountApprovalLabel(),
-                    'can_place_orders' => false,
-                ],
-            ], 403);
+        if ($denied = $this->denyCustomerOrder($user)) {
+            return $denied;
         }
 
         $validated = $request->validate([
@@ -331,15 +319,8 @@ class CheckoutController extends Controller
             return response()->json(['status' => false, 'message' => 'Unauthorized customer access'], 403);
         }
 
-        if (!$user->canPlaceOrdersAsCustomer()) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Your account is pending admin approval. You cannot place orders until your GST details are verified and the account is activated.',
-                'data' => [
-                    'account_status' => $user->customerAccountApprovalLabel(),
-                    'can_place_orders' => false,
-                ],
-            ], 403);
+        if ($denied = $this->denyCustomerOrder($user)) {
+            return $denied;
         }
 
         $validated = $request->validate([
@@ -383,6 +364,12 @@ class CheckoutController extends Controller
 
         if ($validationError = $this->validateCheckoutItems($items, $user)) {
             return $validationError;
+        }
+
+        // Save notes to cooking instructions if provided
+        if (!empty($validated['notes']) && \Illuminate\Support\Facades\Schema::hasColumn('customers', 'cart_cooking_instructions')) {
+            $customer->cart_cooking_instructions = trim($validated['notes']);
+            $customer->save();
         }
 
         $totals = $this->calculateCheckoutTotals($items, $customer);
@@ -462,7 +449,7 @@ class CheckoutController extends Controller
                     'items_ordered' => $items->count(),
                     'track_order_url' => url('/api/customer-app/orders/' . $order->order_id . '/tracking'),
                 ],
-            ], 201);
+            ], 200);
         } catch (\Throwable $e) {
             DB::rollBack();
             report($e);
@@ -579,7 +566,6 @@ class CheckoutController extends Controller
             }
 
             $visibleProduct = Product::query()
-                ->visibleToCustomerUser($user)
                 ->where('product_id', $product->product_id)
                 ->whereIn('status', [1, '1'])
                 ->whereIn('is_active_status', [1, '1'])

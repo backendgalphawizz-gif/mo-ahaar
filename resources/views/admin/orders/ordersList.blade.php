@@ -66,7 +66,23 @@
                     <span class="toolbar-spacer"></span>
                     <input type="text" name="search" class="form-control form-control-sm" style="max-width:220px;" placeholder="Search orders..." value="{{ $search ?? request('search') }}">
                     <button type="submit" class="btn btn-outline-secondary btn-sm">Search</button>
-                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="window.print()">Export</button>
+                    @unless($isVendorPanel)
+                    @php
+                        $exportQuery = array_filter([
+                            'status_filter' => $activeFilter,
+                            'search' => $search ?? request('search'),
+                            'date_from' => request('date_from'),
+                            'date_to' => request('date_to'),
+                        ]);
+                    @endphp
+                    <div class="dropdown">
+                        <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown">Export</button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="{{ route('admin.orders.export-excel', $exportQuery) }}">Export Excel</a></li>
+                            <li><a class="dropdown-item" href="{{ route('admin.orders.export-pdf', $exportQuery) }}">Export PDF</a></li>
+                        </ul>
+                    </div>
+                    @endunless
                 </form>
 
                 <div class="table-responsive">
@@ -129,7 +145,13 @@
                                                 data-order-number="{{ $order->order_number }}">Assign Driver</button>
                                         @endif
                                     </td>
-                                    <td><span class="badge {{ $statusBadge }}">{{ \App\Models\Orders::statusLabel($order->order_status) }}</span></td>
+                                    <td style="min-width: 160px;">
+                                        @if($isVendorPanel)
+                                            <span class="badge {{ $statusBadge }}">{{ \App\Models\Orders::statusLabel($order->order_status) }}</span>
+                                        @else
+                                            @include('admin.orders.partials.order-status-update-form', ['order' => $order])
+                                        @endif
+                                    </td>
                                     <td>
                                         <div>{{ optional($order->created_at)->format('d/m/Y') }}</div>
                                         <small class="text-muted">{{ optional($order->created_at)->format('h:i A') }}</small>
@@ -167,6 +189,36 @@
 @if(!$isVendorPanel)
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.order-status-update-form select[name="order_status"]').forEach(function (select) {
+        select.dataset.previousValue = select.value;
+        select.addEventListener('change', function () {
+            var label = this.options[this.selectedIndex]?.text || 'this status';
+            var form = this.closest('form');
+            if (!form) return;
+            if (typeof Swal !== 'undefined') {
+                var el = this;
+                Swal.fire({
+                    title: 'Update order status?',
+                    text: 'Change status to "' + label + '"?',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Update',
+                    cancelButtonText: 'Cancel'
+                }).then(function (result) {
+                    if (result.isConfirmed) {
+                        form.submit();
+                    } else {
+                        el.value = el.dataset.previousValue || '';
+                    }
+                });
+            } else if (confirm('Update order status to "' + label + '"?')) {
+                form.submit();
+            } else {
+                this.value = this.dataset.previousValue || '';
+            }
+        });
+    });
+
     document.querySelectorAll('.assign-driver-btn').forEach(function (btn) {
         btn.addEventListener('click', function () {
             var orderId = this.getAttribute('data-order-id');

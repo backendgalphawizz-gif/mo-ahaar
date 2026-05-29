@@ -11,9 +11,9 @@
                 <input type="hidden" name="customer_id" id="userFormCustomerId" value="{{ old('customer_id') }}" disabled>
 
                 <div class="modal-body pt-2">
-                    @if($errors->any() && in_array(session('open_user_modal'), ['add', 'edit'], true))
+                    {{-- @if($errors->any() && in_array(session('open_user_modal'), ['add', 'edit'], true))
                         <div class="alert alert-danger py-2 small mb-3">Please fix the errors below and try again.</div>
-                    @endif
+                    @endif --}}
 
                     <div class="mb-3">
                         <label for="userFormName" class="form-label">Full Name</label>

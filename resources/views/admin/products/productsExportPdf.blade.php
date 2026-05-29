@@ -37,11 +37,10 @@
     <h2>{{ $brandName }} — Products Export</h2>
     <div class="meta">Generated: {{ now()->format('d M Y, h:i A') }}</div>
 
-    @if($search || $segmentFilter)
+    @if($search)
         <div class="filters">
             <strong>Applied Filters:</strong>
             @if($search) &nbsp; Search: <em>{{ $search }}</em> @endif
-            @if($segmentFilter) &nbsp; Segment: <em>{{ ucfirst($segmentFilter) }}</em> @endif
         </div>
     @endif
 
@@ -52,7 +51,6 @@
                 <th>Product Name</th>
                 <th>Category</th>
                 <th>SKU</th>
-                <th>Segment</th>
                 <th class="text-right">MRP (₹)</th>
                 <th class="text-right">Price (₹)</th>
                 <th>Approval</th>
@@ -75,14 +73,13 @@
                         @endif
                     </td>
                     <td>{{ $product->sku ?? '-' }}</td>
-                    <td>{{ $product->target_user_type ?? '-' }}</td>
                     <td class="text-right">{{ number_format((float)($product->mrp ?? 0), 2) }}</td>
                     <td class="text-right">{{ number_format((float)($product->price ?? 0), 2) }}</td>
                     <td><span class="badge {{ $statusBadge }}">{{ $statusLabel }}</span></td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="8" style="text-align:center; padding:16px; color:#6b7280;">No products found.</td>
+                    <td colspan="7" style="text-align:center; padding:16px; color:#6b7280;">No products found.</td>
                 </tr>
             @endforelse
         </tbody>

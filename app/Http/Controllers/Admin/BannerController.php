@@ -33,7 +33,11 @@ class BannerController extends Controller
 
     public function store(Request $request)
     {
-        $validated = $request->validate(array_merge($this->baseBannerRules(true), $this->bannerTypeRules()));
+        $request->merge(['title' => trim((string) $request->input('title', ''))]);
+        $validated = $request->validate(
+            array_merge($this->baseBannerRules(true), $this->bannerTypeRules()),
+            $this->bannerValidationMessages()
+        );
 
         $banner = new Banner();
         $banner->title = $validated['title'] ?? null;
@@ -73,7 +77,11 @@ class BannerController extends Controller
     {
         $banner = Banner::where('id', $id)->where('status', '!=', 0)->firstOrFail();
 
-        $validated = $request->validate(array_merge($this->baseBannerRules(false), $this->bannerTypeRules()));
+        $request->merge(['title' => trim((string) $request->input('title', ''))]);
+        $validated = $request->validate(
+            array_merge($this->baseBannerRules(false), $this->bannerTypeRules()),
+            $this->bannerValidationMessages()
+        );
 
         $banner->title = $validated['title'] ?? null;
         $banner->subtitle = null;
@@ -113,13 +121,26 @@ class BannerController extends Controller
         return redirect()->route('admin.banners.index')->with('success', 'Banner deleted successfully.');
     }
 
+    public function toggleStatus($id)
+    {
+        $banner = Banner::where('id', $id)->where('status', '!=', 0)->firstOrFail();
+        $banner->status = (int) $banner->status === 1 ? 2 : 1;
+        $banner->save();
+
+        return response()->json([
+            'success' => true,
+            'status' => $banner->status,
+            'label' => (int) $banner->status === 1 ? 'Active' : 'Inactive',
+        ]);
+    }
+
     /**
      * @return array<string, array<int, mixed>>
      */
     private function baseBannerRules(bool $imageRequired): array
     {
         return [
-            'title' => ['nullable', 'string', 'max:190'],
+            'title' => ['required', 'string', 'min:1', 'max:190'],
             'link' => ['nullable', 'string', 'max:255'],
             'status' => ['required', 'in:1,2'],
             'visible_from' => ['nullable', 'date'],
@@ -142,6 +163,25 @@ class BannerController extends Controller
 
         return [
             'banner_type' => ['nullable', 'string', Rule::in(Banner::homeBannerTypeOptions())],
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function bannerValidationMessages(): array
+    {
+        return [
+            'title.required' => 'Banner title is required.',
+            'title.min' => 'Banner title is required.',
+            'banner_image.required' => 'Banner image is required.',
+            'banner_image.image' => 'Banner image must be a valid image file.',
+            'banner_image.mimes' => 'Banner image must be JPG, PNG, or WEBP.',
+            'banner_image.max' => 'Banner image may not be greater than 4MB.',
+            'status.required' => 'Status is required.',
+            'status.in' => 'Please select a valid status.',
+            'banner_type.required' => 'Home screen section is required.',
+            'visible_to.after_or_equal' => 'Visible to date must be on or after the start date.',
         ];
     }
 }

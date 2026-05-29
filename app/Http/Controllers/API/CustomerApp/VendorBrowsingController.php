@@ -151,7 +151,7 @@ class VendorBrowsingController extends Controller
         $categories = ProductCategory::query()
             ->where('status', 1)
             ->whereHas('products', function ($q) use ($user, $vendorId) {
-                $q->visibleToCustomerUser($user)
+                $q
                     ->where('vendor_id', $vendorId)
                     ->where('status', 1);
             })
@@ -167,7 +167,6 @@ class VendorBrowsingController extends Controller
             ->values();
 
         $productsQuery = Product::query()
-            ->visibleToCustomerUser($user)
             ->where('vendor_id', $vendorId)
             ->where('status', 1)
             ->whereIn('is_active_status', [1, '1']);

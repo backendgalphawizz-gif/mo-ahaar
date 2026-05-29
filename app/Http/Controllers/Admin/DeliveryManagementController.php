@@ -253,6 +253,7 @@ class DeliveryManagementController extends Controller
         $driver = $this->findDriverOrFail($id);
         $driver->status = '2';
         $driver->save();
+        $driver->revokeAllApiTokens();
 
         return redirect()->route('admin.delivery.index')->with('success', 'Driver deleted successfully.');
     }

@@ -7,16 +7,16 @@ use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
-class EnsureDriverUser
+class EnsureActiveCustomerUser
 {
     public function handle(Request $request, Closure $next): Response
     {
         $user = $request->user();
 
-        if (!$user || !$user instanceof Users || !$user->isDriverAppUser()) {
+        if (!$user || !$user instanceof Users || !$user->isCustomerAppUser()) {
             return response()->json([
                 'status' => false,
-                'message' => 'Unauthorized driver access',
+                'message' => 'Unauthorized customer access',
             ], 403);
         }
 

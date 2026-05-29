@@ -23,7 +23,7 @@
             </div>
         @endif
 
-        <form method="POST" action="{{ route('admin.discount-offers.store') }}">
+        <form method="POST" action="{{ route('admin.discount-offers.store') }}" novalidate>
             @csrf
             @include('admin.discount-offers._form')
             <div class="d-flex gap-2">

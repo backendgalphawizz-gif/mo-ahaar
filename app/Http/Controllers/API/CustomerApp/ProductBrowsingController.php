@@ -55,7 +55,6 @@ class ProductBrowsingController extends Controller
         $like = '%' . $term . '%';
 
         $products = Product::query()
-            ->visibleToCustomerUser($user)
             ->where('status', 1)
             ->whereIn('is_active_status', [1, '1'])
             ->where(function ($q) use ($like) {
@@ -150,7 +149,7 @@ class ProductBrowsingController extends Controller
 
 
     /**
-     * Show products according to user type (retailer/wholesaler)
+     * List active products (legacy route name: by-user-type).
      * Optional query parameters: category, subcategory
      * 
      * Examples:
@@ -165,7 +164,7 @@ class ProductBrowsingController extends Controller
         $categoryId = $request->query('category');
         $subCategoryId = $request->query('subcategory');
         
-        $query = Product::visibleToCustomerUser($user)->where('status', 1);
+        $query = Product::query()->where('status', 1);
         
         // Filter by category if provided
         if ($categoryId) {
@@ -226,21 +225,15 @@ class ProductBrowsingController extends Controller
         }
 
         $product = Product::with('details')
-            ->visibleToCustomerUser($user)
             ->where('product_id', $productId)
             ->where('status', 1)
             ->first();
 
         if (!$product) {
-            $productSegment = $baseProduct->target_user_type ?? 'All';
-            $userSegment    = $user ? ($user->user_type ?? 'Unknown') : 'Unauthenticated';
-
             return response()->json([
-                'success'         => false,
-                'message'         => 'This product is not available for your account type.',
-                'product_segment' => $productSegment,
-                'your_segment'    => $userSegment,
-            ], 403);
+                'success' => false,
+                'message' => 'This product is not available.',
+            ], 404);
         }
 
         $restaurant = null;
@@ -256,7 +249,6 @@ class ProductBrowsingController extends Controller
                 $restaurant = $this->mapRestaurant($vendor);
 
                 $restaurantProductRows = Product::query()
-                    ->visibleToCustomerUser($user)
                     ->where('vendor_id', $product->vendor_id)
                     ->where('status', 1)
                     ->when(Schema::hasColumn('products', 'is_active_status'), fn ($q) => $q->where('is_active_status', 1))
@@ -318,7 +310,6 @@ class ProductBrowsingController extends Controller
         }
 
         $productsQuery = Product::with('details')
-            ->visibleToCustomerUser($user)
             ->where('vendor_id', $restaurantId)
             ->where('status', 1)
             ->when(Schema::hasColumn('products', 'is_active_status'), fn ($q) => $q->whereIn('is_active_status', [1, '1']));
@@ -520,7 +511,6 @@ class ProductBrowsingController extends Controller
         }
 
         $productsQuery = Product::query()
-            ->visibleToCustomerUser($user)
             ->where('category_id', $categoryId)
             ->where('status', 1)
             ->whereIn('is_active_status', [1, '1']);
@@ -589,7 +579,6 @@ class ProductBrowsingController extends Controller
         $row = [
             'product_id' => $product->product_id,
             'product_name' => $product->product_name,
-            'target_user_type' => $product->target_user_type,
             'short_description' => $product->short_description,
             'price' => $product->price,
             'sale_price' => $product->sale_price,
@@ -692,7 +681,7 @@ class ProductBrowsingController extends Controller
      */
     private function applyCategoryProductScope($query, $user, ?int $restaurantId = null): void
     {
-        $query->visibleToCustomerUser($user)
+        $query
             ->where('status', 1);
 
         if ($restaurantId !== null && Schema::hasColumn('products', 'vendor_id')) {

@@ -26,7 +26,7 @@
             <div class="col-lg-6">
                 <div class="card border-0 shadow-sm">
                     <div class="card-body">
-                        <form method="POST" action="{{ route('admin.gst-taxes.update', $gst_tax->id) }}">
+                        <form method="POST" action="{{ route('admin.gst-taxes.update', $gst_tax->id) }}" novalidate>
                             @csrf
                             @method('PUT')
 
@@ -36,10 +36,9 @@
                                        class="form-control @error('name') is-invalid @enderror"
                                        placeholder="e.g. GST 18%"
                                        value="{{ old('name', $gst_tax->name) }}"
-                                       maxlength="100"
-                                       required>
+                                       maxlength="100">
                                 <small class="text-muted">Use a clear label like "GST 5%", "GST 12%", etc.</small>
-                                @error('name')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                @include('admin.partials.field-error', ['field' => 'name'])
                             </div>
 
                             <div class="mb-3">
@@ -47,19 +46,18 @@
                                 <input type="number" name="percentage" step="0.01" min="0" max="100"
                                        class="form-control @error('percentage') is-invalid @enderror"
                                        placeholder="e.g. 18.00"
-                                       value="{{ old('percentage', $gst_tax->percentage) }}"
-                                       required>
+                                       value="{{ old('percentage', $gst_tax->percentage) }}">
                                 <small class="text-muted">Enter a value between 0 and 100. Up to 2 decimal places.</small>
-                                @error('percentage')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                @include('admin.partials.field-error', ['field' => 'percentage'])
                             </div>
 
                             <div class="mb-4">
                                 <label class="form-label-title">Status <span class="text-danger">*</span></label>
-                                <select name="status" class="form-select @error('status') is-invalid @enderror" required>
+                                <select name="status" class="form-select @error('status') is-invalid @enderror">
                                     <option value="1" {{ (string) old('status', $gst_tax->status) === '1' ? 'selected' : '' }}>Active</option>
                                     <option value="0" {{ (string) old('status', $gst_tax->status) === '0' ? 'selected' : '' }}>Inactive</option>
                                 </select>
-                                @error('status')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                @include('admin.partials.field-error', ['field' => 'status'])
                             </div>
 
                             <div class="d-flex gap-2">

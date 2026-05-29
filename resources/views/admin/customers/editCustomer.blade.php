@@ -33,11 +33,6 @@
                     </div>
                 @endif
 
-                @php
-                    $segmentEdit = is_string($customerDetails->user_type ?? null) ? trim($customerDetails->user_type) : '';
-                    $isWholesalerEdit = strcasecmp($segmentEdit, \App\Models\Product::TARGET_WHOLESALER) === 0;
-                @endphp
-
                 <div class="card customer-form-card">
                     <div class="card-body">
 
@@ -112,34 +107,6 @@
                                         @error('gender')<p class="invalid-feedback d-block mb-0">{{ $message }}</p>@enderror
                                     </div>
                                 </div>
-
-                                @if($isWholesalerEdit)
-                                    <div class="col-lg-6">
-                                        <div class="field-box">
-                                            <label class="form-label-title mb-2">GST number</label>
-                                            <input type="text" class="form-control bg-light" value="{{ trim((string) ($customerDetails->gst_number ?? '')) !== '' ? $customerDetails->gst_number : '—' }}" readonly tabindex="-1">
-                                            <small class="text-muted">Captured at registration. Update from the customer app or support tools if your flow allows it.</small>
-                                        </div>
-                                    </div>
-                                    <div class="col-lg-6">
-                                        <div class="field-box">
-                                            <label class="form-label-title mb-2">GST verification</label>
-                                            <p class="mb-0 fw-500">
-                                                @if(!empty($hasGstVerified) && !empty($customerDetails->gst_verified_at))
-                                                    Verified on {{ \Carbon\Carbon::parse($customerDetails->gst_verified_at)->format('d M Y, h:i A') }}
-                                                @elseif(!empty($hasGstVerified))
-                                                    @if(trim((string) ($customerDetails->gst_number ?? '')) !== '')
-                                                        Not verified yet — open <strong>View profile</strong> to mark as verified.
-                                                    @else
-                                                        —
-                                                    @endif
-                                                @else
-                                                    —
-                                                @endif
-                                            </p>
-                                        </div>
-                                    </div>
-                                @endif
 
                                 <div class="col-lg-6">
                                     <div class="field-box">

@@ -47,7 +47,6 @@ class ProductReviewController extends Controller
         }
 
         $product = Product::query()
-            ->visibleToCustomerUser($user)
             ->where('product_id', $productId)
             ->first();
         if (!$product) {
@@ -120,7 +119,6 @@ class ProductReviewController extends Controller
         }
 
         $product = Product::query()
-            ->visibleToCustomerUser($user)
             ->where('product_id', $productId)
             ->first();
         if (!$product) {

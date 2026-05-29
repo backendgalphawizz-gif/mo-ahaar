@@ -16,37 +16,14 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
-/**
- * Customer auth.
- *
- * DB columns (different meanings — both are stored on `users`):
- * - `role_type` (int): application role for routing & permissions in this codebase
- *   (1 = Admin, 2 = Vendor, 3 = Customer / customer-app user). Not the same as retailer vs wholesaler.
- * - `user_type` (enum): business segment for customer accounts only — `Retailer` or `Wholesaler`
- *   (matches `users.user_type` in MySQL). Always set on signup from `user_role` / `user_type` in the request.
- *
- * Signup accepts segment as:
- * - `user_type`: `Retailer` / `Wholesaler` (preferred when both `user_role` and `user_type` are sent)
- * - `user_role` / `role` as strings: `retailer`, `wholesaler`, etc.
- * - `user_role` / `role` as integers: `1` = retailer, `2` = wholesaler
- */
+/** Customer app authentication (role_type = customer). */
 class AuthController extends Controller
 {
     private const SIGNUP_OTP_CACHE_PREFIX = 'customer_signup_otp_';
 
     private const SIGNUP_OTP_TTL_MINUTES = 5;
 
-    /** Application role: customer-app API users (see also Vendor=2, Admin=1). */
     private const CUSTOMER_ROLE_TYPE = 2;
-
-    /** Signup payload segment (lowercase); persisted as `users.user_type` enum. */
-    private const CUSTOMER_TYPES = ['retailer', 'wholesaler'];
-
-    /** Maps API segment → DB enum `users.user_type`. */
-    private const USER_TYPE_BY_ROLE = [
-        'retailer' => 'Retailer',
-        'wholesaler' => 'Wholesaler',
-    ];
 
     public function login(Request $request)
     {
@@ -121,12 +98,10 @@ class AuthController extends Controller
 
     /**
      * POST /api/customer-app/auth/signup
-     * Register a customer account (retailer/wholesaler).
+     * Register a customer account.
      */
     public function signup(Request $request)
     {
-        $this->prepareCustomerSignupPayload($request);
-
         $validated = $request->validate([
             // 'user_role' => ['required', 'string', Rule::in(self::CUSTOMER_TYPES)],
             'name' => ['required', 'string', 'max:100'],
@@ -290,92 +265,6 @@ class AuthController extends Controller
                 'message' => 'Unable to create customer account right now. Please try again.',
             ], 500);
         }
-    }
-
-    /**
-     * Accept common client field names and shapes (case, plurals, numeric codes, alternate keys).
-     */
-    private function prepareCustomerSignupPayload(Request $request): void
-    {
-        $normalizedRole = null;
-
-        // Prefer explicit user_type (e.g. "Retailer") so it wins over a numeric user_role code when both are sent.
-        if ($request->filled('user_type')) {
-            $normalizedRole = $this->normalizeSignupUserRole($request->input('user_type'));
-        }
-
-        if ($normalizedRole === null) {
-            foreach (['user_role', 'role', 'customer_type'] as $key) {
-                $val = $request->input($key);
-                if ($val === null || $val === '') {
-                    continue;
-                }
-                $normalizedRole = $this->normalizeSignupUserRole($val);
-                if ($normalizedRole !== null) {
-                    break;
-                }
-            }
-        }
-
-        if ($normalizedRole !== null) {
-            $request->merge(['user_role' => $normalizedRole]);
-        }
-
-        if (!$request->filled('gst_number')) {
-            foreach (['gst', 'gst_no', 'GSTNumber', 'gstNumber'] as $key) {
-                if ($request->filled($key)) {
-                    $request->merge(['gst_number' => trim((string) $request->input($key))]);
-                    break;
-                }
-            }
-        } elseif (is_string($request->input('gst_number'))) {
-            $request->merge(['gst_number' => trim($request->input('gst_number'))]);
-        }
-
-        if (!$request->filled('company_name')) {
-            foreach (['companyName', 'business_name', 'company'] as $key) {
-                if ($request->filled($key)) {
-                    $request->merge(['company_name' => trim((string) $request->input($key))]);
-                    break;
-                }
-            }
-        } elseif (is_string($request->input('company_name'))) {
-            $request->merge(['company_name' => trim($request->input('company_name'))]);
-        }
-    }
-
-    private function normalizeSignupUserRole(mixed $raw): ?string
-    {
-        if ($raw === null || $raw === '') {
-            return null;
-        }
-
-        // Integer / numeric string codes from mobile clients: 1 = retailer, 2 = wholesaler
-        if (is_numeric($raw)) {
-            $n = (int) $raw;
-            if ($n === 1) {
-                return 'retailer';
-            }
-            if ($n === 2) {
-                return 'wholesaler';
-            }
-
-            return null;
-        }
-
-        $s = strtolower(trim((string) $raw));
-        $s = preg_replace('/\s+/', ' ', $s) ?? $s;
-        $s = rtrim($s, 's');
-
-        if (in_array($s, ['retailer', 'retail'], true)) {
-            return 'retailer';
-        }
-
-        if (in_array($s, ['wholesaler', 'wholesale'], true)) {
-            return 'wholesaler';
-        }
-
-        return null;
     }
 
     /**
@@ -606,6 +495,17 @@ class AuthController extends Controller
             ], 422);
         }
 
+        if ($restriction = $user->apiAccessRestriction()) {
+            return response()->json([
+                'status' => false,
+                'message' => $restriction['message'],
+                'data' => [
+                    'account_status' => $restriction['account_status'],
+                    'force_logout' => $restriction['force_logout'],
+                ],
+            ], $restriction['http_status']);
+        }
+
         $user->login_otp = null;
         $user->login_otp_expires_at = null;
 
@@ -629,15 +529,10 @@ class AuthController extends Controller
             $profileImageUrl = url('public/uploads/customers/' . $user->profile_image);
         }
 
-        $isWholesaler = Schema::hasColumn('users', 'user_type')
-            && strcasecmp((string) ($user->user_type ?? ''), 'Wholesaler') === 0;
-
         $personalInformation = [
             'user_id'            => $user->user_id,
             'name'               => $user->name,
             'role_type'          => $user->role_type,
-            'user_type'          => $user->user_type,
-            'gst_number'         => Schema::hasColumn('users', 'gst_number') ? $user->gst_number : null,
             'account_status'     => $user->customerAccountApprovalLabel(),
             'can_place_orders'   => $user->canPlaceOrdersAsCustomer(),
             'preferred_language' => $user->preferred_language ?: config('app.locale'),
@@ -647,10 +542,6 @@ class AuthController extends Controller
             'profile_photo_url'  => $profileImageUrl,
             'fcm_id'             => Schema::hasColumn('users', 'fcm_id') ? $user->fcm_id : null,
         ];
-
-        if ($isWholesaler && Schema::hasColumn('users', 'company_name')) {
-            $personalInformation['company_name'] = $user->company_name;
-        }
 
         return response()->json([
             'status'     => true,

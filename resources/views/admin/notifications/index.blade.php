@@ -26,7 +26,7 @@
         <div class="card dashboard-card mb-4">
             <div class="card-body">
                 <h6 class="figma-section-title">Send New Notification</h6>
-                <form method="POST" action="{{ route('admin.notifications.store') }}" class="row g-3">
+                <form method="POST" action="{{ route('admin.notifications.store') }}" class="row g-3" novalidate>
                     @csrf
                     <input type="hidden" name="recipient_scope" value="all">
                     <input type="hidden" name="target_type" id="target_type" value="{{ old('target_type', 'users') }}">
@@ -37,19 +37,19 @@
                             <option value="users" {{ old('target_type', 'users') === 'users' ? 'selected' : '' }}>Customers</option>
                             <option value="drivers" {{ old('target_type') === 'drivers' ? 'selected' : '' }}>Delivery Boys</option>
                         </select>
-                        @error('target_type')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        @include('admin.partials.field-error', ['field' => 'target_type'])
                     </div>
 
                     <div class="col-md-8">
                         <label class="form-label">Notification Title <span class="text-danger">*</span></label>
-                        <input type="text" name="title" value="{{ old('title') }}" class="form-control @error('title') is-invalid @enderror" placeholder="Enter notification title" required>
-                        @error('title')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        <input type="text" name="title" value="{{ old('title') }}" class="form-control @error('title') is-invalid @enderror" placeholder="Enter notification title" maxlength="190">
+                        @include('admin.partials.field-error', ['field' => 'title'])
                     </div>
 
                     <div class="col-12">
                         <label class="form-label">Message Body <span class="text-danger">*</span></label>
-                        <textarea name="message" rows="3" class="form-control @error('message') is-invalid @enderror" placeholder="Write your notification message..." required>{{ old('message') }}</textarea>
-                        @error('message')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        <textarea name="message" rows="3" class="form-control @error('message') is-invalid @enderror" placeholder="Write your notification message..." maxlength="5000">{{ old('message') }}</textarea>
+                        @include('admin.partials.field-error', ['field' => 'message'])
                     </div>
 
                     <div class="col-12">

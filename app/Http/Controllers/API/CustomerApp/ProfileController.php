@@ -8,7 +8,6 @@ use App\Models\Customers;
 use App\Models\Users;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 
 class ProfileController extends Controller
@@ -46,9 +45,6 @@ class ProfileController extends Controller
             ], 403);
         }
 
-        $isWholesaler = Schema::hasColumn('users', 'user_type')
-            && strcasecmp((string) ($user->user_type ?? ''), 'Wholesaler') === 0;
-
         if ($request->filled('full_name') && !$request->filled('name')) {
             $request->merge(['name' => $request->input('full_name')]);
         }
@@ -66,60 +62,14 @@ class ProfileController extends Controller
                 Rule::unique('users', 'email')->ignore($user->user_id, 'user_id'),
             ],
             'email_id' => ['nullable', 'email', 'max:255'],
-            'gst_number' => [
-                'nullable',
-                'string',
-                'max:30',
-                Rule::requiredIf($isWholesaler),
-            ],
-            'company_name' => [
-                'nullable',
-                'string',
-                'max:255',
-                Rule::requiredIf($isWholesaler && Schema::hasColumn('users', 'company_name')),
-            ],
             'dob' => ['nullable', 'date'],
             'gender' => ['nullable', 'string', 'max:20'],
             'customer_address' => ['nullable', 'string', 'max:1000'],
             'profile_image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
-        ], [
-            'gst_number.required' => 'GST number is mandatory for wholesaler accounts.',
-            'company_name.required' => 'Company name is mandatory for wholesaler accounts.',
         ]);
 
         $user->name = $validated['name'];
         $user->email = $validated['email'] ?? null;
-
-        if (Schema::hasColumn('users', 'company_name') && array_key_exists('company_name', $validated)) {
-            $raw = $validated['company_name'];
-            $user->company_name = is_string($raw) && trim($raw) !== '' ? trim($raw) : null;
-        }
-
-        $gstChangeRequiresReapproval = false;
-
-        if (Schema::hasColumn('users', 'gst_number') && array_key_exists('gst_number', $validated)) {
-            $gstRaw = $validated['gst_number'];
-            $gstNormalized = null;
-            if (is_string($gstRaw)) {
-                $t = trim($gstRaw);
-                $gstNormalized = $t !== '' ? strtoupper($t) : null;
-            }
-            $oldGst = strtoupper(trim((string) ($user->gst_number ?? '')));
-            $newGst = strtoupper(trim((string) ($gstNormalized ?? '')));
-            $user->gst_number = $gstNormalized;
-            if ($oldGst !== $newGst) {
-                if (Schema::hasColumn('users', 'gst_verified_at')) {
-                    $user->gst_verified_at = null;
-                }
-                if (Schema::hasColumn('users', 'approval_status')) {
-                    $user->approval_status = 'pending';
-                    $gstChangeRequiresReapproval = true;
-                    if (Schema::hasColumn('users', 'status')) {
-                        $user->status = 0;
-                    }
-                }
-            }
-        }
 
         if ($request->hasFile('profile_image')) {
             $uploadPath = public_path('uploads/customers');
@@ -146,20 +96,13 @@ class ProfileController extends Controller
 
         $refreshed = $user->fresh();
 
-        $profileStatus = [
-            'requires_admin_approval' => $gstChangeRequiresReapproval,
-            'account_status' => $refreshed->customerAccountApprovalLabel(),
-            'can_place_orders' => $refreshed->canPlaceOrdersAsCustomer(),
-            'gst_verification' => $this->gstVerificationForProfileResponse($refreshed),
-        ];
-
         return response()->json([
             'status' => true,
-            'message' => $gstChangeRequiresReapproval
-                ? 'Profile updated. Your GST change is pending admin approval; ordering stays disabled until approved.'
-                : 'Profile updated successfully',
-            'requires_admin_approval' => $gstChangeRequiresReapproval,
-            'profile_status' => $profileStatus,
+            'message' => 'Profile updated successfully',
+            'profile_status' => [
+                'account_status' => $refreshed->customerAccountApprovalLabel(),
+                'can_place_orders' => $refreshed->canPlaceOrdersAsCustomer(),
+            ],
             'data' => $this->formatProfile($refreshed),
         ], 200);
     }
@@ -178,35 +121,19 @@ class ProfileController extends Controller
             $profileImageUrl = url('public/uploads/customers/' . $user->profile_image);
         }
 
-        $isWholesaler = Schema::hasColumn('users', 'user_type')
-            && strcasecmp((string) ($user->user_type ?? ''), 'Wholesaler') === 0;
-
-        $personalInformation = [
-            'user_id' => $user->user_id,
-            'name' => $user->name,
-            'role_type' => $user->role_type,
-            'user_type' => $user->user_type,
-            'gst_number' => $user->gst_number,
-            'account_status' => $user->customerAccountApprovalLabel(),
-            'can_place_orders' => $user->canPlaceOrdersAsCustomer(),
-            'preferred_language' => $user->preferred_language ?: config('app.locale'),
-            'dob' => $customer?->dob,
-            'gender' => $customer?->gender,
-            'profile_photo' => $user->profile_image,
-            'profile_photo_url' => $profileImageUrl,
-        ];
-
-        $gstVerification = $this->gstVerificationForProfileResponse($user);
-        if ($gstVerification !== null) {
-            $personalInformation['gst_verification'] = $gstVerification;
-        }
-
-        if ($isWholesaler && Schema::hasColumn('users', 'company_name')) {
-            $personalInformation['company_name'] = $user->company_name;
-        }
-
         return [
-            'personal_information' => $personalInformation,
+            'personal_information' => [
+                'user_id' => $user->user_id,
+                'name' => $user->name,
+                'role_type' => $user->role_type,
+                'account_status' => $user->customerAccountApprovalLabel(),
+                'can_place_orders' => $user->canPlaceOrdersAsCustomer(),
+                'preferred_language' => $user->preferred_language ?: config('app.locale'),
+                'dob' => $customer?->dob,
+                'gender' => $customer?->gender,
+                'profile_photo' => $user->profile_image,
+                'profile_photo_url' => $profileImageUrl,
+            ],
             'contact_details' => [
                 'email' => $user->email,
                 'mobile' => $user->mobile,
@@ -278,43 +205,6 @@ class ProfileController extends Controller
             'address_type' => $address->address_type,
             'is_default' => (bool) $address->is_default,
             'formatted_address' => $address->formattedAddress(),
-        ];
-    }
-
-    /**
-     * GST admin verification for wholesalers; retailers get null (omit from nested profile, null in profile_status on update).
-     */
-    private function gstVerificationForProfileResponse(Users $user): ?array
-    {
-        if (!Schema::hasColumn('users', 'user_type')
-            || strcasecmp((string) ($user->user_type ?? ''), 'Wholesaler') !== 0) {
-            return null;
-        }
-
-        $gst = trim((string) ($user->gst_number ?? ''));
-        if ($gst === '') {
-            return [
-                'gst_verified' => false,
-                'gst_verified_at' => null,
-                'gst_verification_status' => 'no_gst_on_file',
-            ];
-        }
-
-        if (!Schema::hasColumn('users', 'gst_verified_at')) {
-            return [
-                'gst_verified' => false,
-                'gst_verified_at' => null,
-                'gst_verification_status' => 'unavailable',
-            ];
-        }
-
-        $verifiedAt = $user->gst_verified_at;
-        $isVerified = $verifiedAt !== null;
-
-        return [
-            'gst_verified' => $isVerified,
-            'gst_verified_at' => $isVerified ? $verifiedAt->toIso8601String() : null,
-            'gst_verification_status' => $isVerified ? 'verified' : 'pending_verification',
         ];
     }
 }

@@ -23,9 +23,16 @@
                 <h5 class="mb-0">Order Details: {{ $order->order_number }}</h5>
             </div>
             @if(!$isVendorPanel)
-            <a href="{{ route('admin.order-invoice-pdf', $order->order_id) }}" class="btn btn-outline-secondary btn-sm">
-                <i class="ri-file-download-line me-1"></i>Download Invoice
-            </a>
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                @include('admin.orders.partials.order-status-update-form', [
+                    'order' => $order,
+                    'selectClass' => 'form-select form-select-sm',
+                    'formClass' => 'order-status-update-form',
+                ])
+                <a href="{{ route('admin.order-invoice-pdf', $order->order_id) }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="ri-file-download-line me-1"></i>Download Invoice
+                </a>
+            </div>
             @endif
         </div>
 
@@ -151,20 +158,21 @@
 <div class="modal fade" id="assignDriverModalDetail" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <form method="POST" action="{{ route('admin.orders.assign-driver', $order->order_id) }}">
+            <form method="POST" action="{{ route('admin.orders.assign-driver', $order->order_id) }}" novalidate>
                 @csrf
                 <div class="modal-header">
                     <h5 class="modal-title">Assign Delivery Boy</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <label class="form-label">Select Driver</label>
-                    <select name="driver_id" class="form-select" required>
+                    <label class="form-label">Select Driver <span class="text-danger">*</span></label>
+                    <select name="driver_id" class="form-select @error('driver_id') is-invalid @enderror">
                         <option value="">Choose driver...</option>
                         @foreach($driversList as $d)
                             <option value="{{ $d->user_id }}">{{ $d->name }}</option>
                         @endforeach
                     </select>
+                    @include('admin.partials.field-error', ['field' => 'driver_id'])
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -174,6 +182,28 @@
         </div>
     </div>
 </div>
+@endif
+@endsection
+
+@section('scripts')
+@if(!$isVendorPanel)
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var select = document.querySelector('.order-status-update-form select[name="order_status"]');
+    if (!select) return;
+    select.dataset.previousValue = select.value;
+    select.addEventListener('change', function () {
+        var form = this.closest('form');
+        if (!form) return;
+        var label = this.options[this.selectedIndex]?.text || '';
+        if (confirm('Update order status to "' + label + '"?')) {
+            form.submit();
+        } else {
+            this.value = this.dataset.previousValue || '';
+        }
+    });
+});
+</script>
 @endif
 @endsection
 

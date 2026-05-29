@@ -31,10 +31,6 @@
                         </div>
                     @endif
 
-                    @php
-                        $segmentView = is_string($customer->user_type ?? null) ? trim($customer->user_type) : '';
-                        $isWholesalerCustomer = strcasecmp($segmentView, \App\Models\Product::TARGET_WHOLESALER) === 0;
-                    @endphp
                     <div class="row g-4">
                         <div class="col-xl-4 col-lg-5">
                             <div class="card h-100 customer-profile-card">
@@ -89,8 +85,7 @@
                                             </div>
                                         </div>
 
-                                        <div
-                                            class="d-flex align-items-center {{ $isWholesalerCustomer ? 'mb-3' : 'mb-0' }}">
+                                        <div class="d-flex align-items-center mb-0">
                                             <span class="customer-icon-box me-3"><i class="ri-cake-2-line"></i></span>
                                             <div>
                                                 <small class="text-muted d-block">Date of Birth</small>
@@ -99,25 +94,6 @@
                                             </div>
                                         </div>
 
-                                        @if($isWholesalerCustomer)
-                                            <div class="d-flex align-items-start">
-                                                <span class="customer-icon-box me-3"><i class="ri-government-line"></i></span>
-                                                <div>
-                                                    <small class="text-muted d-block">GST number</small>
-                                                    <span
-                                                        class="fw-500">{{ trim((string) ($customer->gst_number ?? '')) !== '' ? $customer->gst_number : '—' }}</span>
-                                                    @if(!empty($hasGstVerified))
-                                                        <div class="small mt-1">
-                                                            @if(!empty($customer->gst_verified_at))
-                                                                <span class="text-success">Verified</span>
-                                                            @elseif(trim((string) ($customer->gst_number ?? '')) !== '')
-                                                                <span class="text-warning">Not verified</span>
-                                                            @endif
-                                                        </div>
-                                                    @endif
-                                                </div>
-                                            </div>
-                                        @endif
                                     </div>
                                 </div>
                             </div>
@@ -182,37 +158,6 @@
                                                 </span>
                                             </div>
                                         </div>
-                                        @if(!empty($customer->user_type))
-                                            <div class="col-md-6">
-                                                <div class="customer-detail-item">
-                                                    <label>User type</label>
-                                                    <span>{{ $customer->user_type }}</span>
-                                                </div>
-                                            </div>
-                                        @endif
-                                        @if($isWholesalerCustomer)
-                                            <div class="col-md-6">
-                                                <div class="customer-detail-item">
-                                                    <label>GST number</label>
-                                                    <span>{{ trim((string) ($customer->gst_number ?? '')) !== '' ? $customer->gst_number : '—' }}</span>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div class="customer-detail-item">
-                                                    <label>GST verification</label>
-                                                    <span>
-                                                        @if(!empty($hasGstVerified) && !empty($customer->gst_verified_at))
-                                                            Verified on
-                                                            {{ \Carbon\Carbon::parse($customer->gst_verified_at)->format('d M Y, h:i A') }}
-                                                        @elseif(!empty($hasGstVerified) && trim((string) ($customer->gst_number ?? '')) !== '')
-                                                            Not verified yet
-                                                        @else
-                                                            —
-                                                        @endif
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        @endif
                                         <div class="col-md-6">
                                             <div class="customer-detail-item">
                                                 <label>User ID</label>
@@ -266,20 +211,6 @@
                                                 data-bs-target="#rejectCustomerProfileModal">
                                                 <i class="ri-close-circle-line me-1"></i>Reject registration
                                             </button>
-                                        @endif
-                                        @php
-                                            $gstView = trim((string) ($customer->gst_number ?? ''));
-                                            $needGstVerify = $isWholesalerCustomer && $gstView !== '' && empty($customer->gst_verified_at ?? null);
-                                        @endphp
-                                        @if(!empty($hasGstVerified) && $needGstVerify)
-                                            <form method="POST"
-                                                action="{{ route('admin.customers.verify-gst', $customer->customer_id) }}"
-                                                class="d-inline"
-                                                onsubmit="return confirm('Mark this GST number as verified?');">
-                                                @csrf
-                                                <button type="submit" class="btn btn-outline-primary"><i
-                                                        class="ri-shield-check-line me-1"></i>Verify GST</button>
-                                            </form>
                                         @endif
                                         @if(!empty($hasApproval) && $vAp === 'approved')
                                             <form method="POST"

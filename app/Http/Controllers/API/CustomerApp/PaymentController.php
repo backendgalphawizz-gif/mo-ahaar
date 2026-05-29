@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\API\CustomerApp;
 
+use App\Http\Controllers\API\Concerns\RespondsWithAccountRestrictions;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\API\CustomerApp\NotificationController;
 use App\Models\CartItem;
@@ -18,6 +19,8 @@ use Razorpay\Api\Errors\SignatureVerificationError;
 
 class PaymentController extends Controller
 {
+    use RespondsWithAccountRestrictions;
+
     private const CUSTOMER_ROLE_TYPE = 2;
 
     // -----------------------------------------------------------------------
@@ -32,15 +35,8 @@ class PaymentController extends Controller
             return response()->json(['status' => false, 'message' => 'Unauthorized customer access'], 403);
         }
 
-        if (!$user->canPlaceOrdersAsCustomer()) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Your account is pending admin approval. You cannot pay for orders until your account is activated.',
-                'data' => [
-                    'account_status' => $user->customerAccountApprovalLabel(),
-                    'can_place_orders' => false,
-                ],
-            ], 403);
+        if ($denied = $this->denyCustomerOrder($user)) {
+            return $denied;
         }
 
         $request->validate([
@@ -140,15 +136,8 @@ class PaymentController extends Controller
             return response()->json(['status' => false, 'message' => 'Unauthorized customer access'], 403);
         }
 
-        if (!$user->canPlaceOrdersAsCustomer()) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Your account is pending admin approval. You cannot pay for orders until your account is activated.',
-                'data' => [
-                    'account_status' => $user->customerAccountApprovalLabel(),
-                    'can_place_orders' => false,
-                ],
-            ], 403);
+        if ($denied = $this->denyCustomerOrder($user)) {
+            return $denied;
         }
 
         $request->validate([

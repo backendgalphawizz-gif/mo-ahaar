@@ -20,8 +20,14 @@
                 </div>
 
                 @if(session('error'))<div class="alert alert-danger">{{ session('error') }}</div>@endif
+                @if($errors->any())
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        Please fix the highlighted fields below and try again.
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                @endif
 
-                <form method="POST" action="{{ $formAction }}" enctype="multipart/form-data" id="driverForm">
+                <form method="POST" action="{{ $formAction }}" enctype="multipart/form-data" id="driverForm" novalidate>
                     @csrf
 
                     <div class="form-section mb-4">
@@ -30,7 +36,8 @@
                         <div class="row g-3">
                             <div class="col-md-3">
                                 <label class="form-label">Profile Picture</label>
-                                <input type="file" name="profile_image" class="form-control" accept="image/*">
+                                <input type="file" name="profile_image" class="form-control @error('profile_image') is-invalid @enderror" accept="image/*">
+                                @include('admin.partials.field-error', ['field' => 'profile_image'])
                                 @if($isEdit && !empty($driver->profile_image))
                                     <small><a href="{{ asset('public/uploads/drivers/' . $driver->profile_image) }}" target="_blank">View current photo</a></small>
                                 @else
@@ -56,49 +63,57 @@
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label">Document Type <span class="text-danger">*</span></label>
-                                        <select name="document_type" id="document_type" class="form-select" required>
+                                        <select name="document_type" id="document_type" class="form-select @error('document_type') is-invalid @enderror">
                                             <option value="aadhar" {{ $documentType === 'aadhar' ? 'selected' : '' }}>Aadhaar</option>
                                             <option value="pan" {{ $documentType === 'pan' ? 'selected' : '' }}>PAN</option>
                                         </select>
+                                        @include('admin.partials.field-error', ['field' => 'document_type'])
                                     </div>
                                     <div class="col-md-8" id="panDocumentFields" style="{{ $documentType === 'pan' ? '' : 'display:none;' }}">
                                         <label class="form-label">PAN Card Image <span class="text-danger pan-required">{{ (!$isEdit || !$hasPan) ? '*' : '' }}</span></label>
-                                        <input type="file" name="identity_document" id="identity_document" class="form-control" accept=".jpg,.jpeg,.png,.webp,.pdf" data-has-existing="{{ ($isEdit && $hasPan) ? '1' : '0' }}">
+                                        <input type="file" name="identity_document" id="identity_document" class="form-control @error('identity_document') is-invalid @enderror" accept=".jpg,.jpeg,.png,.webp,.pdf" data-has-existing="{{ ($isEdit && $hasPan) ? '1' : '0' }}">
                                         @if($isEdit && $hasPan)
                                             <small><a href="{{ asset('public/uploads/drivers/' . $profile->pan_card) }}" target="_blank">View current PAN</a></small>
                                         @endif
+                                        @include('admin.partials.field-error', ['field' => 'identity_document'])
                                     </div>
                                     <div class="col-md-4 aadhar-document-fields" style="{{ $documentType === 'aadhar' ? '' : 'display:none;' }}">
                                         <label class="form-label">Aadhaar Front <span class="text-danger aadhar-required">{{ (!$isEdit || !$hasAadharFront) ? '*' : '' }}</span></label>
-                                        <input type="file" name="aadhar_card" id="aadhar_card" class="form-control" accept=".jpg,.jpeg,.png,.webp,.pdf" data-has-existing="{{ ($isEdit && $hasAadharFront) ? '1' : '0' }}">
+                                        <input type="file" name="aadhar_card" id="aadhar_card" class="form-control @error('aadhar_card') is-invalid @enderror" accept=".jpg,.jpeg,.png,.webp,.pdf" data-has-existing="{{ ($isEdit && $hasAadharFront) ? '1' : '0' }}">
                                         @if($isEdit && $hasAadharFront)
                                             <small><a href="{{ asset('public/uploads/drivers/' . $profile->aadhar_card) }}" target="_blank">View front</a></small>
                                         @endif
+                                        @include('admin.partials.field-error', ['field' => 'aadhar_card'])
                                     </div>
                                     <div class="col-md-4 aadhar-document-fields" style="{{ $documentType === 'aadhar' ? '' : 'display:none;' }}">
                                         <label class="form-label">Aadhaar Back <span class="text-danger aadhar-required">{{ (!$isEdit || !$hasAadharBack) ? '*' : '' }}</span></label>
-                                        <input type="file" name="aadhar_card_back" id="aadhar_card_back" class="form-control" accept=".jpg,.jpeg,.png,.webp,.pdf" data-has-existing="{{ ($isEdit && $hasAadharBack) ? '1' : '0' }}">
+                                        <input type="file" name="aadhar_card_back" id="aadhar_card_back" class="form-control @error('aadhar_card_back') is-invalid @enderror" accept=".jpg,.jpeg,.png,.webp,.pdf" data-has-existing="{{ ($isEdit && $hasAadharBack) ? '1' : '0' }}">
                                         @if($isEdit && $hasAadharBack)
                                             <small><a href="{{ asset('public/uploads/drivers/' . $profile->aadhar_card_back) }}" target="_blank">View back</a></small>
                                         @endif
+                                        @include('admin.partials.field-error', ['field' => 'aadhar_card_back'])
                                     </div>
                                     @if(!$isEdit)
                                         <div class="col-md-6">
                                             <label class="form-label">Password <span class="text-danger">*</span></label>
-                                            <input type="password" name="password" class="form-control" required>
+                                            <input type="password" name="password" class="form-control @error('password') is-invalid @enderror">
+                                            @include('admin.partials.field-error', ['field' => 'password'])
                                         </div>
                                         <div class="col-md-6">
                                             <label class="form-label">Confirm Password <span class="text-danger">*</span></label>
-                                            <input type="password" name="password_confirmation" class="form-control" required>
+                                            <input type="password" name="password_confirmation" class="form-control @error('password_confirmation') is-invalid @enderror">
+                                            @include('admin.partials.field-error', ['field' => 'password_confirmation'])
                                         </div>
                                     @else
                                         <div class="col-md-6">
                                             <label class="form-label">New Password</label>
-                                            <input type="password" name="password" class="form-control">
+                                            <input type="password" name="password" class="form-control @error('password') is-invalid @enderror">
+                                            @include('admin.partials.field-error', ['field' => 'password'])
                                         </div>
                                         <div class="col-md-6">
                                             <label class="form-label">Confirm Password</label>
-                                            <input type="password" name="password_confirmation" class="form-control">
+                                            <input type="password" name="password_confirmation" class="form-control @error('password_confirmation') is-invalid @enderror">
+                                            @include('admin.partials.field-error', ['field' => 'password_confirmation'])
                                         </div>
                                     @endif
                                 </div>
@@ -112,40 +127,47 @@
                         <div class="row g-3">
                             <div class="col-md-4">
                                 <label class="form-label">Vehicle Number <span class="text-danger">*</span></label>
-                                <input type="text" name="vehicle_number" class="form-control" value="{{ old('vehicle_number', $profile->vehicle_number ?? '') }}" maxlength="20" required>
+                                <input type="text" name="vehicle_number" class="form-control @error('vehicle_number') is-invalid @enderror" value="{{ old('vehicle_number', $profile->vehicle_number ?? '') }}" maxlength="20">
+                                @include('admin.partials.field-error', ['field' => 'vehicle_number'])
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">RC Image <span class="text-danger">{{ $isEdit && !empty($profile?->rc_image) ? '' : '*' }}</span></label>
-                                <input type="file" name="rc_image" class="form-control" accept=".jpg,.jpeg,.png,.webp,.pdf" {{ !$isEdit || empty($profile?->rc_image) ? 'required' : '' }}>
+                                <input type="file" name="rc_image" class="form-control @error('rc_image') is-invalid @enderror" accept=".jpg,.jpeg,.png,.webp,.pdf">
                                 @if($isEdit && !empty($profile?->rc_image))
                                     <small><a href="{{ asset('public/uploads/drivers/' . $profile->rc_image) }}" target="_blank">View RC</a></small>
                                 @endif
+                                @include('admin.partials.field-error', ['field' => 'rc_image'])
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">Driving License No. <span class="text-danger">*</span></label>
-                                <input type="text" name="driving_license_number" class="form-control" value="{{ old('driving_license_number', $profile->driving_license_number ?? '') }}" maxlength="50" required>
+                                <input type="text" name="driving_license_number" class="form-control @error('driving_license_number') is-invalid @enderror" value="{{ old('driving_license_number', $profile->driving_license_number ?? '') }}" maxlength="50">
+                                @include('admin.partials.field-error', ['field' => 'driving_license_number'])
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">Driving License Image <span class="text-danger">{{ $isEdit && !empty($profile?->driving_license) ? '' : '*' }}</span></label>
-                                <input type="file" name="driving_license" class="form-control" accept=".jpg,.jpeg,.png,.webp,.pdf" {{ !$isEdit || empty($profile?->driving_license) ? 'required' : '' }}>
+                                <input type="file" name="driving_license" class="form-control @error('driving_license') is-invalid @enderror" accept=".jpg,.jpeg,.png,.webp,.pdf">
                                 @if($isEdit && !empty($profile?->driving_license))
                                     <small><a href="{{ asset('public/uploads/drivers/' . $profile->driving_license) }}" target="_blank">View license</a></small>
                                 @endif
+                                @include('admin.partials.field-error', ['field' => 'driving_license'])
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">PUC Number</label>
-                                <input type="text" name="puc_number" id="puc_number" class="form-control" value="{{ old('puc_number', $profile->puc_number ?? '') }}" maxlength="50">
+                                <input type="text" name="puc_number" id="puc_number" class="form-control @error('puc_number') is-invalid @enderror" value="{{ old('puc_number', $profile->puc_number ?? '') }}" maxlength="50">
+                                @include('admin.partials.field-error', ['field' => 'puc_number'])
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">PUC Expiry Date</label>
-                                <input type="date" name="puc_expiry_date" id="puc_expiry_date" class="form-control" value="{{ old('puc_expiry_date', optional($profile?->puc_expiry_date)->format('Y-m-d')) }}">
+                                <input type="date" name="puc_expiry_date" id="puc_expiry_date" class="form-control @error('puc_expiry_date') is-invalid @enderror" value="{{ old('puc_expiry_date', optional($profile?->puc_expiry_date)->format('Y-m-d')) }}">
+                                @include('admin.partials.field-error', ['field' => 'puc_expiry_date'])
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">PUC Image</label>
-                                <input type="file" name="puc_image" id="puc_image" class="form-control" accept=".jpg,.jpeg,.png,.webp,.pdf" @if($isEdit && !empty($profile?->puc_image)) data-has-existing="1" @endif>
+                                <input type="file" name="puc_image" id="puc_image" class="form-control @error('puc_image') is-invalid @enderror" accept=".jpg,.jpeg,.png,.webp,.pdf" @if($isEdit && !empty($profile?->puc_image)) data-has-existing="1" @endif>
                                 @if($isEdit && !empty($profile?->puc_image))
                                     <small><a href="{{ asset('public/uploads/drivers/' . $profile->puc_image) }}" target="_blank">View PUC</a></small>
                                 @endif
+                                @include('admin.partials.field-error', ['field' => 'puc_image'])
                             </div>
                         </div>
                     </div>
@@ -156,32 +178,37 @@
                         <div class="row g-3">
                             <div class="col-md-4">
                                 <label class="form-label">Account Holder Name <span class="text-danger">*</span></label>
-                                <input type="text" name="account_holder_name" class="form-control" value="{{ old('account_holder_name', $profile->account_holder_name ?? '') }}" maxlength="150" required>
+                                <input type="text" name="account_holder_name" class="form-control @error('account_holder_name') is-invalid @enderror" value="{{ old('account_holder_name', $profile->account_holder_name ?? '') }}" maxlength="150">
+                                @include('admin.partials.field-error', ['field' => 'account_holder_name'])
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">Bank Name <span class="text-danger">*</span></label>
-                                <input type="text" name="bank_name" class="form-control" value="{{ old('bank_name', $profile->bank_name ?? '') }}" maxlength="150" required>
+                                <input type="text" name="bank_name" class="form-control @error('bank_name') is-invalid @enderror" value="{{ old('bank_name', $profile->bank_name ?? '') }}" maxlength="150">
+                                @include('admin.partials.field-error', ['field' => 'bank_name'])
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">Account Number <span class="text-danger">*</span></label>
-                                <input type="text" name="account_number" class="form-control" value="{{ old('account_number', $profile->account_number ?? '') }}" maxlength="30" oninput="this.value=this.value.replace(/\D/g,'')" required>
+                                <input type="text" name="account_number" class="form-control @error('account_number') is-invalid @enderror" value="{{ old('account_number', $profile->account_number ?? '') }}" maxlength="30" oninput="this.value=this.value.replace(/\D/g,'')">
+                                @include('admin.partials.field-error', ['field' => 'account_number'])
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">IFSC Code <span class="text-danger">*</span></label>
-                                <input type="text" name="ifsc_code" class="form-control" value="{{ old('ifsc_code', $profile->ifsc_code ?? '') }}" maxlength="11" oninput="this.value=this.value.toUpperCase()" required>
+                                <input type="text" name="ifsc_code" class="form-control @error('ifsc_code') is-invalid @enderror" value="{{ old('ifsc_code', $profile->ifsc_code ?? '') }}" maxlength="11" oninput="this.value=this.value.toUpperCase()">
+                                @include('admin.partials.field-error', ['field' => 'ifsc_code'])
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Account Type <span class="text-danger">*</span></label>
-                                <select name="account_type" class="form-select" required>
+                                <select name="account_type" class="form-select @error('account_type') is-invalid @enderror">
                                     @foreach(['savings' => 'Savings', 'current' => 'Current'] as $val => $label)
                                         <option value="{{ $val }}" {{ strtolower(old('account_type', $profile->account_type ?? 'savings')) === $val ? 'selected' : '' }}>{{ $label }}</option>
                                     @endforeach
                                 </select>
+                                @include('admin.partials.field-error', ['field' => 'account_type'])
                             </div>
                             @if(!$isEdit)
                                 <div class="col-md-6">
                                     <label class="form-label">Approval Status</label>
-                                    <select name="approval_status" class="form-select">
+                                    <select name="approval_status" class="form-select @error('approval_status') is-invalid @enderror">
                                         <option value="pending" {{ old('approval_status', 'pending') === 'pending' ? 'selected' : '' }}>Pending</option>
                                         <option value="approved" {{ old('approval_status') === 'approved' ? 'selected' : '' }}>Approved</option>
                                     </select>
@@ -219,30 +246,11 @@ document.addEventListener('DOMContentLoaded', function () {
         if (panFields) panFields.style.display = isPan ? '' : 'none';
         aadharFields.forEach(function (el) { el.style.display = isPan ? 'none' : ''; });
 
-        if (identityDocument) {
-            identityDocument.required = isPan && identityDocument.dataset.hasExisting !== '1';
-        }
-        if (aadharFront) {
-            aadharFront.required = !isPan && aadharFront.dataset.hasExisting !== '1';
-        }
-        if (aadharBack) {
-            aadharBack.required = !isPan && aadharBack.dataset.hasExisting !== '1';
-        }
-    }
-
-    function syncPucRequirements() {
-        var hasPuc = pucNumber && pucNumber.value.trim() !== '';
-        if (pucExpiry) pucExpiry.required = hasPuc;
-        if (pucImage) pucImage.required = hasPuc && pucImage.dataset.hasExisting !== '1';
     }
 
     if (documentType) {
         documentType.addEventListener('change', syncDocumentRequirements);
         syncDocumentRequirements();
-    }
-    if (pucNumber) {
-        pucNumber.addEventListener('input', syncPucRequirements);
-        syncPucRequirements();
     }
 });
 </script>

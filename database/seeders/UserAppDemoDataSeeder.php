@@ -193,7 +193,6 @@ class UserAppDemoDataSeeder extends Seeder
                 'sale_price' => 220,
                 'discount' => 20,
                 'featured' => 1,
-                'target_user_type' => 'Retailer',
                 'vendor_id' => $vendorIds[0],
             ],
             [
@@ -204,7 +203,6 @@ class UserAppDemoDataSeeder extends Seeder
                 'sale_price' => null,
                 'discount' => 0,
                 'featured' => 1,
-                'target_user_type' => 'Retailer',
                 'vendor_id' => $vendorIds[0],
             ],
             [
@@ -215,7 +213,6 @@ class UserAppDemoDataSeeder extends Seeder
                 'sale_price' => null,
                 'discount' => 0,
                 'featured' => 1,
-                'target_user_type' => 'Retailer',
                 'vendor_id' => $vendorIds[1] ?? $vendorIds[0],
             ],
         ];
@@ -238,7 +235,6 @@ class UserAppDemoDataSeeder extends Seeder
                 'is_active_status' => 1,
                 'featured' => $row['featured'],
                 'sale_status' => $row['sale_price'] ? 1 : 0,
-                'target_user_type' => $row['target_user_type'],
                 'gst_percentage' => 18,
                 'gst_calculation_type' => 'excluded',
                 'tags' => 'veg,pizza,user-app',
@@ -329,7 +325,6 @@ class UserAppDemoDataSeeder extends Seeder
             'mobile' => self::DEMO_CUSTOMER_MOBILE,
             'password' => Hash::make(self::DEMO_PASSWORD),
             'role_type' => Users::CUSTOMER_APP_ROLE_TYPE,
-            'user_type' => 'Retailer',
             'status' => 1,
             'approval_status' => 'approved',
             'preferred_language' => 'en',

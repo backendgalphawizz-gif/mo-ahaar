@@ -23,7 +23,7 @@
             </div>
         @endif
 
-        <form method="POST" action="{{ route('admin.discount-offers.update', $discountOffer->id) }}">
+        <form method="POST" action="{{ route('admin.discount-offers.update', $discountOffer->id) }}" novalidate>
             @csrf
             @method('PUT')
             @include('admin.discount-offers._form')

@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use App\Support\VendorFormValidator;
 
 class VendorManagementController extends Controller
 {
@@ -24,7 +25,7 @@ class VendorManagementController extends Controller
 
     public function registerSubmit(Request $request)
     {
-        $validated = $this->validateVendor($request, null, true);
+        $validated = VendorFormValidator::validateComplete($request, null, true);
 
         DB::beginTransaction();
         try {
@@ -91,6 +92,11 @@ class VendorManagementController extends Controller
             });
         }
 
+        $dateFrom = trim((string) $request->query('date_from', ''));
+        if ($dateFrom !== '' && Schema::hasColumn('vendors', 'created_at')) {
+            $query->whereDate('created_at', '>=', $dateFrom);
+        }
+
         return $query;
     }
 
@@ -100,6 +106,7 @@ class VendorManagementController extends Controller
 
         $vendorIds = $vendors->pluck('vendor_id')->filter()->all();
         $productCounts = [];
+        $categoryCounts = [];
         $orderCounts = [];
 
         if (!empty($vendorIds) && Schema::hasColumn('products', 'vendor_id')) {
@@ -108,6 +115,15 @@ class VendorManagementController extends Controller
                 ->groupBy('vendor_id')
                 ->pluck('total', 'vendor_id')
                 ->all();
+
+            if (Schema::hasColumn('products', 'category_id')) {
+                $categoryCounts = Product::select('vendor_id', DB::raw('COUNT(DISTINCT category_id) as total'))
+                    ->whereIn('vendor_id', $vendorIds)
+                    ->whereNotNull('category_id')
+                    ->groupBy('vendor_id')
+                    ->pluck('total', 'vendor_id')
+                    ->all();
+            }
         }
 
         if (!empty($vendorIds)) {
@@ -122,6 +138,7 @@ class VendorManagementController extends Controller
             'title' => 'Vendor Management',
             'vendors' => $vendors,
             'productCounts' => $productCounts,
+            'categoryCounts' => $categoryCounts,
             'orderCounts' => $orderCounts,
             'search' => $request->query('search', ''),
             'status' => $request->query('status', 'all'),
@@ -134,36 +151,53 @@ class VendorManagementController extends Controller
             'title' => 'Add New Vendor',
             'vendor' => null,
             'tab' => request('tab', 'personal'),
+            'wizard' => session('admin.vendor_wizard.create', []),
         ]);
     }
 
     public function storeVendor(Request $request)
     {
-        $validated = $this->validateVendor($request, null, true);
+        $tab = (string) $request->input('tab', 'personal');
+        $action = (string) $request->input('wizard_action', 'submit');
+
+        if ($action === 'next') {
+            return $this->advanceVendorWizard($request, null, true, $tab);
+        }
+
+        $wizard = session('admin.vendor_wizard.create', []);
+        $this->normalizeVendorRequest($request);
+        $this->mergeWizardIntoRequest($request, $wizard);
+        $validated = VendorFormValidator::validateComplete($request, null, true);
+        $merged = array_merge($wizard, $validated);
+        $merged = $this->mergeWizardFileUploads($request, 'documents', $merged);
+        $merged = $this->mergeWizardFileUploads($request, 'personal', $merged);
 
         DB::beginTransaction();
         try {
             $user = Users::create([
-                'name' => $validated['owner_name'],
-                'email' => $this->resolveVendorEmail($validated),
-                'mobile' => $validated['mobile'],
-                'password' => Hash::make($validated['password']),
+                'name' => $merged['owner_name'],
+                'email' => $this->resolveVendorEmail($merged),
+                'mobile' => $merged['mobile'],
+                'password' => Hash::make($merged['password']),
                 'role_type' => 3,
                 'status' => '1',
             ]);
 
-            $vendorData = $this->mapVendorPayload($request, $validated);
+            $vendorData = $this->mapVendorPayload($request, $merged);
             $vendorData['user_id'] = $user->user_id;
             $vendorData['vendor_code'] = Vendor::generateVendorCode();
-            $vendorData['approval_status'] = $validated['approval_status'] ?? 'pending';
+            $vendorData['approval_status'] = $merged['approval_status'] ?? 'pending';
             $vendorData['status'] = '1';
 
             Vendor::create($vendorData);
             DB::commit();
         } catch (\Throwable $e) {
             DB::rollBack();
+
             return back()->withInput()->with('error', 'Failed to create vendor: ' . $e->getMessage());
         }
+
+        session()->forget('admin.vendor_wizard.create');
 
         return redirect()->route('admin.vendors')->with('success', 'Vendor created successfully.');
     }
@@ -214,13 +248,22 @@ class VendorManagementController extends Controller
             'title' => 'Edit Vendor',
             'vendor' => $vendor,
             'tab' => request('tab', 'personal'),
+            'wizard' => [],
         ]);
     }
 
     public function updateVendor(Request $request, $id)
     {
         $vendor = Vendor::findOrFail($id);
-        $validated = $this->validateVendor($request, $vendor, false);
+        $tab = (string) $request->input('tab', 'personal');
+        $action = (string) $request->input('wizard_action', 'submit');
+
+        if ($action === 'next') {
+            return $this->advanceVendorWizard($request, $vendor, false, $tab);
+        }
+
+        $this->normalizeVendorRequest($request);
+        $validated = VendorFormValidator::validateComplete($request, $vendor, false);
 
         DB::beginTransaction();
         try {
@@ -236,12 +279,113 @@ class VendorManagementController extends Controller
             DB::commit();
         } catch (\Throwable $e) {
             DB::rollBack();
+
             return back()->withInput()->with('error', 'Failed to update vendor: ' . $e->getMessage());
         }
 
         return redirect()
-            ->route('admin.edit-vendor', ['id' => $vendor->vendor_id, 'tab' => $request->input('tab', 'personal')])
+            ->route('admin.vendors')
             ->with('success', 'Vendor updated successfully.');
+    }
+
+    private function normalizeVendorRequest(Request $request): void
+    {
+        foreach (['pan_number', 'gst_number', 'ifsc_code'] as $field) {
+            if ($request->filled($field)) {
+                $request->merge([$field => strtoupper(trim((string) $request->input($field)))]);
+            }
+        }
+    }
+
+    private function advanceVendorWizard(Request $request, ?Vendor $vendor, bool $isCreate, string $tab)
+    {
+        if (!in_array($tab, VendorFormValidator::TABS, true)) {
+            $tab = 'personal';
+        }
+
+        $this->normalizeVendorRequest($request);
+        $validated = VendorFormValidator::validateTab($request, $tab, $vendor, $isCreate);
+
+        if ($isCreate) {
+            $wizard = array_merge(session('admin.vendor_wizard.create', []), $validated);
+            $wizard = $this->mergeWizardFileUploads($request, $tab, $wizard);
+            session(['admin.vendor_wizard.create' => $wizard]);
+
+            $nextTab = VendorFormValidator::nextTab($tab);
+            if (!$nextTab) {
+                return redirect()->route('admin.add-vendor', ['tab' => 'documents']);
+            }
+
+            return redirect()
+                ->route('admin.add-vendor', ['tab' => $nextTab])
+                ->with('success', 'Step saved. Continue with the next section.');
+        }
+
+        DB::beginTransaction();
+        try {
+            if ($tab === 'personal' && $vendor->user_id) {
+                Users::where('user_id', $vendor->user_id)->update([
+                    'name' => $validated['owner_name'],
+                    'email' => $this->resolveVendorEmail($validated),
+                    'mobile' => $validated['mobile'],
+                ]);
+            }
+
+            $vendor->update($this->mapVendorPayload($request, $validated));
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            return back()->withInput()->with('error', 'Failed to save step: ' . $e->getMessage());
+        }
+
+        $nextTab = VendorFormValidator::nextTab($tab);
+
+        return redirect()
+            ->route('admin.edit-vendor', ['id' => $vendor->vendor_id, 'tab' => $nextTab ?? $tab])
+            ->with('success', 'Step saved. Continue with the next section.');
+    }
+
+    /**
+     * @param  array<string, mixed>  $wizard
+     */
+    private function mergeWizardIntoRequest(Request $request, array $wizard): void
+    {
+        $scalars = collect($wizard)->filter(fn ($v) => is_scalar($v) || $v === null)->toArray();
+        $request->merge($scalars);
+    }
+
+    /**
+     * @param  array<string, mixed>  $wizard
+     * @return array<string, mixed>
+     */
+    private function mergeWizardFileUploads(Request $request, string $tab, array $wizard): array
+    {
+        $fileMap = match ($tab) {
+            'personal' => ['profile_image' => 'vendors'],
+            'documents' => [
+                'business_logo' => 'vendors',
+                'business_banner' => 'vendors',
+                'shop_image' => 'vendors',
+                'aadhaar_card' => 'vendors/documents',
+                'pan_card' => 'vendors/documents',
+                'gst_file' => 'vendors/documents',
+                'food_license_file' => 'vendors/documents',
+                'bank_passbook_file' => 'vendors/documents',
+                'address_proof_file' => 'vendors/documents',
+                'national_identity_card_file' => 'vendors/documents',
+            ],
+            default => [],
+        };
+
+        foreach ($fileMap as $field => $dir) {
+            $uploaded = $this->uploadFile($request, $field, $dir);
+            if ($uploaded) {
+                $wizard[$field] = $uploaded;
+            }
+        }
+
+        return $wizard;
     }
 
     public function updateApprovalStatus(Request $request, $id)
@@ -326,68 +470,6 @@ class VendorManagementController extends Controller
         return response()->stream($callback, 200, $headers);
     }
 
-    protected function validateVendor(Request $request, ?Vendor $vendor, bool $isCreate): array
-    {
-        $rules = [
-            'owner_name' => 'required|string|max:100',
-            'mobile' => 'required|string|max:15',
-            'email' => [
-                'nullable',
-                'email',
-                'max:255',
-                Rule::unique('users', 'email')->ignore($vendor?->user_id, 'user_id'),
-            ],
-            'dob' => 'nullable|date',
-            'gender' => 'nullable|in:male,female,others',
-            'business_name' => 'required|string|max:150',
-            'business_email' => 'nullable|email|max:255',
-            'business_phone' => 'nullable|string|max:20',
-            'business_description' => 'nullable|string|max:2000',
-            'tax_name' => 'nullable|string|max:100',
-            'tax_number' => 'nullable|string|max:50',
-            'pan_number' => 'nullable|string|max:20',
-            'gst_number' => 'nullable|string|max:15',
-            'address' => 'required|string|max:500',
-            'latitude' => 'nullable|numeric',
-            'longitude' => 'nullable|numeric',
-            'bank_name' => 'nullable|string|max:150',
-            'branch_name' => 'nullable|string|max:150',
-            'bank_account' => 'nullable|string|max:30',
-            'account_holder_name' => 'nullable|string|max:150',
-            'ifsc_code' => 'nullable|string|max:11',
-            'account_type' => 'nullable|string|max:50',
-            'commission_percent' => 'nullable|numeric|min:0|max:100',
-            'approval_status' => 'nullable|in:pending,approved,suspended,rejected',
-            'profile_image' => 'nullable|image|max:2048',
-            'business_logo' => 'nullable|image|max:2048',
-            'business_banner' => 'nullable|image|max:4096',
-            'shop_image' => 'nullable|image|max:4096',
-            'aadhaar_card' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:4096',
-            'pan_card' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:4096',
-            'gst_file' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:4096',
-            'food_license_file' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:4096',
-            'bank_passbook_file' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:4096',
-            'address_proof_file' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:4096',
-            'national_identity_card_file' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:4096',
-        ];
-
-        if ($isCreate) {
-            $rules['password'] = 'required|string|min:8|confirmed';
-        }
-
-        return $request->validate($rules, [
-            'owner_name.required' => 'Owner full name is required.',
-            'mobile.required' => 'Mobile number is required.',
-            'email.email' => 'Please enter a valid email address.',
-            'email.unique' => 'This email is already registered.',
-            'business_name.required' => 'Restaurant name is required.',
-            'address.required' => 'Address is required.',
-            'password.required' => 'Password is required.',
-            'password.min' => 'Password must be at least 8 characters.',
-            'password.confirmed' => 'Password confirmation does not match.',
-        ]);
-    }
-
     protected function resolveVendorEmail(array $validated): string
     {
         $email = trim((string) ($validated['email'] ?? ''));
@@ -428,6 +510,8 @@ class VendorManagementController extends Controller
             $uploaded = $this->uploadFile($request, $field, $dir);
             if ($uploaded) {
                 $data[$field] = $uploaded;
+            } elseif (!empty($validated[$field]) && is_string($validated[$field])) {
+                $data[$field] = $validated[$field];
             }
         }
 

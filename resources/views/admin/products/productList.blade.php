@@ -160,7 +160,10 @@
                             </div>
                             <div class="modal-footer justify-content-center">
                                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                                <a href="#" class="btn btn-danger" id="confirmDeleteProductBtn">Yes, Delete</a>
+                                <form method="POST" id="deleteProductForm" action="#" class="d-inline">
+                                    @csrf
+                                    <button type="submit" class="btn btn-danger">Yes, Delete</button>
+                                </form>
                             </div>
                         </div>
                     </div>
@@ -280,7 +283,10 @@ document.addEventListener('DOMContentLoaded', function () {
             var productName = trigger.getAttribute('data-product-name') || 'this product';
 
             document.getElementById('deleteProductName').textContent = productName;
-            document.getElementById('confirmDeleteProductBtn').href = '{{ $isVendorPanel ? url('/vendor/delete-product') : url('/admin/delete-product') }}/' + productId;
+            var deleteForm = document.getElementById('deleteProductForm');
+            if (deleteForm) {
+                deleteForm.action = '{{ $isVendorPanel ? url('/vendor/delete-product') : url('/admin/delete-product') }}/' + productId;
+            }
         });
     }
 

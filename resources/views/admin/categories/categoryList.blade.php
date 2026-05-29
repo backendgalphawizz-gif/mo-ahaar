@@ -85,9 +85,12 @@
                                                                     </a>
                                                                 </li>
                                                                 <li>
-                                                                    <a href="javascript:void(0)" class="delete-category-btn" data-id="{{ $category->category_id }}">
+                                                                    <a href="javascript:void(0)" class="delete-category-btn text-danger" data-form-id="delete-category-form-{{ $category->category_id }}" data-name="{{ $category->category_name }}">
                                                                         <i class="ri-delete-bin-line"></i>
                                                                     </a>
+                                                                    <form id="delete-category-form-{{ $category->category_id }}" method="POST" action="{{ route('admin.deleteCategory', $category->category_id) }}" class="d-none">
+                                                                        @csrf
+                                                                    </form>
                                                                 </li>
                                                             </ul>
                                                         </td>
@@ -203,28 +206,28 @@
     </style>
 
     <script>
-          function confirmDelete(id) {
-                console.log('Category ID:', id); // Check if ID is coming correctly
-                var site_url = "{{ url('/') }}";
-                Swal.fire({
-                    title: 'Are you sure?',
-                    text: "This will Delete the category.",
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonColor: '#d33',
-                    cancelButtonColor: '#3085d6',
-                    confirmButtonText: 'Yes, Delete it!'
-                }).then((result) => {
-                    if (result.value) {
-                        window.location.href = site_url+ '/admin/deleteCategory/' + id;
-                    }
-                });
-            }
-
             document.addEventListener('DOMContentLoaded', function () {
-                document.querySelectorAll('.delete-category-btn').forEach(function(el){
-                    el.addEventListener('click', function(){
-                        confirmDelete(this.getAttribute('data-id'));
+                document.querySelectorAll('.delete-category-btn').forEach(function (btn) {
+                    btn.addEventListener('click', function () {
+                        var formId = this.getAttribute('data-form-id');
+                        var name = this.getAttribute('data-name') || 'this category';
+                        var form = document.getElementById(formId);
+                        if (!form) return;
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire({
+                                title: 'Delete category?',
+                                text: 'Delete "' + name + '"?',
+                                icon: 'warning',
+                                showCancelButton: true,
+                                confirmButtonText: 'Yes, delete',
+                                cancelButtonText: 'Cancel',
+                                confirmButtonColor: '#dc3545'
+                            }).then(function (result) {
+                                if (result.isConfirmed) form.submit();
+                            });
+                        } else if (confirm('Delete "' + name + '"?')) {
+                            form.submit();
+                        }
                     });
                 });
 

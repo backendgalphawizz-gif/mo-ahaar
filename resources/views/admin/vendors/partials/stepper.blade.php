@@ -24,9 +24,16 @@
             $index = array_search($key, $stepKeys, true);
             $stateClass = $key === $current ? 'active' : ($index !== false && $index < $currentIndex ? 'done' : '');
         @endphp
-        <a href="{{ $stepUrl($key) }}" class="figma-step text-decoration-none {{ $stateClass }}">
-            <span class="step-circle">{{ $loop->iteration }}</span>
-            <span class="step-label">{{ $label }}</span>
-        </a>
+        @if($isEdit)
+            <a href="{{ $stepUrl($key) }}" class="figma-step text-decoration-none {{ $stateClass }}">
+                <span class="step-circle">{{ $loop->iteration }}</span>
+                <span class="step-label">{{ $label }}</span>
+            </a>
+        @else
+            <span class="figma-step {{ $stateClass }}">
+                <span class="step-circle">{{ $loop->iteration }}</span>
+                <span class="step-label">{{ $label }}</span>
+            </span>
+        @endif
     @endforeach
 </div>

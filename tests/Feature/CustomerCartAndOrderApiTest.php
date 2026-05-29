@@ -355,7 +355,6 @@ class CustomerCartAndOrderApiTest extends TestCase
             'email' => 'customer@example.com',
             'mobile' => '9999999999',
             'role_type' => Users::CUSTOMER_APP_ROLE_TYPE,
-            'user_type' => Product::TARGET_RETAILER,
             'status' => 1,
             'approval_status' => 'approved',
             'password' => bcrypt('password'),
@@ -384,7 +383,6 @@ class CustomerCartAndOrderApiTest extends TestCase
             'sku' => 'SKU-' . $sequence,
             'status' => 1,
             'is_active_status' => 1,
-            'target_user_type' => Product::TARGET_RETAILER,
         ], $overrides));
 
         $sequence++;

@@ -50,7 +50,9 @@
     $categoriesActive = $routeActive('admin.categories*', 'admin.add-category', 'admin.edit-category', 'admin/categories', 'admin/add-category', 'admin/edit-category');
     $productsActive = $routeActive('admin.products*', 'admin.add-product', 'admin.edit-product', 'admin.view-product', 'admin/products', 'admin/add-product', 'admin/edit-product', 'admin/view-product');
     $subCatActive = $routeActive('admin.sub-category*', 'admin.add-sub-category', 'admin.edit-sub-category', 'admin/sub-category', 'admin/add-sub-category', 'admin/edit-sub-category');
-    $productMenuOpen = $categoriesActive || $productsActive || $subCatActive;
+    $gstActive = $routeActive('admin.gst-taxes*', 'admin/gst-taxes*');
+    $reviewsActive = $routeActive('admin.product-reviews*', 'admin/product-reviews*');
+    $productMenuOpen = $categoriesActive || $productsActive || $subCatActive || $gstActive || $reviewsActive;
     $paymentsActive = $routeActive('admin.payments.status', 'admin/payments/status');
     $promoActive = $routeActive('admin.discount-offers*', 'admin/discount-offers*');
     $bannersActive = $routeActive('admin.banners*', 'admin/banners*');
@@ -149,6 +151,8 @@
                             <li><a href="{{ route('admin.categories') }}" class="{{ $categoriesActive ? 'active' : '' }}">Categories</a></li>
                             <li><a href="{{ route('admin.products') }}" class="{{ $productsActive ? 'active' : '' }}">Products</a></li>
                             <li><a href="{{ route('admin.sub-category') }}" class="{{ $subCatActive ? 'active' : '' }}">Sub Category</a></li>
+                            <li><a href="{{ route('admin.gst-taxes.index') }}" class="{{ $gstActive ? 'active' : '' }}">GST Taxes</a></li>
+                            <li><a href="{{ route('admin.product-reviews') }}" class="{{ $reviewsActive ? 'active' : '' }}">Product Reviews</a></li>
                         </ul>
                         @endif
                     </li>

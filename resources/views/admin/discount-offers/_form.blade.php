@@ -23,9 +23,9 @@
                    class="form-control @error('title') is-invalid @enderror"
                    placeholder="E.G., SUMMER50, FLAT300"
                    value="{{ old('title', $isEdit ? $discountOffer->title : '') }}"
-                   maxlength="150" required>
+                   maxlength="150">
             <small class="text-muted">Customers will enter this exact code.</small>
-            @error('title')<div class="invalid-feedback">{{ $message }}</div>@enderror
+            @include('admin.partials.field-error', ['field' => 'title'])
         </div>
 
         <div class="mb-3">
@@ -34,14 +34,14 @@
                       class="form-control @error('description') is-invalid @enderror"
                       rows="2"
                       placeholder="Optional: internal notes about this offer">{{ old('description', $isEdit ? $discountOffer->description : '') }}</textarea>
-            @error('description')<div class="invalid-feedback">{{ $message }}</div>@enderror
+            @include('admin.partials.field-error', ['field' => 'description'])
         </div>
 
         <div class="row g-3">
             <div class="col-md-6">
                 <label class="form-label-title">Discount Type <span class="text-danger">*</span></label>
                 <select name="discount_type" id="discountType"
-                        class="form-select @error('discount_type') is-invalid @enderror" required>
+                        class="form-select @error('discount_type') is-invalid @enderror">
                     <option value="percentage" {{ old('discount_type', $isEdit ? $discountOffer->discount_type : 'percentage') === 'percentage' ? 'selected' : '' }}>
                         Percentage (%)
                     </option>
@@ -49,7 +49,7 @@
                         Fixed Amount (₹)
                     </option>
                 </select>
-                @error('discount_type')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                @include('admin.partials.field-error', ['field' => 'discount_type'])
             </div>
             <div class="col-md-6">
                 <label class="form-label-title">Discount Value <span class="text-danger">*</span></label>
@@ -58,21 +58,20 @@
                     <input type="number" name="discount_value" id="discountValue" step="0.01" min="0.01"
                            class="form-control @error('discount_value') is-invalid @enderror"
                            placeholder="e.g. 10"
-                           value="{{ old('discount_value', $isEdit ? $discountOffer->discount_value : '') }}"
-                           required>
-                    @error('discount_value')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                           value="{{ old('discount_value', $isEdit ? $discountOffer->discount_value : '') }}">
                 </div>
+                @include('admin.partials.field-error', ['field' => 'discount_value'])
                 <small class="text-muted" id="discountHint">Enter a percentage (0–100).</small>
             </div>
         </div>
 
         <div class="mt-3">
             <label class="form-label-title">Status <span class="text-danger">*</span></label>
-            <select name="is_active" class="form-select @error('is_active') is-invalid @enderror" required>
+            <select name="is_active" class="form-select @error('is_active') is-invalid @enderror">
                 <option value="1" {{ old('is_active', $isEdit ? (string)$discountOffer->is_active : '1') === '1' ? 'selected' : '' }}>Active</option>
                 <option value="0" {{ old('is_active', $isEdit ? (string)$discountOffer->is_active : '1') === '0' ? 'selected' : '' }}>Inactive</option>
             </select>
-            @error('is_active')<div class="invalid-feedback">{{ $message }}</div>@enderror
+            @include('admin.partials.field-error', ['field' => 'is_active'])
         </div>
 
     </div>
@@ -86,12 +85,12 @@
         <div class="mb-3">
             <label class="form-label-title">Scope <span class="text-danger">*</span></label>
             <select name="apply_to" id="applyTo"
-                    class="form-select @error('apply_to') is-invalid @enderror" required>
+                    class="form-select @error('apply_to') is-invalid @enderror">
                 <option value="all" {{ $oldApply === 'all' ? 'selected' : '' }}>All Products</option>
                 <option value="specific_products" {{ $oldApply === 'specific_products' ? 'selected' : '' }}>Specific Products</option>
                 <option value="specific_categories" {{ $oldApply === 'specific_categories' ? 'selected' : '' }}>Specific Categories</option>
             </select>
-            @error('apply_to')<div class="invalid-feedback">{{ $message }}</div>@enderror
+            @include('admin.partials.field-error', ['field' => 'apply_to'])
         </div>
 
         {{-- Specific Products picker --}}
@@ -108,7 +107,7 @@
                 @endforeach
             </select>
             <small class="text-muted">Hold Ctrl / Cmd to select multiple products.</small>
-            @error('product_ids')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
+            @include('admin.partials.field-error', ['field' => 'product_ids'])
         </div>
 
         {{-- Specific Categories picker --}}
@@ -125,7 +124,7 @@
                 @endforeach
             </select>
             <small class="text-muted">Hold Ctrl / Cmd to select multiple categories.</small>
-            @error('category_ids')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
+            @include('admin.partials.field-error', ['field' => 'category_ids'])
         </div>
 
     </div>
@@ -142,7 +141,7 @@
                        class="form-control @error('valid_from') is-invalid @enderror"
                        value="{{ old('valid_from', $isEdit && $discountOffer->valid_from ? $discountOffer->valid_from->format('Y-m-d') : '') }}">
                 <small class="text-muted">Leave blank for no start restriction.</small>
-                @error('valid_from')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                @include('admin.partials.field-error', ['field' => 'valid_from'])
             </div>
             <div class="col-md-6">
                 <label class="form-label-title">Valid Until</label>
@@ -150,7 +149,7 @@
                        class="form-control @error('valid_until') is-invalid @enderror"
                        value="{{ old('valid_until', $isEdit && $discountOffer->valid_until ? $discountOffer->valid_until->format('Y-m-d') : '') }}">
                 <small class="text-muted">Leave blank for no end restriction.</small>
-                @error('valid_until')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                @include('admin.partials.field-error', ['field' => 'valid_until'])
             </div>
         </div>
     </div>
@@ -170,7 +169,7 @@
                        placeholder="e.g. 2"
                        value="{{ old('min_quantity', $isEdit ? $discountOffer->min_quantity : '') }}">
                 <small class="text-muted">Offer applies only if the item quantity ≥ this value.</small>
-                @error('min_quantity')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                @include('admin.partials.field-error', ['field' => 'min_quantity'])
             </div>
             <div class="col-md-6">
                 <label class="form-label-title">Maximum Quantity</label>
@@ -179,7 +178,7 @@
                        placeholder="e.g. 100"
                        value="{{ old('max_quantity', $isEdit ? $discountOffer->max_quantity : '') }}">
                 <small class="text-muted">Offer applies only if the item quantity ≤ this value.</small>
-                @error('max_quantity')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                @include('admin.partials.field-error', ['field' => 'max_quantity'])
             </div>
         </div>
 
@@ -192,7 +191,7 @@
                        placeholder="e.g. 500"
                        value="{{ old('min_cart_amount', $isEdit ? $discountOffer->min_cart_amount : '') }}">
                 <small class="text-muted">Offer applies only if cart subtotal ≥ this amount.</small>
-                @error('min_cart_amount')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                @include('admin.partials.field-error', ['field' => 'min_cart_amount'])
             </div>
             <div class="col-md-6">
                 <label class="form-label-title">Maximum Cart Amount (₹)</label>
@@ -201,7 +200,7 @@
                        placeholder="e.g. 5000"
                        value="{{ old('max_cart_amount', $isEdit ? $discountOffer->max_cart_amount : '') }}">
                 <small class="text-muted">Offer applies only if cart subtotal ≤ this amount.</small>
-                @error('max_cart_amount')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                @include('admin.partials.field-error', ['field' => 'max_cart_amount'])
             </div>
         </div>
 

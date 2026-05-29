@@ -521,33 +521,47 @@ class OrderManagementController extends Controller
       }
    }
 
-   public function exportOrdersExcel(Request $request)
+   private function applyOrdersExportFilters($query, Request $request): void
    {
-      $query = Orders::with(['customer.user'])->orderByDesc('order_id');
-
       $search = trim((string) $request->query('search', ''));
-
       if ($search !== '') {
          $query->where(function ($q) use ($search) {
-               $q->where('order_number', 'like', "%{$search}%")
-                  ->orWhereHas('customer.user', function ($u) use ($search) {
-                     $u->where('name', 'like', "%{$search}%");
-                  })
-                  ->orWhere('payment_method', 'like', "%{$search}%");
+            $q->where('order_number', 'like', "%{$search}%")
+               ->orWhereHas('customer.user', function ($u) use ($search) {
+                  $u->where('name', 'like', "%{$search}%");
+               })
+               ->orWhere('payment_method', 'like', "%{$search}%");
          });
       }
 
-      if ($request->filled('from_date')) {
-         $query->whereDate('created_at', '>=', $request->from_date);
+      $dateFrom = $request->query('date_from', $request->query('from_date'));
+      $dateTo = $request->query('date_to', $request->query('to_date'));
+      if ($dateFrom) {
+         $query->whereDate('created_at', '>=', $dateFrom);
+      }
+      if ($dateTo) {
+         $query->whereDate('created_at', '<=', $dateTo);
       }
 
-      if ($request->filled('to_date')) {
-         $query->whereDate('created_at', '<=', $request->to_date);
+      $statusFilter = $request->query('status_filter');
+      if ($statusFilter && isset(self::orderStatusGroups()[$statusFilter])) {
+         $query->whereIn('order_status', self::orderStatusGroups()[$statusFilter]);
+      }
+
+      $paymentStatus = $request->query('payment_status');
+      if ($paymentStatus && in_array($paymentStatus, ['pending', 'paid', 'failed', 'refunded'], true)) {
+         $query->where('payment_status', $paymentStatus);
       }
 
       if ($request->query('scope') === 'incoming') {
          $query->where('order_status', 'pending');
       }
+   }
+
+   public function exportOrdersExcel(Request $request)
+   {
+      $query = Orders::with(['customer.user'])->orderByDesc('order_id');
+      $this->applyOrdersExportFilters($query, $request);
 
       $orders = $query->lazy(500); // fetch in chunks of 500 to avoid loading all into memory at once
 
@@ -580,33 +594,7 @@ class OrderManagementController extends Controller
    public function exportOrdersPdf(Request $request)
    {
       $query = Orders::with(['customer.user'])->orderByDesc('order_id');
-
-      $search = trim((string) $request->query('search', ''));
-
-      if ($search !== '') {
-         $query->where(function ($q) use ($search) {
-               $q->where('order_number', 'like', "%{$search}%")
-                  ->orWhereHas('customer.user', function ($u) use ($search) {
-                     $u->where('name', 'like', "%{$search}%");
-                  })
-                  ->orWhere('payment_method', 'like', "%{$search}%");
-         });
-      }
-
-      $fromDate = $request->query('from_date');
-      $toDate   = $request->query('to_date');
-
-      if ($fromDate) {
-         $query->whereDate('created_at', '>=', $fromDate);
-      }
-
-      if ($toDate) {
-         $query->whereDate('created_at', '<=', $toDate);
-      }
-
-      if ($request->query('scope') === 'incoming') {
-         $query->where('order_status', 'pending');
-      }
+      $this->applyOrdersExportFilters($query, $request);
 
       $count = $query->count();
 

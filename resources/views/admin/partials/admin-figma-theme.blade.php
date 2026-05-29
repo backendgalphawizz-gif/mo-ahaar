@@ -351,7 +351,10 @@
 .admin-panel .form-control, .admin-panel .form-select {
     border-radius: 8px; min-height: 40px; font-size: 13px; border-color: #e5e7eb;
 }
-.admin-panel .invalid-feedback { font-size: 11px; margin-top: 4px; }
+.admin-panel .invalid-feedback { font-size: 11px; margin-top: 4px; color: #dc3545; }
+.admin-panel .invalid-feedback.d-block { display: block !important; }
+.admin-panel .form-control.is-invalid,
+.admin-panel .form-select.is-invalid { border-color: #dc3545; }
 
 .admin-panel .kpi-card {
     border: 1px solid #e8eaee; border-radius: 12px; background: #fff;
@@ -381,6 +384,84 @@
     background: #f3f4f6; border-color: #e5e7eb; color: #374151; font-weight: 500; border-radius: 8px; padding: 8px 16px;
 }
 .admin-panel .moa-user-modal .modal-footer .btn-figma-primary { min-width: 100px; }
+
+/* Restaurant / vendor (Figma) */
+.admin-panel .figma-btn-filter {
+    border: 1px solid #e5e7eb; background: #fff; color: #374151;
+    border-radius: 8px; font-size: 12px; font-weight: 500; padding: 7px 12px;
+    display: inline-flex; align-items: center; gap: 6px; min-height: 36px;
+}
+.admin-panel .figma-btn-filter:hover { background: #f9fafb; color: #111827; }
+.admin-panel .figma-btn-export {
+    border: 1px solid #e5e7eb; background: #fff; color: #374151;
+    border-radius: 8px; font-size: 12px; font-weight: 500; padding: 7px 14px;
+    display: inline-flex; align-items: center; gap: 6px; min-height: 36px; text-decoration: none;
+}
+.admin-panel .figma-btn-export:hover { background: #f9fafb; color: #111827; }
+
+.admin-panel .status-label.pending { color: #ea580c !important; }
+.admin-panel .status-label.suspended { color: #6b7280 !important; }
+.admin-panel .status-label.rejected { color: #dc2626 !important; }
+
+.admin-panel .figma-icon-actions { display: flex; align-items: center; gap: 8px; }
+.admin-panel .figma-icon-btn {
+    width: 32px; height: 32px; border-radius: 50%; display: inline-flex;
+    align-items: center; justify-content: center; font-size: 15px;
+    text-decoration: none; border: none; padding: 0; cursor: pointer;
+}
+.admin-panel .figma-icon-btn.view { background: #dbeafe; color: #2563eb; }
+.admin-panel .figma-icon-btn.edit { background: #ffedd5; color: #ea580c; }
+.admin-panel .figma-icon-btn.delete { background: #fee2e2; color: #dc2626; }
+.admin-panel .figma-icon-btn:hover { filter: brightness(0.95); }
+
+.admin-panel .vendor-wizard-head { margin-bottom: 20px; }
+.admin-panel .vendor-wizard-head .btn-back-figma {
+    width: 36px; height: 36px; border: 1px solid #e5e7eb; border-radius: 8px;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: #374151; background: #fff; text-decoration: none; flex-shrink: 0;
+}
+.admin-panel .vendor-wizard-head .btn-back-figma:hover { background: #f9fafb; }
+.admin-panel .vendor-wizard-head .vendor-code-accent { color: var(--moa-red); font-weight: 700; }
+
+.admin-panel .figma-form-block { margin-bottom: 0; }
+.admin-panel .figma-form-block h6 {
+    font-size: 15px; font-weight: 700; color: #111827; margin-bottom: 10px;
+}
+.admin-panel .figma-section-rule {
+    border: 0; border-top: 1px solid #eceef2; margin: 0 0 20px; opacity: 1;
+}
+.admin-panel .figma-form-block .form-label {
+    font-size: 13px; font-weight: 500; color: #374151; margin-bottom: 6px;
+}
+.admin-panel .figma-form-block .form-control,
+.admin-panel .figma-form-block .form-select {
+    min-height: 42px; font-size: 13px; border-color: #e5e7eb; border-radius: 8px;
+}
+.admin-panel .figma-form-block .form-control::placeholder { color: #9ca3af; }
+.admin-panel .figma-form-extra { margin-top: 8px; padding-top: 20px; border-top: 1px dashed #e5e7eb; }
+
+.admin-panel .vendor-detail-kpi .card-body { padding: 16px 18px; }
+.admin-panel .vendor-detail-kpi small { font-size: 12px; color: #6b7280; display: block; margin-bottom: 6px; }
+.admin-panel .vendor-detail-kpi h4 { font-size: 22px; font-weight: 700; color: #111827; margin: 0; }
+.admin-panel .vendor-detail-tabs {
+    border-bottom: 1px solid #eceef2; gap: 0; margin-bottom: 20px;
+}
+.admin-panel .vendor-detail-tabs .nav-link {
+    border: none; border-bottom: 2px solid transparent; color: #6b7280;
+    font-size: 13px; font-weight: 500; padding: 10px 16px; margin-bottom: -1px;
+}
+.admin-panel .vendor-detail-tabs .nav-link.active {
+    color: var(--moa-red); border-bottom-color: var(--moa-red); font-weight: 600; background: transparent;
+}
+.admin-panel .vendor-detail-section h6 {
+    font-size: 14px; font-weight: 700; color: #111827; margin-bottom: 12px;
+    padding-bottom: 8px; border-bottom: 1px solid #f1f3f5;
+}
+.admin-panel .vendor-detail-section p { font-size: 13px; margin-bottom: 8px; color: #374151; }
+.admin-panel .doc-box-figma {
+    border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; text-align: center;
+    min-height: 100px; background: #fafbfc; font-size: 12px;
+}
 
 @media (max-width: 991px) {
     .admin-panel .page-wrapper.compact-wrapper .page-header,

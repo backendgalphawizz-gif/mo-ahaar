@@ -15,13 +15,13 @@
 
         <div class="card dashboard-card mx-auto" style="max-width: 760px;">
             <div class="card-body">
-                <form method="POST" action="{{ route('admin.banners.update', $banner->id) }}" enctype="multipart/form-data" class="row g-3">
+                <form method="POST" action="{{ route('admin.banners.update', $banner->id) }}" enctype="multipart/form-data" class="row g-3" novalidate>
                     @csrf
 
                     <div class="col-12">
-                        <label class="form-label">Banner Title</label>
-                        <input type="text" name="title" class="form-control @error('title') is-invalid @enderror" value="{{ old('title', $banner->title) }}">
-                        @error('title')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        <label class="form-label">Banner Title <span class="text-danger">*</span></label>
+                        <input type="text" name="title" class="form-control @error('title') is-invalid @enderror" value="{{ old('title', $banner->title) }}" maxlength="190" placeholder="Enter banner title">
+                        @include('admin.partials.field-error', ['field' => 'title'])
                     </div>
 
                     <div class="col-12">
@@ -34,28 +34,28 @@
                                 <input type="file" name="banner_image" accept=".jpg,.jpeg,.png,.webp" class="@error('banner_image') is-invalid @enderror">
                             </label>
                         </div>
-                        @error('banner_image')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
+                        @include('admin.partials.field-error', ['field' => 'banner_image'])
                     </div>
 
                     <div class="col-md-4">
                         <label class="form-label">Visible from</label>
                         <input type="date" name="visible_from" class="form-control @error('visible_from') is-invalid @enderror" value="{{ old('visible_from', optional($banner->visible_from)->format('Y-m-d')) }}">
-                        @error('visible_from')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        @include('admin.partials.field-error', ['field' => 'visible_from'])
                     </div>
 
                     <div class="col-md-4">
                         <label class="form-label">Visible to</label>
                         <input type="date" name="visible_to" class="form-control @error('visible_to') is-invalid @enderror" value="{{ old('visible_to', optional($banner->visible_to)->format('Y-m-d')) }}">
-                        @error('visible_to')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        @include('admin.partials.field-error', ['field' => 'visible_to'])
                     </div>
 
                     <div class="col-md-4">
                         <label class="form-label">Status <span class="text-danger">*</span></label>
-                        <select name="status" class="form-select @error('status') is-invalid @enderror" required>
+                        <select name="status" class="form-select @error('status') is-invalid @enderror">
                             <option value="1" {{ (string) old('status', $banner->status) === '1' ? 'selected' : '' }}>Active</option>
                             <option value="2" {{ (string) old('status', $banner->status) === '2' ? 'selected' : '' }}>Inactive</option>
                         </select>
-                        @error('status')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        @include('admin.partials.field-error', ['field' => 'status'])
                     </div>
 
                     <div class="col-12 d-flex justify-content-end gap-2 pt-2 border-top mt-2">

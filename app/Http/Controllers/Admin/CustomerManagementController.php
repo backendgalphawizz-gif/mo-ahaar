@@ -57,7 +57,6 @@ class CustomerManagementController extends Controller
             'users.email',
             'users.mobile',
             'users.status',
-            'users.user_type',
             'users.profile_image',
         ];
         if (Schema::hasColumn('users', 'gst_number')) {
@@ -230,9 +229,6 @@ class CustomerManagementController extends Controller
             $user->status = 1;
             if (Schema::hasColumn('users', 'approval_status')) {
                 $user->approval_status = 'approved';
-            }
-            if (Schema::hasColumn('users', 'user_type')) {
-                $user->user_type = 'Retailer';
             }
             $user->save();
 
@@ -444,6 +440,7 @@ class CustomerManagementController extends Controller
 
         $user->status = 2;
         $user->save();
+        $user->revokeAllApiTokens();
 
         return redirect()->route('admin.customers')
             ->with('success', 'Customer Deleted Successfully');
@@ -587,7 +584,7 @@ class CustomerManagementController extends Controller
         ];
 
         $callback = function () use ($customers, $hasApproval) {
-            $header = "S.No.\tName\tEmail\tMobile\tUser Type\tAccount Status";
+            $header = "S.No.\tName\tEmail\tMobile\tAccount Status";
             if ($hasApproval) {
                 $header .= "\tApproval";
             }
@@ -599,7 +596,6 @@ class CustomerManagementController extends Controller
                 $line .= ($customer->name ?? 'N/A') . "\t";
                 $line .= ($customer->email ?? '') . "\t";
                 $line .= ($customer->mobile ?? '-') . "\t";
-                $line .= ($customer->user_type ?? '-') . "\t";
                 $line .= ((int)($customer->status ?? 0) === 1 ? 'Active' : 'Inactive') . "\t";
                 if ($hasApproval) {
                     $line .= ucfirst((string)($customer->approval_status ?? 'approved')) . "\t";

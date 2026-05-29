@@ -62,7 +62,6 @@ class CartController extends Controller
         }
 
         $product = Product::query()
-            ->visibleToCustomerUser($user)
             ->where('product_id', $validated['product_id'])
             ->whereIn('status', [1, '1'])
             ->whereIn('is_active_status', [1, '1'])
@@ -174,7 +173,6 @@ class CartController extends Controller
         }
 
         $product = Product::query()
-            ->visibleToCustomerUser($user)
             ->where('product_id', $cartItem->product_id)
             ->whereIn('status', [1, '1'])
             ->whereIn('is_active_status', [1, '1'])
@@ -407,15 +405,8 @@ class CartController extends Controller
     // -----------------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------------
-    /**
-     * Wholesaler products may require a minimum line quantity; others default to 1.
-     */
     private function minimumOrderQuantityForProduct($product): int
     {
-        if ($product->target_user_type !== Product::TARGET_WHOLESALER) {
-            return 1;
-        }
-
         $min = (int) ($product->min_quantity ?? 0);
 
         return $min >= 1 ? $min : 1;

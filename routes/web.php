@@ -139,7 +139,7 @@ Route::middleware(['AdminAuth'])->prefix('admin')->group(function(){
         Route::get('/view-product/{id}',[ProductManagementController::class,'viewProduct'])->name('admin.view-product');
         Route::get('/edit-product/{id}',[ProductManagementController::class,'editProduct'])->name('admin.edit-product');
         Route::post('/update-product',[ProductManagementController::class,'updateProduct'])->name('admin.update-product');
-        Route::get('/delete-product/{id}',[ProductManagementController::class,'deleteProduct'])->name('admin.delete-product');
+        Route::post('/delete-product/{id}',[ProductManagementController::class,'deleteProduct'])->name('admin.delete-product');
         Route::post('/products/{id}/approval-status',[ProductManagementController::class,'updateApprovalStatus'])->name('admin.products.update-approval-status');
         Route::post('/toggle-product-status/{id}',[ProductManagementController::class,'toggleStatus'])->name('admin.products.toggle-status');
         Route::get('/products/export-excel', [ProductManagementController::class, 'exportProductsExcel'])->name('admin.products.export-excel');
@@ -159,13 +159,13 @@ Route::middleware(['AdminAuth'])->prefix('admin')->group(function(){
         Route::post('/store-category',[ProductManagementController::class,'storeCategory'])->name('admin.store-category');
         Route::get('/edit-category/{id}',[ProductManagementController::class,'editCategory'])->name('admin.edit-category');
         Route::post('/update-category',[ProductManagementController::class,'updateCategory'])->name('admin.update-category');
-        Route::any('/deleteCategory/{id}', [ProductManagementController::class, 'deleteCategory'])->name('admin.deleteCategory');
+        Route::post('/deleteCategory/{id}', [ProductManagementController::class, 'deleteCategory'])->name('admin.deleteCategory');
         Route::get('/sub-category',[ProductManagementController::class,'subCategories'])->name('admin.sub-category');
         Route::get('/add-sub-category',[ProductManagementController::class,'addSubCategory'])->name('admin.add-sub-category');
         Route::post('/store-sub-category',[ProductManagementController::class,'storeSubCategory'])->name('admin.store-sub-category');
         Route::get('/edit-sub-category/{id}',[ProductManagementController::class,'editSubCategory'])->name('admin.edit-sub-category');
         Route::post('/update-sub-category',[ProductManagementController::class,'updateSubCategory'])->name('admin.update-sub-category');
-        Route::any('/deleteSubCategory/{id}', [ProductManagementController::class, 'deleteSubCategory'])->name('admin.deleteSubCategory');
+        Route::post('/deleteSubCategory/{id}', [ProductManagementController::class, 'deleteSubCategory'])->name('admin.deleteSubCategory');
 
         // Order Management Routes
         Route::get('/orders',[OrderManagementController::class,'orders'])->name('admin.orders');
@@ -191,7 +191,7 @@ Route::middleware(['AdminAuth'])->prefix('admin')->group(function(){
         Route::get('/view-customer/{id}',[CustomerManagementController::class,'viewCustomer'])->name('admin.view-customer');
         Route::get('/edit-customer/{id}',[CustomerManagementController::class,'editCustomer'])->name('admin.edit-customer');
         Route::post('/update-customer',[CustomerManagementController::class,'updateCustomer'])->name('admin.update-customer');
-        Route::any('/delete-customer/{id}',[CustomerManagementController::class,'deleteCustomer'])->name('admin.delete-customer');
+        Route::post('/delete-customer/{id}',[CustomerManagementController::class,'deleteCustomer'])->name('admin.delete-customer');
         Route::post('/toggle-customer-status/{id}',[CustomerManagementController::class,'toggleStatus'])->name('admin.customers.toggle-status');
         Route::post('/customers/{id}/approve-registration',[CustomerManagementController::class,'approveRegistration'])->name('admin.customers.approve-registration');
         Route::post('/customers/{id}/reject-registration',[CustomerManagementController::class,'rejectRegistration'])->name('admin.customers.reject-registration');
@@ -210,7 +210,7 @@ Route::middleware(['AdminAuth'])->prefix('admin')->group(function(){
         Route::post('/vendors/{id}/approval-status', [VendorManagementController::class, 'updateApprovalStatus'])->name('admin.vendors.approval-status');
         Route::post('/vendors/{id}/commission', [VendorManagementController::class, 'updateCommission'])->name('admin.vendors.update-commission');
         Route::post('/vendors/{id}/toggle-block', [VendorManagementController::class, 'toggleBlock'])->name('admin.vendors.toggle-block');
-        Route::any('/delete-vendor/{id}', [VendorManagementController::class, 'deleteVendor'])->name('admin.delete-vendor');
+        Route::post('/delete-vendor/{id}', [VendorManagementController::class, 'deleteVendor'])->name('admin.delete-vendor');
         Route::get('/vendors/export-excel', [VendorManagementController::class, 'exportVendorsExcel'])->name('admin.vendors.export-excel');
 
         // Delivery Management Routes
@@ -276,6 +276,7 @@ Route::middleware(['AdminAuth'])->prefix('admin')->group(function(){
         Route::get('/banners/edit/{id}', [BannerController::class, 'edit'])->name('admin.banners.edit');
         Route::post('/banners/update/{id}', [BannerController::class, 'update'])->name('admin.banners.update');
         Route::post('/banners/delete/{id}', [BannerController::class, 'delete'])->name('admin.banners.delete');
+        Route::post('/banners/{id}/toggle-status', [BannerController::class, 'toggleStatus'])->name('admin.banners.toggle-status');
 
         // GST Tax Management
         Route::resource('gst-taxes', GstTaxController::class)->names('admin.gst-taxes');
@@ -296,7 +297,7 @@ Route::middleware(['VendorAuth'])->prefix('vendor')->name('vendor.')->group(func
         Route::get('/view-product/{id}',[ProductManagementController::class,'viewProduct'])->name('view-product');
         Route::get('/edit-product/{id}',[ProductManagementController::class,'editProduct'])->name('edit-product');
         Route::post('/update-product',[ProductManagementController::class,'updateProduct'])->name('update-product');
-        Route::get('/delete-product/{id}',[ProductManagementController::class,'deleteProduct'])->name('delete-product');
+        Route::post('/delete-product/{id}',[ProductManagementController::class,'deleteProduct'])->name('delete-product');
         Route::post('/toggle-product-status/{id}',[ProductManagementController::class,'toggleStatus'])->name('products.toggle-status');
 
         Route::get('/orders',[VendorPanelController::class,'orders'])->name('orders');

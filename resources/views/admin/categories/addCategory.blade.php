@@ -39,14 +39,15 @@
                                                 </ul>
                                             </div>
                                         @endif
-                                        <form action="{{ route('admin.store-category') }}" method="POST" enctype="multipart/form-data" id="categoryForm">
+                                        <form action="{{ route('admin.store-category') }}" method="POST" enctype="multipart/form-data" id="categoryForm" novalidate>
                                             @csrf
                                             <div class="theme-form theme-form-2 mega-form">
                                                 <div class="mb-4 row align-items-center">
                                                     <label class="form-label-title col-sm-3 mb-0">Category Name</label>
                                                     <div class="col-sm-9">
-                                                        <input class="form-control" id="category_name" type="text" name="category_name" placeholder="Category Name" value="{{ old('category_name') }}">
-                                                        <p class="errors" id="err_category_name"></p>
+                                                        <input class="form-control @error('category_name') is-invalid @enderror" id="category_name" type="text" name="category_name" placeholder="Category Name" value="{{ old('category_name') }}">
+                                                        <p class="errors text-danger mb-0" id="err_category_name"></p>
+                                                        @include('admin.partials.field-error', ['field' => 'category_name'])
                                                     </div>
                                                 </div>
 

@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Schema;
 use Laravel\Sanctum\HasApiTokens;
 
 class Users extends Authenticatable
@@ -14,13 +15,18 @@ class Users extends Authenticatable
     use HasApiTokens, HasFactory, Notifiable;
 
     /**
-     * `role_type`: 1 Admin, 2 customer-app user or vendor depending on product routing (customer API uses 2).
-     * `user_type`: Retailer / Wholesaler for customer accounts — separate from role_type.
+     * `role_type`: 1 Admin, 2 Customer app, 3 Vendor, 4 Driver (see constants below).
      * `approval_status`: customer registration — pending | approved | rejected (see migration).
      */
     public const CUSTOMER_APP_ROLE_TYPE = 2;
 
     public const DRIVER_APP_ROLE_TYPE = 4;
+
+    public const STATUS_ACTIVE = 1;
+
+    public const STATUS_INACTIVE = 0;
+
+    public const STATUS_DELETED = 2;
 
     protected $table = 'users';
     protected $primaryKey = 'user_id';
@@ -39,7 +45,6 @@ class Users extends Authenticatable
         'profile_image',
         'password',
         'role_type',
-        'user_type',
         'status',
         'approval_status',
         'accept_terms',
@@ -73,27 +78,152 @@ class Users extends Authenticatable
         return (int) $this->role_type === self::DRIVER_APP_ROLE_TYPE;
     }
 
+    public function isDeletedAccount(): bool
+    {
+        return (int) $this->status === self::STATUS_DELETED;
+    }
+
+    public function isDeactivatedAccount(): bool
+    {
+        return (int) $this->status === self::STATUS_INACTIVE;
+    }
+
+    public function isActiveAccount(): bool
+    {
+        return (int) $this->status === self::STATUS_ACTIVE;
+    }
+
+    public function revokeAllApiTokens(): void
+    {
+        $this->tokens()->delete();
+    }
+
     /**
      * Customer-app users may place orders only when registration is approved and account is active.
      */
     public function canPlaceOrdersAsCustomer(): bool
     {
+        return $this->customerOrderRestriction() === null;
+    }
+
+    /**
+     * @return array{message: string, account_status: string, http_status: int, force_logout: bool}|null
+     */
+    public function apiAccessRestriction(): ?array
+    {
+        if ($this->isDeletedAccount()) {
+            $this->revokeAllApiTokens();
+
+            return [
+                'message' => $this->isDriverAppUser()
+                    ? 'Your driver account has been deleted by admin. Please contact support.'
+                    : 'Your account has been deleted by admin. Please contact support.',
+                'account_status' => 'deleted',
+                'http_status' => 403,
+                'force_logout' => true,
+            ];
+        }
+
+        if ($this->isDeactivatedAccount()) {
+            return [
+                'message' => $this->isDriverAppUser()
+                    ? 'Your driver account has been deactivated by admin. Please contact support.'
+                    : 'Your account has been deactivated by admin. Please contact support.',
+                'account_status' => 'deactivated',
+                'http_status' => 403,
+                'force_logout' => false,
+            ];
+        }
+
+        if ($this->isCustomerAppUser()) {
+            $approval = strtolower((string) ($this->approval_status ?? 'approved'));
+
+            if ($approval === 'pending') {
+                return [
+                    'message' => 'Your account is pending admin approval. You cannot use the app until admin activates your account.',
+                    'account_status' => 'pending_approval',
+                    'http_status' => 403,
+                    'force_logout' => false,
+                ];
+            }
+
+            if ($approval === 'rejected') {
+                return [
+                    'message' => 'Your account registration was rejected by admin. Please contact support.',
+                    'account_status' => 'rejected',
+                    'http_status' => 403,
+                    'force_logout' => false,
+                ];
+            }
+        }
+
+        if ($this->isDriverAppUser()) {
+            $approval = strtolower((string) ($this->approval_status ?? 'approved'));
+
+            if ($approval === 'pending') {
+                return [
+                    'message' => 'Your driver account is pending admin approval. You cannot use the app until it is activated.',
+                    'account_status' => 'pending_approval',
+                    'http_status' => 403,
+                    'force_logout' => false,
+                ];
+            }
+
+            if ($approval === 'rejected') {
+                return [
+                    'message' => 'Your driver account registration was rejected by admin. Please contact support.',
+                    'account_status' => 'rejected',
+                    'http_status' => 403,
+                    'force_logout' => false,
+                ];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array{message: string, account_status: string, http_status: int, force_logout: bool}|null
+     */
+    public function customerOrderRestriction(): ?array
+    {
         if (!$this->isCustomerAppUser()) {
-            return false;
+            return [
+                'message' => 'Unauthorized customer access.',
+                'account_status' => 'not_customer',
+                'http_status' => 403,
+                'force_logout' => true,
+            ];
         }
 
-        $approval = strtolower((string) ($this->approval_status ?? 'approved'));
-        if ($approval !== 'approved') {
-            return false;
+        if ($access = $this->apiAccessRestriction()) {
+            return $access;
         }
 
-        return (int) $this->status === 1;
+        if (!$this->isActiveAccount()) {
+            return [
+                'message' => 'Your account is not active. Please contact support.',
+                'account_status' => $this->customerAccountApprovalLabel(),
+                'http_status' => 403,
+                'force_logout' => false,
+            ];
+        }
+
+        return null;
     }
 
     public function customerAccountApprovalLabel(): string
     {
         if (!$this->isCustomerAppUser()) {
             return 'not_customer';
+        }
+
+        if ($this->isDeletedAccount()) {
+            return 'deleted';
+        }
+
+        if ($this->isDeactivatedAccount()) {
+            return 'deactivated';
         }
 
         $approval = strtolower((string) ($this->approval_status ?? 'approved'));
@@ -104,11 +234,7 @@ class Users extends Authenticatable
             return 'rejected';
         }
 
-        return match ((int) $this->status) {
-            1 => 'approved',
-            2 => 'deleted',
-            default => 'inactive',
-        };
+        return $this->isActiveAccount() ? 'approved' : 'inactive';
     }
 
     public function tickets(): HasMany
