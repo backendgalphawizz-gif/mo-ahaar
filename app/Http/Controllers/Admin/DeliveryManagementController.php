@@ -131,7 +131,7 @@ class DeliveryManagementController extends Controller
 
             $driver = Users::create([
                 'name' => trim($validated['name']),
-                'email' => $this->resolveDriverEmail($validated),
+                'email' => trim($validated['email']),
                 'mobile' => $validated['mobile'],
                 'password' => Hash::make($validated['password']),
                 'role_type' => Users::DRIVER_APP_ROLE_TYPE,
@@ -164,7 +164,7 @@ class DeliveryManagementController extends Controller
     public function viewDriver($id, Request $request)
     {
         $driver = $this->findDriverOrFail($id);
-        $profile = DriverProfile::where('driver_id', $driver->user_id)->first();
+        $profile = DriverProfile::firstOrCreate(['driver_id' => $driver->user_id]);
         $wallet = Schema::hasTable('driver_wallets')
             ? DriverWallet::where('driver_id', $driver->user_id)->first()
             : null;
@@ -194,7 +194,7 @@ class DeliveryManagementController extends Controller
     public function editDriver($id)
     {
         $driver = $this->findDriverOrFail($id);
-        $profile = DriverProfile::where('driver_id', $driver->user_id)->first();
+        $profile = DriverProfile::firstOrCreate(['driver_id' => $driver->user_id]);
 
         return view('admin.delivery.edit', [
             'title' => 'Edit Delivery Boy',
@@ -213,7 +213,7 @@ class DeliveryManagementController extends Controller
         DB::beginTransaction();
         try {
             $driver->name = trim($validated['name']);
-            $driver->email = $this->resolveDriverEmail($validated);
+            $driver->email = trim($validated['email']);
             $driver->mobile = $validated['mobile'];
 
             if (!empty($validated['password'])) {
@@ -239,7 +239,7 @@ class DeliveryManagementController extends Controller
             }
 
             $driver->save();
-            $this->syncDriverProfile($driver->user_id, $validated, $request, $profile);
+            $profile = $this->syncDriverProfile($driver->user_id, $validated, $request, $profile);
 
             if (empty($profile->driver_code)) {
                 $profile->driver_code = DriverProfile::generateUniqueDriverCode($profile->profile_id);

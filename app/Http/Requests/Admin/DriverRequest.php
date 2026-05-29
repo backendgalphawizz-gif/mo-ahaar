@@ -4,7 +4,9 @@ namespace App\Http\Requests\Admin;
 
 use App\Models\DriverProfile;
 use App\Support\DriverProfileValidator;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\Exceptions\HttpResponseException;
 
 class DriverRequest extends FormRequest
 {
@@ -31,6 +33,10 @@ class DriverRequest extends FormRequest
             }
             $this->merge(['account_type' => $type]);
         }
+
+        if ($this->filled('document_type')) {
+            $this->merge(['document_type' => strtolower(trim((string) $this->input('document_type')))]);
+        }
     }
 
     public function rules(): array
@@ -39,7 +45,7 @@ class DriverRequest extends FormRequest
         $isCreate = $this->isMethod('post') && $this->routeIs('admin.delivery.store');
 
         if ($isCreate) {
-            return DriverProfileValidator::adminCreateRules($driverId);
+            return DriverProfileValidator::adminCreateRules($driverId ? (int) $driverId : null);
         }
 
         $profile = $driverId
@@ -52,5 +58,17 @@ class DriverRequest extends FormRequest
     public function messages(): array
     {
         return DriverProfileValidator::messages();
+    }
+
+    protected function failedValidation(Validator $validator): void
+    {
+        $tab = DriverProfileValidator::tabForFirstError(array_keys($validator->errors()->toArray()));
+
+        throw new HttpResponseException(
+            redirect()
+                ->back()
+                ->withInput(array_merge($this->all(), ['driver_tab' => $tab]))
+                ->withErrors($validator)
+        );
     }
 }

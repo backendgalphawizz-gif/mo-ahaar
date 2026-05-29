@@ -95,8 +95,17 @@
                                         <div class="text-danger fw-semibold">Comm: {{ number_format((float) ($vendor->commission_percent ?? 0), 0) }}%</div>
                                     </td>
                                     <td class="text-nowrap">
-                                        <span class="text-warning fw-semibold">{{ number_format((float) ($vendor->avg_rating ?? 4.5), 1) }}</span>
-                                        <i class="ri-star-fill text-warning"></i>
+                                        @php
+                                            $rating = $vendorRatings[$vendor->vendor_id] ?? null;
+                                            $reviewCount = $reviewCounts[$vendor->vendor_id] ?? 0;
+                                        @endphp
+                                        @if($rating !== null)
+                                            <span class="text-warning fw-semibold">{{ number_format($rating, 1) }}</span>
+                                            <i class="ri-star-fill text-warning"></i>
+                                            <div class="small text-muted">({{ $reviewCount }} {{ $reviewCount === 1 ? 'review' : 'reviews' }})</div>
+                                        @else
+                                            <span class="text-muted small">No ratings yet</span>
+                                        @endif
                                     </td>
                                     <td class="text-nowrap">{{ optional($vendor->created_at)->format('d/m/Y') ?: '—' }}</td>
                                     <td class="text-nowrap">

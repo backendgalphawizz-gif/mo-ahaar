@@ -15,7 +15,7 @@ class DriverProfileValidator
 
     public const ACCOUNT_TYPES = ['savings', 'current', 'Savings', 'Current'];
 
-    public static function adminPersonalRules(?int $driverUserId = null, bool $isCreate = false): array
+    public static function adminPersonalRules(?int $driverUserId = null, ?DriverProfile $profile = null, bool $isCreate = false): array
     {
         $rules = [
             'name' => ['required', 'string', 'max:100'],
@@ -28,7 +28,7 @@ class DriverProfileValidator
                     ->ignore($driverUserId, 'user_id'),
             ],
             'email' => [
-                'nullable',
+                'required',
                 'email',
                 'max:150',
                 Rule::unique('users', 'email')
@@ -38,6 +38,7 @@ class DriverProfileValidator
             'address' => ['required', 'string', 'min:5', 'max:500'],
             'city' => ['required', 'string', 'max:100'],
             'profile_image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+            'document_type' => ['required', Rule::in(self::DOCUMENT_TYPES)],
         ];
 
         if ($isCreate) {
@@ -46,29 +47,25 @@ class DriverProfileValidator
             $rules['password'] = ['nullable', 'string', 'min:8', 'confirmed'];
         }
 
-        return $rules;
+        return array_merge($rules, self::documentFileRules($profile, $isCreate));
     }
 
     public static function adminVehicleRules(bool $isCreate = false, ?DriverProfile $profile = null): array
     {
-        $hasLicenseFront = !empty($profile?->driving_license);
-        $hasLicenseBack = !empty($profile?->driving_license_back);
+        $hasLicense = !empty($profile?->driving_license);
 
         return [
             'vehicle_number' => ['required', 'string', 'max:20', 'regex:/^[A-Za-z0-9\s\-]+$/'],
             'driving_license_number' => ['required', 'string', 'max:50', 'regex:/^[A-Za-z0-9\s\-]+$/'],
             'driving_license' => array_filter([
-                ($isCreate && !$hasLicenseFront) ? 'required' : 'nullable',
+                (!$hasLicense) ? 'required' : 'nullable',
                 'file',
                 'mimes:jpg,jpeg,png,webp,pdf',
                 'max:5120',
             ]),
-            'driving_license_back' => array_filter([
-                ($isCreate && !$hasLicenseBack) ? 'required' : 'nullable',
-                'file',
-                'mimes:jpg,jpeg,png,webp,pdf',
-                'max:5120',
-            ]),
+            'puc_number' => ['nullable', 'string', 'max:50', 'regex:/^[A-Za-z0-9\s\-\/]+$/'],
+            'puc_expiry_date' => ['nullable', 'date', 'required_with:puc_number'],
+            'puc_image' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:5120', 'required_with:puc_number'],
         ];
     }
 
@@ -169,7 +166,7 @@ class DriverProfileValidator
     public static function adminCreateRules(?int $driverUserId = null): array
     {
         return array_merge(
-            self::adminPersonalRules($driverUserId, true),
+            self::adminPersonalRules($driverUserId, null, true),
             self::adminVehicleRules(true),
             self::adminBankRules(),
             [
@@ -180,15 +177,15 @@ class DriverProfileValidator
 
     public static function adminUpdateRules(?int $driverUserId, ?DriverProfile $profile): array
     {
-        return array_merge(
-            self::adminPersonalRules($driverUserId, false),
+        return self::applyPucImageRule(array_merge(
+            self::adminPersonalRules($driverUserId, $profile, false),
             self::adminVehicleRules(false, $profile),
             self::adminBankRules(),
             [
                 'approval_status' => ['nullable', Rule::in(['pending', 'approved', 'rejected'])],
                 'status' => ['nullable', Rule::in(['0', '1', 0, 1])],
             ]
-        );
+        ), $profile);
     }
 
     /**
@@ -197,8 +194,15 @@ class DriverProfileValidator
     public static function tabForFirstError(array $errorKeys): string
     {
         $fieldsByTab = [
-            'personal' => ['name', 'mobile', 'email', 'address', 'city', 'profile_image', 'password', 'password_confirmation'],
-            'vehicle' => ['vehicle_number', 'driving_license_number', 'driving_license', 'driving_license_back'],
+            'personal' => [
+                'name', 'mobile', 'email', 'address', 'city', 'profile_image',
+                'document_type', 'identity_document', 'aadhar_card', 'aadhar_card_back',
+                'password', 'password_confirmation',
+            ],
+            'vehicle' => [
+                'vehicle_number', 'driving_license_number', 'driving_license',
+                'puc_number', 'puc_expiry_date', 'puc_image',
+            ],
             'bank' => ['account_holder_name', 'bank_name', 'branch_name', 'account_number', 'ifsc_code', 'account_type', 'approval_status'],
         ];
 
@@ -247,6 +251,7 @@ class DriverProfileValidator
             'mobile.required' => 'Mobile number is required.',
             'mobile.regex' => 'Please enter a valid 10-digit Indian mobile number.',
             'mobile.digits' => 'Mobile number must be exactly 10 digits.',
+            'email.required' => 'Email address is required.',
             'email.email' => 'Please enter a valid email address.',
             'address.required' => 'Full address is required.',
             'address.min' => 'Address must be at least 5 characters.',
@@ -273,8 +278,7 @@ class DriverProfileValidator
             'ifsc_code.regex' => 'Please enter a valid IFSC code.',
             'vehicle_number.regex' => 'Vehicle number format is invalid.',
             'driving_license_number.regex' => 'Driving license number format is invalid.',
-            'driving_license.required' => 'Driving license front image is required.',
-            'driving_license_back.required' => 'Driving license back image is required.',
+            'driving_license.required' => 'Driving license image is required.',
             'rc_image.required' => 'RC image is required.',
             'puc_expiry_date.required_with' => 'PUC expiry date is required when PUC number is provided.',
             'puc_image.required_with' => 'PUC image is required when PUC number is provided.',

@@ -8,9 +8,19 @@
     if ($accountType === 'saving') {
         $accountType = 'savings';
     }
+    $approval = strtolower((string) ($driver->approval_status ?? 'pending'));
+    $approvalBadge = match ($approval) {
+        'approved' => 'badge-soft-success',
+        'rejected' => 'badge-soft-danger',
+        default => 'badge-soft-warning',
+    };
+    $isActive = (int) ($driver->status ?? 0) === 1;
     $docUrl = function (?string $file) {
         return $file ? asset('public/uploads/drivers/' . $file) : null;
     };
+    $profilePhotoUrl = !empty($driver->profile_image)
+        ? asset('public/uploads/drivers/' . $driver->profile_image)
+        : null;
 @endphp
 <div class="page-body">
     <div class="container-fluid">
@@ -27,6 +37,31 @@
 
         <div class="card dashboard-card mb-4">
             <div class="card-body p-4">
+                <div class="d-flex flex-wrap align-items-start gap-4 mb-4 pb-3 border-bottom">
+                    <div class="flex-shrink-0">
+                        @if($profilePhotoUrl)
+                            <img src="{{ $profilePhotoUrl }}" alt="{{ $driver->name }}" class="rounded-circle border" width="88" height="88" style="object-fit:cover;">
+                        @else
+                            <span class="rounded-circle bg-light border d-inline-flex align-items-center justify-content-center" style="width:88px;height:88px;">
+                                <i class="ri-user-line fs-2 text-muted"></i>
+                            </span>
+                        @endif
+                    </div>
+                    <div class="flex-grow-1">
+                        <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                            <h5 class="mb-0 fw-semibold">{{ $driver->name }}</h5>
+                            <span class="badge bg-light text-dark border">#{{ $driverCode }}</span>
+                            <span class="badge {{ $approvalBadge }}">{{ ucfirst($approval) }}</span>
+                            <span class="badge {{ $isActive ? 'badge-soft-success' : 'badge-soft-secondary' }}">{{ $isActive ? 'Active' : 'Inactive' }}</span>
+                        </div>
+                        <div class="text-muted small">Registered on {{ optional($driver->created_at)->format('d M Y') ?: '—' }}</div>
+                    </div>
+                    <div class="text-end">
+                        <div class="text-muted small">Wallet Balance</div>
+                        <div class="fs-4 fw-bold text-success">₹{{ number_format((float) ($wallet->balance ?? 0), 0) }}</div>
+                    </div>
+                </div>
+
                 <div class="figma-form-block mb-4">
                     <h6 class="mb-3">Personal Information</h6>
                     <div class="row g-3">
@@ -50,6 +85,49 @@
                             <div class="text-muted small">City</div>
                             <div class="fw-semibold">{{ $profile->city ?? '—' }}</div>
                         </div>
+                        <div class="col-md-4">
+                            <div class="text-muted small">Document Type</div>
+                            <div class="fw-semibold">{{ strtoupper($profile->document_type ?? '—') }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="figma-form-block mb-4">
+                    <h6 class="mb-3">Identity Documents</h6>
+                    <div class="row g-3">
+                        @if(($profile->document_type ?? '') === 'pan')
+                            <div class="col-md-6">
+                                <div class="driver-doc-preview">
+                                    <div class="text-muted small mb-2">PAN Card</div>
+                                    @if($docUrl($profile->pan_card ?? null))
+                                        <a href="{{ $docUrl($profile->pan_card) }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary">View Document</a>
+                                    @else
+                                        <span class="text-muted">Not uploaded</span>
+                                    @endif
+                                </div>
+                            </div>
+                        @else
+                            <div class="col-md-6">
+                                <div class="driver-doc-preview">
+                                    <div class="text-muted small mb-2">Aadhaar Front</div>
+                                    @if($docUrl($profile->aadhar_card ?? null))
+                                        <a href="{{ $docUrl($profile->aadhar_card) }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary">View Document</a>
+                                    @else
+                                        <span class="text-muted">Not uploaded</span>
+                                    @endif
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="driver-doc-preview">
+                                    <div class="text-muted small mb-2">Aadhaar Back</div>
+                                    @if($docUrl($profile->aadhar_card_back ?? null))
+                                        <a href="{{ $docUrl($profile->aadhar_card_back) }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary">View Document</a>
+                                    @else
+                                        <span class="text-muted">Not uploaded</span>
+                                    @endif
+                                </div>
+                            </div>
+                        @endif
                     </div>
                 </div>
 
@@ -64,11 +142,29 @@
                             <div class="text-muted small">Driving License Number</div>
                             <div class="fw-semibold">{{ $profile->driving_license_number ?? '—' }}</div>
                         </div>
+                        <div class="col-md-4">
+                            <div class="text-muted small">PUC Number</div>
+                            <div class="fw-semibold">{{ $profile->puc_number ?? '—' }}</div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-muted small">PUC Expiry</div>
+                            <div class="fw-semibold">{{ !empty($profile?->puc_expiry_date) ? $profile->puc_expiry_date->format('d-m-Y') : '—' }}</div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-muted small">PUC Certificate</div>
+                            <div class="fw-semibold">
+                                @if($docUrl($profile->puc_image ?? null))
+                                    <a href="{{ $docUrl($profile->puc_image) }}" target="_blank" rel="noopener">View Document</a>
+                                @else
+                                    —
+                                @endif
+                            </div>
+                        </div>
                     </div>
                     <div class="row g-3">
                         <div class="col-md-6">
                             <div class="driver-doc-preview">
-                                <div class="text-muted small mb-2">Driving License Front</div>
+                                <div class="text-muted small mb-2">Driving License</div>
                                 @if($docUrl($profile->driving_license ?? null))
                                     <a href="{{ $docUrl($profile->driving_license) }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary">View Document</a>
                                 @else
@@ -76,16 +172,14 @@
                                 @endif
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <div class="driver-doc-preview">
-                                <div class="text-muted small mb-2">Driving License Back</div>
-                                @if($docUrl($profile->driving_license_back ?? null))
-                                    <a href="{{ $docUrl($profile->driving_license_back) }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary">View Document</a>
-                                @else
-                                    <span class="text-muted">Not uploaded</span>
-                                @endif
+                        @if($docUrl($profile->rc_image ?? null))
+                            <div class="col-md-6">
+                                <div class="driver-doc-preview">
+                                    <div class="text-muted small mb-2">RC Document</div>
+                                    <a href="{{ $docUrl($profile->rc_image) }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary">View Document</a>
+                                </div>
                             </div>
-                        </div>
+                        @endif
                     </div>
                 </div>
 

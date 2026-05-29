@@ -37,8 +37,7 @@ class NotificationController extends Controller
         }
         $perPage = min($perPage, 100);
 
-        $query = CustomerNotification::query()
-            ->where('customer_id', $customer->customer_id)
+        $query = $this->customerNotificationsQuery($customer)
             ->orderByDesc('notification_id');
 
         if ($request->filled('type')) {
@@ -76,7 +75,7 @@ class NotificationController extends Controller
             'message' => 'Notifications retrieved successfully',
             'data' => [
                 'notifications' => $items,
-                'unread_count' => CustomerNotification::where('customer_id', $customer->customer_id)->where('is_read', false)->count(),
+                'unread_count' => $this->customerNotificationsQuery($customer)->where('is_read', false)->count(),
                 'pagination' => [
                     'current_page' => $paginated->currentPage(),
                     'per_page' => $paginated->perPage(),
@@ -107,7 +106,7 @@ class NotificationController extends Controller
             'status' => true,
             'message' => 'Unread count retrieved successfully',
             'data' => [
-                'unread_count' => CustomerNotification::where('customer_id', $customer->customer_id)
+                'unread_count' => $this->customerNotificationsQuery($customer)
                     ->where('is_read', false)
                     ->count(),
             ],
@@ -127,7 +126,7 @@ class NotificationController extends Controller
             ], 403);
         }
 
-        $notification = CustomerNotification::where('customer_id', $customer->customer_id)
+        $notification = $this->customerNotificationsQuery($customer)
             ->where('notification_id', $notificationId)
             ->first();
 
@@ -163,7 +162,7 @@ class NotificationController extends Controller
             ], 403);
         }
 
-        $query = CustomerNotification::where('customer_id', $customer->customer_id)
+        $query = $this->customerNotificationsQuery($customer)
             ->where('is_read', false);
 
         if ($request->filled('type')) {
@@ -197,17 +196,47 @@ class NotificationController extends Controller
             return [null, null];
         }
 
-        $customer = Customers::where('user_id', $user->user_id)->first();
+        $customer = Customers::with('user')->where('user_id', $user->user_id)->first();
 
         return [$user, $customer];
     }
 
+    private function customerNotificationsQuery(Customers $customer)
+    {
+        $query = CustomerNotification::query()
+            ->where('customer_id', $customer->customer_id);
+
+        $registeredAt = $customer->registeredAt();
+        if ($registeredAt) {
+            $query->where('created_at', '>=', $registeredAt);
+        }
+
+        return $query;
+    }
+
+    private function purgePreRegistrationNotifications(Customers $customer): void
+    {
+        $registeredAt = $customer->registeredAt();
+        if (!$registeredAt) {
+            return;
+        }
+
+        CustomerNotification::query()
+            ->where('customer_id', $customer->customer_id)
+            ->where('created_at', '<', $registeredAt)
+            ->delete();
+    }
+
     private function syncPromotionalNotifications(Customers $customer): void
     {
+        $this->purgePreRegistrationNotifications($customer);
+
         $userId = $customer->user_id;
+        $registeredAt = $customer->registeredAt();
 
         $adminNotifications = AdminNotification::query()
             ->where('target_type', 'users')
+            ->when($registeredAt, fn ($query) => $query->where('created_at', '>=', $registeredAt))
             ->where(function ($query) use ($userId) {
                 $query->where('recipient_scope', 'all')
                     ->orWhere(function ($subQuery) use ($userId) {
@@ -240,9 +269,20 @@ class NotificationController extends Controller
 
     private function syncOrderTrackingNotifications(Customers $customer): void
     {
+        $registeredAt = $customer->registeredAt();
+
         $trackings = OrderTracking::query()
             ->join('orders as o', 'o.order_id', '=', 'order_trackings.order_id')
             ->where('o.customer_id', $customer->customer_id)
+            ->when($registeredAt, function ($query) use ($registeredAt) {
+                $query->where(function ($subQuery) use ($registeredAt) {
+                    $subQuery->where('order_trackings.tracked_at', '>=', $registeredAt)
+                        ->orWhere(function ($fallback) use ($registeredAt) {
+                            $fallback->whereNull('order_trackings.tracked_at')
+                                ->where('o.created_at', '>=', $registeredAt);
+                        });
+                });
+            })
             ->whereIn('order_trackings.status', ['picked_up', 'out_for_delivery', 'delivered', 'cancelled'])
             ->select(
                 'order_trackings.tracking_id',

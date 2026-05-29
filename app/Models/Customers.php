@@ -42,6 +42,22 @@ class Customers extends Model
         return $this->belongsTo(Users::class, 'user_id');
     }
 
+    /**
+     * Account registration timestamp used to hide pre-signup notifications.
+     */
+    public function registeredAt(): ?\Illuminate\Support\Carbon
+    {
+        if (!$this->user_id) {
+            return null;
+        }
+
+        $createdAt = Users::query()
+            ->where('user_id', $this->user_id)
+            ->value('created_at');
+
+        return $createdAt ? \Illuminate\Support\Carbon::parse($createdAt) : null;
+    }
+
     public function addresses()
     {
         return $this->hasMany('App\\Models\\CustomerAddress', 'customer_id', 'customer_id');

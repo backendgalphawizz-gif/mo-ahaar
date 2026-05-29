@@ -5,6 +5,7 @@ namespace App\Http\Controllers\API\DriverApp;
 use App\Models\DeliveryAssignment;
 use App\Models\DriverNotification;
 use App\Models\Orders;
+use App\Models\Users;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -45,8 +46,7 @@ class NotificationController extends DriverAppController
         $perPage = min(max((int) ($validated['per_page'] ?? 20), 1), 100);
         $grouped = $request->boolean('grouped', true);
 
-        $query = DriverNotification::query()
-            ->where('driver_id', $driver->user_id)
+        $query = $this->driverNotificationsQuery($driver)
             ->orderByDesc('notification_id');
 
         if ($request->boolean('unread_only')) {
@@ -56,7 +56,7 @@ class NotificationController extends DriverAppController
         $paginated = $query->paginate($perPage);
         $driverId = (int) $driver->user_id;
 
-        $unreadCount = DriverNotification::where('driver_id', $driverId)
+        $unreadCount = $this->driverNotificationsQuery($driver)
             ->where('is_read', false)
             ->count();
 
@@ -98,7 +98,7 @@ class NotificationController extends DriverAppController
             ], 403);
         }
 
-        $notification = $this->findNotification($driver->user_id, $notificationId);
+        $notification = $this->findNotification($driver, $notificationId);
         if (!$notification) {
             return response()->json([
                 'status' => false,
@@ -134,7 +134,7 @@ class NotificationController extends DriverAppController
             ], 200);
         }
 
-        $updated = DriverNotification::where('driver_id', $driver->user_id)
+        $updated = $this->driverNotificationsQuery($driver)
             ->where('is_read', false)
             ->update([
                 'is_read' => true,
@@ -160,7 +160,7 @@ class NotificationController extends DriverAppController
             ], 403);
         }
 
-        $notification = $this->findNotification($driver->user_id, $notificationId);
+        $notification = $this->findNotification($driver, $notificationId);
         if (!$notification) {
             return response()->json([
                 'status' => false,
@@ -190,7 +190,7 @@ class NotificationController extends DriverAppController
             'only_read' => ['sometimes', 'boolean'],
         ]);
 
-        $query = DriverNotification::where('driver_id', $driver->user_id);
+        $query = $this->driverNotificationsQuery($driver);
 
         if ($request->boolean('only_read')) {
             $query->where('is_read', true);
@@ -207,11 +207,23 @@ class NotificationController extends DriverAppController
         ], 200);
     }
 
-    private function findNotification(int $driverId, int $notificationId): ?DriverNotification
+    private function findNotification(Users $driver, int $notificationId): ?DriverNotification
     {
-        return DriverNotification::where('notification_id', $notificationId)
-            ->where('driver_id', $driverId)
+        return $this->driverNotificationsQuery($driver)
+            ->where('notification_id', $notificationId)
             ->first();
+    }
+
+    private function driverNotificationsQuery(Users $driver)
+    {
+        $query = DriverNotification::query()
+            ->where('driver_id', $driver->user_id);
+
+        if ($driver->created_at) {
+            $query->where('created_at', '>=', $driver->created_at);
+        }
+
+        return $query;
     }
 
     private function formatNotification(DriverNotification $notification): array

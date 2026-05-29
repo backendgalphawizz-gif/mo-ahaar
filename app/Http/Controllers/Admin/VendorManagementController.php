@@ -110,6 +110,8 @@ class VendorManagementController extends Controller
         $productCounts = [];
         $categoryCounts = [];
         $orderCounts = [];
+        $vendorRatings = [];
+        $reviewCounts = [];
 
         if (!empty($vendorIds) && Schema::hasColumn('products', 'vendor_id')) {
             $productCounts = Product::select('vendor_id', DB::raw('COUNT(*) as total'))
@@ -125,6 +127,22 @@ class VendorManagementController extends Controller
                     ->groupBy('vendor_id')
                     ->pluck('total', 'vendor_id')
                     ->all();
+            }
+
+            // Calculate average ratings from product reviews
+            if (Schema::hasTable('product_reviews')) {
+                $ratingsData = ProductReview::query()
+                    ->join('products', 'products.product_id', '=', 'product_reviews.product_id')
+                    ->whereIn('products.vendor_id', $vendorIds)
+                    ->where('product_reviews.status', 1)
+                    ->select('products.vendor_id', DB::raw('AVG(product_reviews.rating) as avg_rating'), DB::raw('COUNT(*) as review_count'))
+                    ->groupBy('products.vendor_id')
+                    ->get();
+
+                foreach ($ratingsData as $data) {
+                    $vendorRatings[$data->vendor_id] = round((float) $data->avg_rating, 1);
+                    $reviewCounts[$data->vendor_id] = (int) $data->review_count;
+                }
             }
         }
 
@@ -142,6 +160,8 @@ class VendorManagementController extends Controller
             'productCounts' => $productCounts,
             'categoryCounts' => $categoryCounts,
             'orderCounts' => $orderCounts,
+            'vendorRatings' => $vendorRatings,
+            'reviewCounts' => $reviewCounts,
             'search' => $request->query('search', ''),
             'status' => $request->query('status', 'all'),
         ]);
@@ -579,20 +599,45 @@ class VendorManagementController extends Controller
     public function exportVendorsExcel(Request $request)
     {
         $vendors = $this->vendorListQuery($request)->get();
+        $vendorIds = $vendors->pluck('vendor_id')->filter()->all();
+        $vendorRatings = [];
+        $reviewCounts = [];
+
+        // Calculate ratings for export
+        if (!empty($vendorIds) && Schema::hasColumn('products', 'vendor_id') && Schema::hasTable('product_reviews')) {
+            $ratingsData = ProductReview::query()
+                ->join('products', 'products.product_id', '=', 'product_reviews.product_id')
+                ->whereIn('products.vendor_id', $vendorIds)
+                ->where('product_reviews.status', 1)
+                ->select('products.vendor_id', DB::raw('AVG(product_reviews.rating) as avg_rating'), DB::raw('COUNT(*) as review_count'))
+                ->groupBy('products.vendor_id')
+                ->get();
+
+            foreach ($ratingsData as $data) {
+                $vendorRatings[$data->vendor_id] = round((float) $data->avg_rating, 1);
+                $reviewCounts[$data->vendor_id] = (int) $data->review_count;
+            }
+        }
+
         $fileName = 'vendors-' . date('Y-m-d-H-i-s') . '.xls';
         $headers = [
             'Content-Type' => 'application/vnd.ms-excel',
             'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
         ];
 
-        $callback = function () use ($vendors) {
-            echo "Sl No.\tShop Name\tVendor Name\tEmail\tMobile\tStatus\n";
+        $callback = function () use ($vendors, $vendorRatings, $reviewCounts) {
+            echo "Sl No.\tShop Name\tVendor Name\tEmail\tMobile\tRating\tReviews\tStatus\n";
             foreach ($vendors as $index => $vendor) {
+                $rating = $vendorRatings[$vendor->vendor_id] ?? null;
+                $reviewCount = $reviewCounts[$vendor->vendor_id] ?? 0;
+                
                 echo ($index + 1) . "\t";
                 echo ($vendor->business_name ?? '') . "\t";
                 echo ($vendor->owner_name ?? '') . "\t";
                 echo ($vendor->email ?? '') . "\t";
                 echo ($vendor->mobile ?? '') . "\t";
+                echo ($rating !== null ? number_format($rating, 1) : 'No ratings') . "\t";
+                echo $reviewCount . "\t";
                 echo ucfirst((string) ($vendor->approval_status ?? '')) . "\n";
             }
         };

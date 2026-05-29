@@ -19,6 +19,8 @@ class CustomerNotification extends Model
         'meta',
         'is_read',
         'read_at',
+        'created_at',
+        'updated_at',
     ];
 
     protected $casts = [
