@@ -14445,6 +14445,7 @@ strong ~ p {
 .form-switch .form-check-input:checked {
   background-color: var(--theme-color);
   border-color: var(--theme-color);
+  background-image:url("../images/status-circle.png") !important;
 }
 
 .nav-pills .nav-link.active,
