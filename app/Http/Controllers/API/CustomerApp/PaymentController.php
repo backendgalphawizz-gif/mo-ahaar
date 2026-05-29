@@ -205,10 +205,6 @@ class PaymentController extends Controller
                 $orderedProductIds = [];
                 foreach ($orderItems as $orderItem) {
                     $orderedProductIds[] = $orderItem->product_id;
-                    $product = Product::where('product_id', $orderItem->product_id)->first();
-                    if ($product && $product->stock !== null) {
-                        $product->decrement('stock', $orderItem->quantity);
-                    }
                 }
 
                 if (!empty($orderedProductIds)) {

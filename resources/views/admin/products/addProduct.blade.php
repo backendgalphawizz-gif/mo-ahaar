@@ -20,8 +20,6 @@
                     <input type="hidden" name="is_returnable" value="0">
                     <input type="hidden" name="is_active_status" value="1">
                     <input type="hidden" name="target_user_type" value="{{ \App\Models\Product::TARGET_RETAILER }}">
-                    <input type="hidden" name="stock" value="100">
-                    <input type="hidden" name="stock_status" value="in_stock">
                     <input type="hidden" name="discount" value="0">
                     <input type="hidden" name="gst_calculation_type" value="{{ \App\Models\Product::GST_EXCLUDED }}">
                     <input type="hidden" name="price" id="price_hidden" value="{{ old('price', old('mrp_price')) }}">

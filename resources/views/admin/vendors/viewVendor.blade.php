@@ -129,17 +129,16 @@
                 @elseif(($tab ?? '') === 'food')
                     <div class="table-responsive">
                         <table class="table table-modern align-middle">
-                            <thead><tr><th>Product Name</th><th>Price</th><th>Stock</th><th>Status</th></tr></thead>
+                            <thead><tr><th>Product Name</th><th>Price</th><th>Status</th></tr></thead>
                             <tbody>
                                 @forelse($products as $product)
                                     <tr>
                                         <td>{{ $product->product_name }}</td>
                                         <td>₹{{ number_format((float) ($product->price ?? 0), 0) }}</td>
-                                        <td>{{ $product->stock ?? 0 }}</td>
                                         <td>{{ ((int) ($product->status ?? 0) === 1) ? 'Active' : 'Inactive' }}</td>
                                     </tr>
                                 @empty
-                                    <tr><td colspan="4" class="text-center text-muted py-4">No products found for this vendor.</td></tr>
+                                    <tr><td colspan="3" class="text-center text-muted py-4">No products found for this vendor.</td></tr>
                                 @endforelse
                             </tbody>
                         </table>

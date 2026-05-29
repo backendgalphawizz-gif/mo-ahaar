@@ -13,7 +13,9 @@ use App\Models\StoreSetting;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class CustomerManagementController extends Controller
 {
@@ -170,6 +172,19 @@ class CustomerManagementController extends Controller
 
         $hasGstVerified = Schema::hasColumn('users', 'gst_verified_at');
 
+        $modalEditCustomer = null;
+        if ($request->query('open') === 'edit' && $request->filled('id')) {
+            try {
+                $editId = Crypt::decrypt(urldecode((string) $request->query('id')));
+                $modalEditCustomer = $this->customerBaseQuery()
+                    ->where('customers.customer_id', $editId)
+                    ->select($this->customerUserSelectColumns())
+                    ->first();
+            } catch (\Exception $e) {
+                $modalEditCustomer = null;
+            }
+        }
+
         return view('admin.customers.customersList', compact(
             'title',
             'allCustomers',
@@ -183,46 +198,36 @@ class CustomerManagementController extends Controller
             'search',
             'statusFilter',
             'orderCounts',
+            'modalEditCustomer',
         ));
     }
 
     public function addCustomer()
     {
-        $title = 'Add Customer';
-
-        return view('admin.customers.addCustomer', compact('title'));
+        return redirect()->route('admin.customers', ['open' => 'add']);
     }
 
     public function storeCustomer(Request $request)
     {
-        $maxDob = now()->subYears(10)->toDateString();
+        try {
+            $validated = $request->validate($this->figmaUserFormRules(), $this->figmaUserFormMessages());
+        } catch (ValidationException $e) {
+            return redirect()->route('admin.customers')
+                ->withInput()
+                ->with('open_user_modal', 'add')
+                ->withErrors($e->errors());
+        }
 
-        $validated = $request->validate([
-            'customer_name' => ['required', 'string', 'max:40', 'regex:/^[A-Za-z ]+$/'],
-            'customer_email' => ['required', 'email', 'max:120', Rule::unique('users', 'email')],
-            'customer_phone' => ['required', 'digits:10', Rule::unique('users', 'mobile')],
-            'customer_password' => ['required', 'string', 'min:8', 'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s]).+$/', 'confirmed'],
-            'customer_dob' => ['nullable', 'date', 'before_or_equal:' . $maxDob],
-            'gender' => ['nullable', Rule::in(['Male', 'Female', 'Other'])],
-            'customer_address' => $this->customerAddressRules(),
-            'customer_status' => ['nullable', Rule::in(['1'])],
-        ], [
-            'customer_name.regex' => 'Customer name may only contain letters and spaces.',
-            'customer_password.min' => 'Password must be at least 8 characters.',
-            'customer_password.regex' => 'Password must include uppercase, lowercase, number, and special character.',
-            'customer_password.confirmed' => 'Password confirmation does not match.',
-            'customer_phone.digits' => 'Phone number must be exactly 10 digits.',
-            'customer_dob.before_or_equal' => 'Customer must be at least 10 years old.',
-        ]);
+        $plainPassword = $this->generateCustomerAppPassword();
 
-        DB::transaction(function () use ($validated) {
+        DB::transaction(function () use ($validated, $plainPassword) {
             $user = new Users();
             $user->name = $validated['customer_name'];
             $user->email = $validated['customer_email'];
             $user->mobile = $validated['customer_phone'];
-            $user->password = bcrypt($validated['customer_password']);
+            $user->password = bcrypt($plainPassword);
             $user->role_type = Users::CUSTOMER_APP_ROLE_TYPE;
-            $user->status = !empty($validated['customer_status']) ? 1 : 0;
+            $user->status = 1;
             if (Schema::hasColumn('users', 'approval_status')) {
                 $user->approval_status = 'approved';
             }
@@ -233,40 +238,22 @@ class CustomerManagementController extends Controller
 
             $customer = new Customers();
             $customer->user_id = $user->user_id;
-            $customer->dob = $validated['customer_dob'] ?? null;
-            $customer->gender = $validated['gender'] ?? null;
             $customer->customer_address = $validated['customer_address'];
             $customer->save();
         });
 
-        return redirect()->route('admin.customers')->with('success', 'Customer created successfully.');
+        return redirect()->route('admin.customers')->with('success', 'User created successfully.');
     }
 
     public function editCustomer($id)
     {
-        $title = 'Edit Customer';
-
         try {
-            $customerId = Crypt::decrypt(urldecode($id));
+            Crypt::decrypt(urldecode($id));
         } catch (\Exception $e) {
-            return redirect()->route('admin.customers')->with('error', 'Invalid customer link.');
+            return redirect()->route('admin.customers')->with('error', 'Invalid user link.');
         }
 
-        $customerDetails = Customers::join('users', 'customers.user_id', '=', 'users.user_id')
-            ->where('customers.customer_id', $customerId)
-            ->where('users.role_type', Users::CUSTOMER_APP_ROLE_TYPE)
-            ->where('users.status', '!=', 2)
-            ->select($this->customerUserSelectColumns())
-            ->first();
-
-        if (!$customerDetails) {
-            return redirect()->route('admin.customers')->with('error', 'Customer not found.');
-        }
-
-        $hasApproval = Schema::hasColumn('users', 'approval_status');
-        $hasGstVerified = Schema::hasColumn('users', 'gst_verified_at');
-
-        return view('admin.customers.editCustomer', compact('title', 'customerDetails', 'hasApproval', 'hasGstVerified'));
+        return redirect()->route('admin.customers', ['open' => 'edit', 'id' => $id]);
     }
 
     public function viewCustomer($id)
@@ -361,70 +348,80 @@ class CustomerManagementController extends Controller
 
     public function updateCustomer(Request $request)
     {
-        $maxDob = now()->subYears(10)->toDateString();
+        $customerId = (int) $request->input('customer_id');
+        $user = $this->resolveCustomerUser($customerId);
 
-        $validated = $request->validate([
-            'customer_id' => ['required', 'integer', 'exists:customers,customer_id'],
-            'customer_name' => ['required', 'string', 'max:40', 'regex:/^[A-Za-z ]+$/'],
-            'customer_email' => ['required', 'email', 'max:120'],
-            'customer_phone' => ['required', 'digits:10'],
-            'customer_dob' => ['nullable', 'date', 'before_or_equal:' . $maxDob],
-            'gender' => ['nullable', Rule::in(['Male', 'Female', 'Other'])],
-            'customer_address' => $this->customerAddressRules(),
-            'customer_status' => ['nullable', Rule::in(['1'])],
-            'profile_image' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif,webp', 'max:2048'],
-        ], [
-            'customer_name.regex' => 'Customer name may only contain letters and spaces.',
-            'customer_phone.digits' => 'Phone number must be exactly 10 digits.',
-            'customer_dob.before_or_equal' => 'Customer must be at least 10 years old.',
-        ]);
-
-        $customerId = $validated['customer_id'];
-        $customer = Customers::find($customerId);
-
-        if ($customer) {
-            $user = Users::find($customer->user_id);
-            if ($user) {
-                $request->validate([
-                    'customer_email' => [Rule::unique('users', 'email')->ignore($user->user_id, 'user_id')],
-                    'customer_phone' => [Rule::unique('users', 'mobile')->ignore($user->user_id, 'user_id')],
-                ]);
-
-                $user->name = $validated['customer_name'];
-                $user->email = $validated['customer_email'];
-                $user->mobile = $validated['customer_phone'];
-
-                $approval = strtolower((string) ($user->approval_status ?? 'approved'));
-                if (Schema::hasColumn('users', 'approval_status') && $approval === 'pending') {
-                    $user->status = 0;
-                } else {
-                    $user->status = !empty($validated['customer_status']) ? 1 : 0;
-                }
-
-                if ($request->hasFile('profile_image')) {
-                    $image = $request->file('profile_image');
-                    $imageName = 'customer_' . $customerId . '_' . time() . '.' . $image->getClientOriginalExtension();
-                    $image->move(public_path('uploads/customers'), $imageName);
-
-                    if ($user->profile_image && $user->profile_image !== 'customer.png' && file_exists(public_path('uploads/customers/' . $user->profile_image))) {
-                        @unlink(public_path('uploads/customers/' . $user->profile_image));
-                    }
-
-                    $user->profile_image = $imageName;
-                }
-
-                $user->save();
-            }
-
-            $customer->dob = $validated['customer_dob'] ?? null;
-            $customer->gender = $validated['gender'] ?? null;
-            $customer->customer_address = $validated['customer_address'];
-            $customer->save();
-
-            return redirect()->route('admin.customers')->with('success', 'Customer updated successfully.');
+        try {
+            $validated = $request->validate(
+                array_merge(
+                    ['customer_id' => ['required', 'integer', 'exists:customers,customer_id']],
+                    $this->figmaUserFormRules($user?->user_id)
+                ),
+                $this->figmaUserFormMessages()
+            );
+        } catch (ValidationException $e) {
+            return redirect()->route('admin.customers')
+                ->withInput()
+                ->with('open_user_modal', 'edit')
+                ->withErrors($e->errors());
         }
 
-        return redirect()->route('admin.customers')->with('error', 'Customer not found.');
+        $customer = Customers::find($validated['customer_id']);
+        if (!$customer) {
+            return redirect()->route('admin.customers')->with('error', 'User not found.');
+        }
+
+        $user = Users::find($customer->user_id);
+        if (!$user) {
+            return redirect()->route('admin.customers')->with('error', 'User account not found.');
+        }
+
+        $user->name = $validated['customer_name'];
+        $user->email = $validated['customer_email'];
+        $user->mobile = $validated['customer_phone'];
+        $user->save();
+
+        $customer->customer_address = $validated['customer_address'];
+        $customer->save();
+
+        return redirect()->route('admin.customers')->with('success', 'User updated successfully.');
+    }
+
+    private function figmaUserFormRules(?int $ignoreUserId = null): array
+    {
+        $emailRule = Rule::unique('users', 'email');
+        $phoneRule = Rule::unique('users', 'mobile');
+        if ($ignoreUserId) {
+            $emailRule = $emailRule->ignore($ignoreUserId, 'user_id');
+            $phoneRule = $phoneRule->ignore($ignoreUserId, 'user_id');
+        }
+
+        return [
+            'customer_name' => ['required', 'string', 'max:40', 'regex:/^[A-Za-z ]+$/'],
+            'customer_email' => ['required', 'email', 'max:120', $emailRule],
+            'customer_phone' => ['required', 'digits:10', $phoneRule],
+            'customer_address' => $this->customerAddressRules(),
+        ];
+    }
+
+    private function figmaUserFormMessages(): array
+    {
+        return [
+            'customer_name.required' => 'Full name is required.',
+            'customer_name.regex' => 'Full name may only contain letters and spaces.',
+            'customer_email.required' => 'Email address is required.',
+            'customer_email.email' => 'Enter a valid email address.',
+            'customer_email.unique' => 'This email is already registered.',
+            'customer_phone.required' => 'Phone number is required.',
+            'customer_phone.digits' => 'Phone number must be exactly 10 digits.',
+            'customer_phone.unique' => 'This phone number is already registered.',
+            'customer_address.required' => 'Address is required.',
+        ];
+    }
+
+    private function generateCustomerAppPassword(): string
+    {
+        return 'MoA@' . Str::upper(Str::random(4)) . random_int(10, 99) . '!';
     }
 
     public function deleteCustomer($id)

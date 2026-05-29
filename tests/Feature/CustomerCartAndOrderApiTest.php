@@ -26,7 +26,7 @@ class CustomerCartAndOrderApiTest extends TestCase
     {
         $user = $this->createCustomerUser();
         $customer = Customers::where('user_id', '=', $user->user_id)->firstOrFail();
-        $product = $this->createProduct(['vendor_id' => 101, 'stock' => 10]);
+        $product = $this->createProduct(['vendor_id' => 101]);
 
         $this->actingAs($user, 'web');
 
@@ -76,8 +76,8 @@ class CustomerCartAndOrderApiTest extends TestCase
     {
         $user = $this->createCustomerUser();
         $customer = Customers::where('user_id', '=', $user->user_id)->firstOrFail();
-        $firstProduct = $this->createProduct(['vendor_id' => 101, 'stock' => 5]);
-        $secondProduct = $this->createProduct(['vendor_id' => 202, 'stock' => 5, 'sku' => 'SKU-SECOND']);
+        $firstProduct = $this->createProduct(['vendor_id' => 101]);
+        $secondProduct = $this->createProduct(['vendor_id' => 202, 'sku' => 'SKU-SECOND']);
 
         CartItem::create([
             'customer_id' => $customer->customer_id,
@@ -142,7 +142,6 @@ class CustomerCartAndOrderApiTest extends TestCase
         $customer = Customers::where('user_id', '=', $user->user_id)->firstOrFail();
         $product = $this->createProduct([
             'vendor_id' => 101,
-            'stock' => 8,
             'price' => 250.00,
         ]);
 
@@ -191,7 +190,6 @@ class CustomerCartAndOrderApiTest extends TestCase
             'source_type' => 'order_update',
         ]);
 
-        $this->assertSame(6, (int) Product::query()->find($product->product_id)->stock);
         $this->assertDatabaseCount('cart_items', 0);
 
         $historyResponse = $this->getJson('/api/customer-app/orders');
@@ -384,8 +382,6 @@ class CustomerCartAndOrderApiTest extends TestCase
             'price' => 100.00,
             'sale_price' => null,
             'sku' => 'SKU-' . $sequence,
-            'stock' => 10,
-            'stock_status' => 'in_stock',
             'status' => 1,
             'is_active_status' => 1,
             'target_user_type' => Product::TARGET_RETAILER,

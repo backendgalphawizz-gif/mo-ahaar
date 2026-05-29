@@ -15,10 +15,13 @@ class ProductVariant extends Model
         'attribute_combination',
         'price',
         'sale_price',
-        'stock',
         'sku',
         'image',
         'status',
+    ];
+
+    protected $hidden = [
+        'stock',
     ];
 
     protected $casts = [

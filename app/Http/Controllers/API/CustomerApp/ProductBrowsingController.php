@@ -594,7 +594,6 @@ class ProductBrowsingController extends Controller
             'price' => $product->price,
             'sale_price' => $product->sale_price,
             'discount' => $product->discount,
-            'stock' => $product->stock,
             'product_image' => $product->product_image,
             'product_image_url' => !empty($product->product_image)
                 ? url('public/uploads/products/' . $product->product_image)

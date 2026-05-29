@@ -31,7 +31,10 @@ Route::any('/',       [LoginController::class,'index']);
 Route::post("/checkLogin" ,   [LoginController::class, 'checkLogin'])->name('admin.login.submit');
 Route::any("/logout" ,     [LoginController::class, 'logout'])->name('logout');
 Route::get('/vendor/login', [LoginController::class, 'vendorLoginForm'])->name('vendor.login');
-Route::post('/vendor/login', [LoginController::class, 'vendorLogin'])->name('vendor.login.submit');
+Route::post('/vendor/login/send-otp', [LoginController::class, 'sendVendorOtp'])->name('vendor.login.send-otp');
+Route::get('/vendor/login/verify-otp', [LoginController::class, 'vendorVerifyOtpForm'])->name('vendor.login.verify');
+Route::post('/vendor/login/verify-otp', [LoginController::class, 'verifyVendorOtp'])->name('vendor.login.verify.submit');
+Route::post('/vendor/login/resend-otp', [LoginController::class, 'resendVendorOtp'])->name('vendor.login.resend-otp');
 Route::get('/vendor/register', [VendorManagementController::class, 'registerForm'])->name('vendor.register');
 Route::post('/vendor/register', [VendorManagementController::class, 'registerSubmit'])->name('vendor.register.submit');
 

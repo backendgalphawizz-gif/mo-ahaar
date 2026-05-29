@@ -21,8 +21,6 @@
                     <input type="hidden" name="product_id" value="{{ $product->product_id }}">
                     <input type="hidden" name="is_active_status" value="{{ $product->is_active_status }}">
                     <input type="hidden" name="target_user_type" value="{{ old('target_user_type', $product->target_user_type ?: \App\Models\Product::TARGET_RETAILER) }}">
-                    <input type="hidden" name="stock" value="{{ old('stock', $product->stock ?: 100) }}">
-                    <input type="hidden" name="stock_status" value="{{ old('stock_status', $product->stock_status ?: 'in_stock') }}">
                     <input type="hidden" name="discount" value="{{ old('discount', $product->discount ?? 0) }}">
                     <input type="hidden" name="gst_calculation_type" value="{{ old('gst_calculation_type', $product->gst_calculation_type ?? \App\Models\Product::GST_EXCLUDED) }}">
                     <input type="hidden" name="status" value="{{ old('status', $product->status ?? 1) }}">

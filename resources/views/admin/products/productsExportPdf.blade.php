@@ -55,7 +55,6 @@
                 <th>Segment</th>
                 <th class="text-right">MRP (₹)</th>
                 <th class="text-right">Price (₹)</th>
-                <th>Stock</th>
                 <th>Approval</th>
             </tr>
         </thead>
@@ -79,12 +78,11 @@
                     <td>{{ $product->target_user_type ?? '-' }}</td>
                     <td class="text-right">{{ number_format((float)($product->mrp ?? 0), 2) }}</td>
                     <td class="text-right">{{ number_format((float)($product->price ?? 0), 2) }}</td>
-                    <td>{{ (int)($product->stock ?? 0) }}</td>
                     <td><span class="badge {{ $statusBadge }}">{{ $statusLabel }}</span></td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="9" style="text-align:center; padding:16px; color:#6b7280;">No products found.</td>
+                    <td colspan="8" style="text-align:center; padding:16px; color:#6b7280;">No products found.</td>
                 </tr>
             @endforelse
         </tbody>

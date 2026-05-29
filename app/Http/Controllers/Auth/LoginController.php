@@ -8,11 +8,18 @@ use Illuminate\Http\Request;
 use App\Models\Users;
 use App\Models\Usersrole;
 use App\Models\Vendor;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Session;
 
 class LoginController extends Controller
 {
+    private const VENDOR_ROLE_TYPE = 3;
+
+    private const VENDOR_OTP_EXPIRY_MINUTES = 5;
+
+    private const VENDOR_OTP_RESEND_SECONDS = 60;
 
     public function index()
     {
@@ -44,27 +51,190 @@ class LoginController extends Controller
         $user_id = session()->get('user_id');
         if ($user_id) {
             $userTypeId = session()->get('role_type');
-            // If already logged in, redirect to appropriate dashboard
-            if ((int) $userTypeId === 2) {
+            if ((int) $userTypeId === self::VENDOR_ROLE_TYPE) {
                 return redirect('/vendor/dashboard');
-            } elseif ((int) $userTypeId === 1) {
+            }
+            if ((int) $userTypeId === 1) {
                 return redirect('/admin/dashboard');
             }
         }
-        return view('auth.vendor-login', [
-            'loginTitle' => 'Vendor Dashboard Login',
-            'formAction' => route('vendor.login.submit'),
+
+        return view('auth.vendor-login');
+    }
+
+    public function sendVendorOtp(Request $request)
+    {
+        $validated = $request->validate([
+            'mobile' => ['required', 'regex:/^[6-9][0-9]{9}$/'],
+        ], [
+            'mobile.required' => 'Please enter your mobile number.',
+            'mobile.regex' => 'Please enter a valid 10-digit mobile number.',
         ]);
+
+        $mobile = $validated['mobile'];
+
+        $user = Users::where('mobile', $mobile)
+            ->where('role_type', self::VENDOR_ROLE_TYPE)
+            ->first();
+
+        if (!$user) {
+            return back()
+                ->withInput()
+                ->withErrors(['mobile' => 'No vendor account found for this mobile number. Please register first.']);
+        }
+
+        if ((string) $user->status !== '1') {
+            return back()
+                ->withInput()
+                ->withErrors(['mobile' => 'Your vendor account is pending admin approval. Please wait for activation.']);
+        }
+
+        $vendorAccount = Vendor::where('user_id', $user->user_id)->first();
+        if (!$vendorAccount) {
+            return back()
+                ->withInput()
+                ->withErrors(['mobile' => 'Vendor profile not found. Please contact support.']);
+        }
+
+        if (strtolower((string) $vendorAccount->approval_status) !== 'approved') {
+            return back()
+                ->withInput()
+                ->withErrors(['mobile' => 'Your vendor account is pending admin approval. Please wait for activation.']);
+        }
+
+        $lastSentKey = $this->vendorOtpLastSentCacheKey($mobile);
+        $lastSent = Cache::get($lastSentKey);
+        if ($lastSent && now()->diffInSeconds($lastSent) < self::VENDOR_OTP_RESEND_SECONDS) {
+            $wait = self::VENDOR_OTP_RESEND_SECONDS - now()->diffInSeconds($lastSent);
+
+            return redirect()
+                ->route('vendor.login.verify')
+                ->with('error', "Please wait {$wait} seconds before requesting a new OTP.");
+        }
+
+        $otp = str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT);
+        $user->login_otp = $otp;
+        $user->login_otp_expires_at = now()->addMinutes(self::VENDOR_OTP_EXPIRY_MINUTES);
+        $user->save();
+
+        Cache::put($lastSentKey, now(), now()->addMinutes(10));
+
+        Log::info('Vendor login OTP generated', ['mobile' => $mobile, 'user_id' => $user->user_id]);
+
+        session([
+            'vendor_login_mobile_raw' => $mobile,
+            'vendor_login_mobile' => $this->maskMobile($mobile),
+        ]);
+
+        $redirect = redirect()
+            ->route('vendor.login.verify')
+            ->with('success', 'OTP sent to your mobile number.');
+
+        if (config('app.debug')) {
+            $redirect->with('dev_otp', $otp);
+        }
+
+        return $redirect;
+    }
+
+    public function vendorVerifyOtpForm()
+    {
+        if (!session()->has('vendor_login_mobile_raw')) {
+            return redirect()->route('vendor.login')->with('error', 'Please enter your mobile number first.');
+        }
+
+        $mobile = (string) session('vendor_login_mobile_raw');
+        $lastSent = Cache::get($this->vendorOtpLastSentCacheKey($mobile));
+        $resendAfter = 0;
+
+        if ($lastSent) {
+            $elapsed = now()->diffInSeconds($lastSent);
+            if ($elapsed < self::VENDOR_OTP_RESEND_SECONDS) {
+                $resendAfter = self::VENDOR_OTP_RESEND_SECONDS - $elapsed;
+            }
+        }
+
+        return view('auth.vendor-verify-otp', [
+            'maskedMobile' => session('vendor_login_mobile'),
+            'resendAfterSeconds' => $resendAfter,
+        ]);
+    }
+
+    public function verifyVendorOtp(Request $request)
+    {
+        $sessionMobile = (string) session('vendor_login_mobile_raw', '');
+        if ($sessionMobile === '') {
+            return redirect()->route('vendor.login')->with('error', 'Session expired. Please enter your mobile again.');
+        }
+
+        $validated = $request->validate([
+            'mobile' => ['required', 'regex:/^[6-9][0-9]{9}$/'],
+            'otp' => ['required', 'digits:4'],
+        ], [
+            'mobile.required' => 'Mobile number is required.',
+            'mobile.regex' => 'Please enter a valid mobile number.',
+            'otp.required' => 'Please enter the OTP.',
+            'otp.digits' => 'OTP must be 4 digits.',
+        ]);
+
+        if ($validated['mobile'] !== $sessionMobile) {
+            return back()->withErrors(['otp' => 'Mobile number mismatch. Please start again.']);
+        }
+
+        $user = Users::where('mobile', $sessionMobile)
+            ->where('role_type', self::VENDOR_ROLE_TYPE)
+            ->first();
+
+        if (!$user || !$user->login_otp || !$user->login_otp_expires_at) {
+            return back()->withErrors(['otp' => 'OTP not requested. Please resend OTP.']);
+        }
+
+        if (now()->gt($user->login_otp_expires_at)) {
+            return back()->withErrors(['otp' => 'OTP has expired. Please resend OTP.']);
+        }
+
+        if (!hash_equals((string) $user->login_otp, (string) $validated['otp'])) {
+            return back()->withErrors(['otp' => 'Invalid OTP. Please try again.']);
+        }
+
+        $user->login_otp = null;
+        $user->login_otp_expires_at = null;
+        $user->save();
+
+        $vendor = Vendor::where('user_id', $user->user_id)->first();
+        if (!$vendor) {
+            return redirect()->route('vendor.login')->with('error', 'Vendor profile not found.');
+        }
+
+        session([
+            'user_id' => $user->user_id,
+            'role_type' => $user->role_type,
+            'name' => $user->name,
+            'profile_image' => $user->profile_image ?? null,
+            'vendor_id' => $vendor->vendor_id,
+            'vendor_profile_image' => $vendor->profile_image,
+        ]);
+
+        session()->forget(['vendor_login_mobile_raw', 'vendor_login_mobile', 'dev_otp']);
+
+        return redirect('/vendor/dashboard');
+    }
+
+    public function resendVendorOtp(Request $request)
+    {
+        $mobile = (string) session('vendor_login_mobile_raw', '');
+        if ($mobile === '') {
+            return redirect()->route('vendor.login')->with('error', 'Please enter your mobile number first.');
+        }
+
+        $request->merge(['mobile' => $mobile]);
+
+        return $this->sendVendorOtp($request);
     }
 
     public function checkLogin(Request $request)
     {
         return $this->handleLogin($request, 'admin');
-    }
-
-    public function vendorLogin(Request $request)
-    {
-        return $this->handleLogin($request, 'vendor');
     }
 
     protected function handleLogin(Request $request, $loginType = 'admin')
@@ -160,5 +330,19 @@ class LoginController extends Controller
         Auth::logout();
         Session::flush();
         return redirect('/');
+    }
+
+    private function vendorOtpLastSentCacheKey(string $mobile): string
+    {
+        return 'vendor_otp_last_sent_' . $mobile;
+    }
+
+    private function maskMobile(string $mobile): string
+    {
+        if (strlen($mobile) !== 10) {
+            return $mobile;
+        }
+
+        return '+91 ' . substr($mobile, 0, 2) . '******' . substr($mobile, -2);
     }
 }

@@ -364,6 +364,24 @@
     border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px;
 }
 
+/* User add/edit modal (Figma) */
+.admin-panel .moa-user-modal .modal-content {
+    border: 1px solid #e5e7eb; border-radius: 12px; box-shadow: 0 20px 40px rgba(15, 23, 42, 0.12);
+}
+.admin-panel .moa-user-modal .modal-title { font-size: 18px; color: #111827; }
+.admin-panel .moa-user-modal .form-label { font-size: 13px; font-weight: 500; color: #374151; margin-bottom: 6px; }
+.admin-panel .moa-user-modal .form-control {
+    border-radius: 8px; border-color: #e5e7eb; font-size: 13px; min-height: 40px;
+}
+.admin-panel .moa-user-modal .form-control:focus {
+    border-color: #d1d5db; box-shadow: 0 0 0 0.15rem rgba(237, 28, 36, 0.08);
+}
+.admin-panel .moa-user-modal textarea.form-control { min-height: 88px; resize: vertical; }
+.admin-panel .moa-user-modal .modal-footer .btn-light {
+    background: #f3f4f6; border-color: #e5e7eb; color: #374151; font-weight: 500; border-radius: 8px; padding: 8px 16px;
+}
+.admin-panel .moa-user-modal .modal-footer .btn-figma-primary { min-width: 100px; }
+
 @media (max-width: 991px) {
     .admin-panel .page-wrapper.compact-wrapper .page-header,
     .vendor-panel .page-wrapper.compact-wrapper .page-header {

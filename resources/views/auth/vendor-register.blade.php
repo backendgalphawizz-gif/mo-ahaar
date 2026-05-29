@@ -38,6 +38,8 @@
         .strength-fill{height:100%;width:0;background:#ef4444;transition:width .15s linear}
         .strength-text{margin-top:4px;font-size:11px;color:#6b7280}
         .pac-container{z-index:9999!important}
+        .field-error{display:block;color:#dc2626;font-size:12px;margin-top:4px;line-height:1.3}
+        .form-control.is-invalid,.form-select.is-invalid{border-color:#dc2626}
     </style>
 </head>
 <body>
@@ -72,11 +74,11 @@
         <div class="pane active" data-pane="1">
             <h4 class="section-title">Personal Details</h4>
             <div class="row g-3">
-                <div class="col-md-6"><label class="field-label">Full Name <span class="req">*</span></label><input type="text" name="owner_name" class="form-control" value="{{ old('owner_name') }}" placeholder="Enter your full name" required></div>
-                <div class="col-md-6"><label class="field-label">Email Address <span class="req">*</span></label><input type="email" name="email" class="form-control" value="{{ old('email') }}" placeholder="your.email@example.com" required></div>
-                <div class="col-md-6"><label class="field-label">Mobile Number <span class="req">*</span></label><input type="text" name="mobile" maxlength="10" class="form-control" value="{{ old('mobile') }}" placeholder="+91 1234567890" oninput="this.value=this.value.replace(/\D/g,'').slice(0,10)" required></div>
+                <div class="col-md-6"><label class="field-label">Full Name <span class="req">*</span></label><input type="text" name="owner_name" class="form-control @error('owner_name') is-invalid @enderror" value="{{ old('owner_name') }}" placeholder="Enter your full name" required>@error('owner_name')<span class="field-error">{{ $message }}</span>@enderror</div>
+                <div class="col-md-6"><label class="field-label">Email Address <span class="req">*</span></label><input type="email" name="email" class="form-control @error('email') is-invalid @enderror" value="{{ old('email') }}" placeholder="your.email@example.com" required>@error('email')<span class="field-error">{{ $message }}</span>@enderror</div>
+                <div class="col-md-6"><label class="field-label">Mobile Number <span class="req">*</span></label><input type="text" name="mobile" maxlength="10" class="form-control @error('mobile') is-invalid @enderror" value="{{ old('mobile') }}" placeholder="+91 1234567890" oninput="this.value=this.value.replace(/\D/g,'').slice(0,10)" required>@error('mobile')<span class="field-error">{{ $message }}</span>@enderror</div>
                 <div class="col-md-6"><label class="field-label">DOB</label><input type="date" name="dob" class="form-control" value="{{ old('dob') }}"></div>
-                <div class="col-md-6"><label class="field-label">Password <span class="req">*</span></label><input type="password" name="password" id="password" class="form-control" placeholder="Enter password" required>
+                <div class="col-md-6"><label class="field-label">Password <span class="req">*</span></label><input type="password" name="password" id="password" class="form-control @error('password') is-invalid @enderror" placeholder="Enter password" required>@error('password')<span class="field-error">{{ $message }}</span>@enderror
                     <div class="field-help">Minimum 8 chars with uppercase, lowercase, number, special character.</div>
                     <div class="strength-track"><div class="strength-fill" id="strengthFill"></div></div>
                     <div class="strength-text" id="strengthText">Password strength: -</div>
@@ -108,7 +110,8 @@
                 <div class="col-12"><label class="field-label">Logo</label><input type="file" name="business_logo" class="form-control" accept="image/*"></div>
                 <div class="col-12">
                     <label class="field-label">Address <span class="req">*</span></label>
-                    <input type="text" id="address_autocomplete" name="address" class="form-control" value="{{ old('address') }}" placeholder="Type and select address" required>
+                    <input type="text" id="address_autocomplete" name="address" class="form-control @error('address') is-invalid @enderror" value="{{ old('address') }}" placeholder="Type and select address" required>
+                    @error('address')<span class="field-error">{{ $message }}</span>@enderror
                     <div class="field-help">Start typing address and select from suggestions.</div>
                 </div>
                 <div class="col-12"><label class="field-label">Description</label><textarea name="business_description" class="form-control">{{ old('business_description') }}</textarea></div>

@@ -7,7 +7,7 @@
         @include('admin.partials.figma-page-header', [
             'title' => 'User Management',
             'subtitle' => 'Manage and view all registered users',
-            'actionUrl' => route('admin.add-customer'),
+            'actionModalId' => 'userFormModal',
             'actionLabel' => 'Add New User',
         ])
 
@@ -83,7 +83,15 @@
                                     <td>
                                         <div class="d-flex gap-2 table-action-icons">
                                             <a href="{{ route('admin.view-customer', urlencode(Crypt::encrypt($customer->customer_id))) }}" title="View"><i class="ri-eye-line"></i></a>
-                                            <a href="{{ route('admin.edit-customer', urlencode(Crypt::encrypt($customer->customer_id))) }}" title="Edit"><i class="ri-pencil-line"></i></a>
+                                            <button type="button" class="border-0 bg-transparent p-0 btn-edit-user" title="Edit"
+                                                    data-bs-toggle="modal" data-bs-target="#userFormModal"
+                                                    data-customer-id="{{ $customer->customer_id }}"
+                                                    data-customer-name="{{ $customer->name }}"
+                                                    data-customer-email="{{ $customer->email }}"
+                                                    data-customer-phone="{{ $customer->mobile }}"
+                                                    data-customer-address="{{ $customer->customer_address ?? '' }}">
+                                                <i class="ri-pencil-line"></i>
+                                            </button>
                                             <a href="javascript:void(0)" title="Delete" data-bs-toggle="modal" data-bs-target="#deleteCustomerModal"
                                                data-customer-id="{{ urlencode(Crypt::encrypt($customer->customer_id)) }}"
                                                data-customer-name="{{ $customer->name }}"><i class="ri-delete-bin-line text-danger"></i></a>
@@ -108,6 +116,8 @@
     </div>
 </div>
 
+@include('admin.customers.partials.user-form-modal')
+
 <div class="modal fade" id="deleteCustomerModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -129,6 +139,100 @@
 
 @section('scripts')
 <script>
+(function () {
+    var modalEl = document.getElementById('userFormModal');
+    var formEl = document.getElementById('userFormModalForm');
+    var titleEl = document.getElementById('userFormModalLabel');
+    var submitBtn = document.getElementById('userFormSubmitBtn');
+    var customerIdInput = document.getElementById('userFormCustomerId');
+    var storeUrl = @json(route('admin.store-customer'));
+    var updateUrl = @json(route('admin.update-customer'));
+
+    function setAddMode() {
+        if (!formEl) return;
+        formEl.action = storeUrl;
+        customerIdInput.value = '';
+        customerIdInput.disabled = true;
+        titleEl.textContent = 'Add New User';
+        submitBtn.textContent = 'Add User';
+    }
+
+    function setEditMode(data) {
+        if (!formEl) return;
+        formEl.action = updateUrl;
+        customerIdInput.disabled = false;
+        customerIdInput.value = data.id || '';
+        document.getElementById('userFormName').value = data.name || '';
+        document.getElementById('userFormEmail').value = data.email || '';
+        document.getElementById('userFormPhone').value = data.phone || '';
+        document.getElementById('userFormAddress').value = data.address || '';
+        titleEl.textContent = 'Edit User';
+        submitBtn.textContent = 'Update User';
+    }
+
+    document.querySelectorAll('[data-user-modal-mode="add"]').forEach(function (btn) {
+        btn.addEventListener('click', setAddMode);
+    });
+
+    document.querySelectorAll('.btn-edit-user').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            setEditMode({
+                id: btn.getAttribute('data-customer-id'),
+                name: btn.getAttribute('data-customer-name'),
+                email: btn.getAttribute('data-customer-email'),
+                phone: btn.getAttribute('data-customer-phone'),
+                address: btn.getAttribute('data-customer-address') || '',
+            });
+        });
+    });
+
+    formEl?.addEventListener('submit', function () {
+        customerIdInput.disabled = false;
+    });
+
+    modalEl?.addEventListener('hidden.bs.modal', function () {
+        @if(!session('open_user_modal') && !$errors->any())
+        formEl.reset();
+        setAddMode();
+        @endif
+    });
+
+    @if(session('open_user_modal') === 'add' || (session('open_user_modal') === 'edit' && $errors->any()))
+        document.addEventListener('DOMContentLoaded', function () {
+            @if(session('open_user_modal') === 'edit')
+                setEditMode({
+                    id: @json(old('customer_id')),
+                    name: @json(old('customer_name')),
+                    email: @json(old('customer_email')),
+                    phone: @json(old('customer_phone')),
+                    address: @json(old('customer_address')),
+                });
+            @else
+                setAddMode();
+            @endif
+            bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        });
+    @endif
+
+    @if(!empty($modalEditCustomer))
+        document.addEventListener('DOMContentLoaded', function () {
+            setEditMode({
+                id: @json($modalEditCustomer->customer_id),
+                name: @json($modalEditCustomer->name),
+                email: @json($modalEditCustomer->email),
+                phone: @json($modalEditCustomer->mobile),
+                address: @json($modalEditCustomer->customer_address ?? ''),
+            });
+            bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        });
+    @elseif(request('open') === 'add')
+        document.addEventListener('DOMContentLoaded', function () {
+            setAddMode();
+            bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        });
+    @endif
+})();
+
 document.getElementById('deleteCustomerModal')?.addEventListener('show.bs.modal', function (e) {
     var btn = e.relatedTarget;
     if (!btn) return;

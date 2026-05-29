@@ -82,6 +82,10 @@ class Orders extends Model
         'order_status',
         'shipping_address',
         'notes',
+        'promo_code',
+        'promo_discount',
+        'discount_offer_id',
+        'offer_discount',
         'razorpay_order_id',
         'razorpay_payment_id',
         'razorpay_signature',
@@ -93,6 +97,8 @@ class Orders extends Model
         'gst_amount' => 'decimal:2',
         'shipping_amount' => 'decimal:2',
         'total_amount' => 'decimal:2',
+        'promo_discount' => 'decimal:2',
+        'offer_discount' => 'decimal:2',
     ];
 
     public function customer()

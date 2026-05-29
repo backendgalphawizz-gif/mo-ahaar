@@ -78,9 +78,7 @@ class Product extends Model
         'sale_start_date',
         'sale_end_date',
         'sku',
-        'stock',
         'min_quantity',
-        'stock_status',
         'tags',
         'random_related_product',
         'related_product_ids',
@@ -104,6 +102,12 @@ class Product extends Model
         'gst_percentage',
         'gst_calculation_type',
         'target_user_type',
+    ];
+
+    /** Not used — kept out of API responses and mass assignment. */
+    protected $hidden = [
+        'stock',
+        'stock_status',
     ];
 
     public $timestamps = true;

@@ -164,8 +164,15 @@ class OrdersController extends Controller
                     'tax_amount'       => number_format((float) $order->tax_amount, 2, '.', ''),
                     'shipping_amount'  => number_format((float) $order->shipping_amount, 2, '.', ''),
                     'total_amount'     => number_format((float) $order->total_amount, 2, '.', ''),
+                    'billing'          => $this->formatOrderBillingSummary($order),
+                    'promo_code'       => $order->promo_code ?? null,
+                    'promo_discount'   => number_format((float) ($order->promo_discount ?? 0), 2, '.', ''),
+                    'offer_discount'   => number_format((float) ($order->offer_discount ?? 0), 2, '.', ''),
+                    'discount_offer_id' => $order->discount_offer_id ?? null,
+                    'has_promo_applied' => $this->orderHasPromoApplied($order),
                     'shipping_address' => $order->shipping_address,
                     'notes'            => $order->notes,
+                    'cooking_instructions' => $this->extractCookingInstructionsFromOrderNotes($order->notes),
                     'can_cancel'       => $this->canCancelOrder($order),
                     'placed_at'        => $order->created_at ? $order->created_at->toDateTimeString() : null,
                     'updated_at'       => $order->updated_at ? $order->updated_at->toDateTimeString() : null,
@@ -438,6 +445,11 @@ class OrdersController extends Controller
             'bill_total'            => number_format($totalAmount, 2, '.', ''),
             'bill_total_formatted'  => $this->formatIndianCurrency($totalAmount),
             'bill_total_label'      => $isFinalStatus ? 'BILL TOTAL' : 'TOTAL AMOUNT',
+            'billing'                 => $this->formatOrderBillingSummary($order),
+            'promo_code'              => $order->promo_code ?? null,
+            'promo_discount'          => number_format((float) ($order->promo_discount ?? 0), 2, '.', ''),
+            'offer_discount'          => number_format((float) ($order->offer_discount ?? 0), 2, '.', ''),
+            'has_promo_applied'       => $this->orderHasPromoApplied($order),
             'items_count'           => $itemCount,
             'items_preview'         => $previewItems,
             'more_items_count'      => $moreCount,
@@ -621,6 +633,67 @@ class OrdersController extends Controller
     private function formatIndianCurrency(float $amount): string
     {
         return '₹' . number_format($amount, 0, '.', ',');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function formatOrderBillingSummary(Orders $order): array
+    {
+        $subtotal = (float) $order->subtotal;
+        $promoDiscount = Schema::hasColumn('orders', 'promo_discount')
+            ? (float) ($order->promo_discount ?? 0)
+            : 0.0;
+        $offerDiscount = Schema::hasColumn('orders', 'offer_discount')
+            ? (float) ($order->offer_discount ?? 0)
+            : 0.0;
+        $shipping = (float) $order->shipping_amount;
+        $tax = (float) $order->tax_amount;
+        $total = (float) $order->total_amount;
+
+        return [
+            'subtotal' => number_format($subtotal, 2, '.', ''),
+            'offer_discount' => number_format($offerDiscount, 2, '.', ''),
+            'promo_code' => Schema::hasColumn('orders', 'promo_code') ? ($order->promo_code ?? null) : null,
+            'promo_discount' => number_format($promoDiscount, 2, '.', ''),
+            'discount_offer_id' => Schema::hasColumn('orders', 'discount_offer_id')
+                ? ($order->discount_offer_id ?? null)
+                : null,
+            'delivery_fee' => number_format($shipping, 2, '.', ''),
+            'tax_amount' => number_format($tax, 2, '.', ''),
+            'total_amount' => number_format($total, 2, '.', ''),
+            'has_promo_applied' => $this->orderHasPromoApplied($order),
+        ];
+    }
+
+    private function orderHasPromoApplied(Orders $order): bool
+    {
+        if (Schema::hasColumn('orders', 'promo_code') && !empty($order->promo_code)) {
+            return true;
+        }
+
+        if (Schema::hasColumn('orders', 'promo_discount') && (float) ($order->promo_discount ?? 0) > 0) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private function extractCookingInstructionsFromOrderNotes(?string $notes): ?string
+    {
+        if ($notes === null || trim($notes) === '') {
+            return null;
+        }
+
+        $marker = "\nPayment Meta:";
+        $pos = strpos($notes, $marker);
+        if ($pos === false) {
+            return trim($notes);
+        }
+
+        $instructions = trim(substr($notes, 0, $pos));
+
+        return $instructions !== '' ? $instructions : null;
     }
 
     public function invoice(Request $request, int $orderId)

@@ -404,7 +404,9 @@ class CheckoutController extends Controller
                 $paymentMethod,
                 $isCod ? 'pending' : $onlinePaymentStatus,
                 $isCod ? 'pending' : $onlineOrderStatus,
-                $notes
+                $notes,
+                $customer->cart_promo_code,
+                $customer->cart_discount_offer_id
             );
 
             if ($isOnline) {
@@ -417,7 +419,6 @@ class CheckoutController extends Controller
                 ]);
             }
 
-            $this->decrementStockForOrder($order);
             $orderedProductIds = $items->pluck('product_id')->unique()->values()->all();
             CartItem::where('customer_id', $customer->customer_id)
                 ->whereIn('product_id', $orderedProductIds)
@@ -456,6 +457,8 @@ class CheckoutController extends Controller
                     'payment_status' => $order->payment_status,
                     'order_status' => $order->order_status,
                     'total_amount' => number_format((float) $order->total_amount, 2, '.', ''),
+                    'promo_code' => $order->promo_code ?? null,
+                    'promo_discount' => number_format((float) ($order->promo_discount ?? 0), 2, '.', ''),
                     'items_ordered' => $items->count(),
                     'track_order_url' => url('/api/customer-app/orders/' . $order->order_id . '/tracking'),
                 ],
@@ -590,20 +593,6 @@ class CheckoutController extends Controller
                         'reason' => 'unavailable_product',
                         'product_id' => $product->product_id,
                         'cart_item_id' => $item->cart_item_id,
-                    ],
-                ], 422);
-            }
-
-            if ($product->stock !== null && $product->stock < $item->quantity) {
-                return response()->json([
-                    'status'  => false,
-                    'message' => 'Insufficient stock for "' . $product->product_name . '".',
-                    'data' => [
-                        'reason' => 'insufficient_stock',
-                        'product_id' => $product->product_id,
-                        'cart_item_id' => $item->cart_item_id,
-                        'requested_quantity' => (int) $item->quantity,
-                        'available_stock' => (int) $product->stock,
                     ],
                 ], 422);
             }
@@ -866,7 +855,9 @@ class CheckoutController extends Controller
         string $paymentMethod,
         string $paymentStatus,
         string $orderStatus,
-        string $notes
+        string $notes,
+        ?string $promoCode = null,
+        ?int $discountOfferId = null
     ): Orders {
         $vendorId = $items->first()->product->vendor_id ?? null;
 
@@ -887,6 +878,18 @@ class CheckoutController extends Controller
 
         if (\Illuminate\Support\Facades\Schema::hasColumn('orders', 'gst_amount')) {
             $orderData['gst_amount'] = $totals['tax_amount'];
+        }
+        if (\Illuminate\Support\Facades\Schema::hasColumn('orders', 'promo_code')) {
+            $orderData['promo_code'] = $promoCode ? strtoupper(trim($promoCode)) : null;
+        }
+        if (\Illuminate\Support\Facades\Schema::hasColumn('orders', 'promo_discount')) {
+            $orderData['promo_discount'] = $totals['promo_discount'] ?? 0;
+        }
+        if (\Illuminate\Support\Facades\Schema::hasColumn('orders', 'discount_offer_id')) {
+            $orderData['discount_offer_id'] = $discountOfferId;
+        }
+        if (\Illuminate\Support\Facades\Schema::hasColumn('orders', 'offer_discount')) {
+            $orderData['offer_discount'] = $totals['offer_discount'] ?? 0;
         }
 
         $order = Orders::create($orderData);
@@ -937,33 +940,10 @@ class CheckoutController extends Controller
         return $order;
     }
 
-    private function decrementStockForOrder(Orders $order): void
-    {
-        $orderItems = OrderItem::where('order_id', $order->order_id)->get();
-        foreach ($orderItems as $orderItem) {
-            $product = Product::where('product_id', $orderItem->product_id)->first();
-            if ($product && $product->stock !== null) {
-                $product->decrement('stock', $orderItem->quantity);
-            }
-        }
-    }
-
     private function activeCartItems(int $customerId)
     {
-        $activeVendorId = CartItem::query()
-            ->join('products', 'products.product_id', '=', 'cart_items.product_id')
-            ->where('cart_items.customer_id', $customerId)
-            ->whereNotNull('products.vendor_id')
-            ->orderByDesc('cart_items.updated_at')
-            ->orderByDesc('cart_items.cart_item_id')
-            ->value('products.vendor_id');
-
         return CartItem::with('product')
             ->where('customer_id', $customerId)
-            ->when(
-                $activeVendorId !== null,
-                fn ($q) => $q->whereHas('product', fn ($p) => $p->where('vendor_id', (int) $activeVendorId))
-            )
             ->get();
     }
 

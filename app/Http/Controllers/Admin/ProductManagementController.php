@@ -131,10 +131,8 @@ class ProductManagementController extends Controller
         $request->merge([
             'sub_category_id' => $request->filled('sub_category_id') ? $request->input('sub_category_id') : null,
             'short_description' => $shortFromDesc,
-            'stock_status' => $request->input('stock_status', 'in_stock'),
             'gst_calculation_type' => $request->input('gst_calculation_type', Product::GST_EXCLUDED),
             'target_user_type' => $request->input('target_user_type', Product::TARGET_RETAILER),
-            'stock' => $request->input('stock', 100),
             'price' => $singlePrice,
             'mrp_price' => $singlePrice,
         ]);
@@ -152,18 +150,15 @@ class ProductManagementController extends Controller
 
         $rules = [
             'product_name' => ['required', 'string', 'max:100', 'regex:/^[a-zA-Z0-9 &()\-\/.,]+$/', 'not_regex:/(.)(\1{3,})/'],
-            'stock_status' => ['nullable', Rule::in(['in_stock', 'out_of_stock', 'backorder'])],
             'category_id' => ['nullable', 'exists:product_categories,category_id'],
             'sub_category_id' => ['nullable', 'exists:sub_categories,sub_category_id'],
             'sku' => ['nullable', 'string', 'max:100', Rule::unique('products', 'sku')->whereNotNull('sku')],
             'mrp_price' => ['required', 'numeric', 'min:0', 'regex:/^\d{1,10}(\.\d{1,2})?$/'],
             'price' => ['required', 'numeric', 'min:0', 'regex:/^\d{1,10}(\.\d{1,2})?$/'],
-            'stock' => ['nullable', 'integer', 'min:0', 'max:999999'],
             'min_quantity' => [
                 'nullable',
                 'integer',
                 'min:1',
-                'lte:stock',
                 Rule::requiredIf($request->input('target_user_type') === Product::TARGET_WHOLESALER),
             ],
             'target_user_type' => ['nullable', Rule::in(Product::targetUserTypeOptions())],
@@ -198,14 +193,9 @@ class ProductManagementController extends Controller
             'product_description.required' => 'Ingredients are required.',
             'product_type.required' => 'Please select veg or non-veg.',
             'product_type.in' => 'Food type must be veg or non-veg.',
-            'stock.required' => 'Stock quantity is required.',
-            'stock.integer' => 'Stock quantity must be an integer.',
-            'stock.min' => 'Stock quantity must be at least 0.',
-            'stock.max' => 'Stock quantity may not be greater than 999999.',
             'min_quantity.required' => 'Minimum order quantity is required for wholesaler products.',
             'min_quantity.integer' => 'Minimum order quantity must be a whole number.',
             'min_quantity.min' => 'Minimum order quantity must be at least 1.',
-            'min_quantity.lte' => 'Minimum order quantity cannot be greater than stock.',
             'sub_category_id.exists' => 'Selected sub-category is invalid.',
             'product_image.required' => 'Please upload a product thumbnail image.',
             'product_image.image' => 'The product thumbnail must be an image file (jpg, jpeg, png, webp).',
@@ -223,7 +213,6 @@ class ProductManagementController extends Controller
         $product->short_description = $shortFromDesc;
         $product->product_slug = Str::slug($validated['product_name']) . '-' . time();
         $product->product_type = $validated['product_type'];
-        $product->stock_status = $validated['stock_status'];
         $product->category_id = $validated['category_id'];
         $product->sub_category_id = $validated['sub_category_id'] ?? null;
         $product->sub_sub_category_id = null;
@@ -235,8 +224,13 @@ class ProductManagementController extends Controller
         }
         $product->sale_price = null;
         $product->sku = $validated['sku'];
-        $product->stock = $validated['stock'] ?? 100;
         $product->min_quantity = $validated['min_quantity'] ?? null;
+        if (Schema::hasColumn('products', 'stock')) {
+            $product->stock = null;
+        }
+        if (Schema::hasColumn('products', 'stock_status')) {
+            $product->stock_status = null;
+        }
         $product->video = $validated['video'] ?? null;
         $product->tags = $validated['tags'] ?? null;
         $product->featured = (int) ($validated['featured'] ?? 0);
@@ -373,7 +367,6 @@ class ProductManagementController extends Controller
             'sub_category_id' => $request->filled('sub_category_id') ? $request->input('sub_category_id') : null,
             'gst_calculation_type' => $request->input('gst_calculation_type', $product->gst_calculation_type ?? Product::GST_EXCLUDED),
             'target_user_type' => $request->input('target_user_type', $product->target_user_type ?: Product::TARGET_RETAILER),
-            'stock' => $request->input('stock', $product->stock ?: 100),
             'price' => $singlePrice,
             'mrp_price' => $singlePrice,
         ]);
@@ -395,13 +388,10 @@ class ProductManagementController extends Controller
             'target_user_type' => ['nullable', Rule::in(Product::targetUserTypeOptions())],
             'mrp_price' => ['required', 'numeric', 'min:0', 'regex:/^\d{1,10}(\.\d{1,2})?$/'],
             'price' => ['required', 'numeric', 'min:0', 'regex:/^\d{1,10}(\.\d{1,2})?$/'],
-            'stock' => ['nullable', 'integer', 'min:0', 'max:999999'],
-            'stock_status' => ['nullable', Rule::in(['in_stock', 'out_of_stock', 'backorder'])],
             'min_quantity' => [
                 'nullable',
                 'integer',
                 'min:1',
-                'lte:stock',
                 Rule::requiredIf($request->input('target_user_type') === Product::TARGET_WHOLESALER),
             ],
             'sku' => ['nullable', 'string', 'max:100', Rule::unique('products', 'sku')->ignore($product->product_id, 'product_id')->whereNotNull('sku')],
@@ -424,7 +414,6 @@ class ProductManagementController extends Controller
             'sku.unique' => 'This SKU is already in use.',
             'sub_category_id.exists' => 'Selected sub-category is invalid.',
             'min_quantity.required' => 'Minimum order quantity is required for wholesaler products.',
-            'min_quantity.lte' => 'Minimum order quantity cannot be greater than stock.',
             'price.lte' => 'Discounted price cannot be greater than MRP price.',
             'price.regex' => 'Price may not be greater than 10 digits.',
         ]);
@@ -432,7 +421,6 @@ class ProductManagementController extends Controller
         $product->product_name = $validated['product_name'];
         $product->short_description = $validated['short_description'];
         $product->product_slug = Str::slug($validated['product_name']) . '-' . $product->product_id;
-        $product->stock_status = $validated['stock_status'];
         $product->category_id = $validated['category_id'];
         $product->sub_category_id = $validated['sub_category_id'] ?? null;
         $product->sub_sub_category_id = null;
@@ -443,8 +431,13 @@ class ProductManagementController extends Controller
             $product->mrp_price = $validated['mrp_price'];
         }
         $product->sale_price = null;
-        $product->stock = $validated['stock'];
         $product->min_quantity = $validated['min_quantity'] ?? null;
+        if (Schema::hasColumn('products', 'stock')) {
+            $product->stock = null;
+        }
+        if (Schema::hasColumn('products', 'stock_status')) {
+            $product->stock_status = null;
+        }
         $product->sku = $validated['sku'];
         $product->status = (int) $validated['status'];
         $product->is_active_status = $request->boolean('is_active_status') ? 1 : 0;
@@ -543,7 +536,9 @@ class ProductManagementController extends Controller
                 $variant->attribute_combination = !empty($variantData['combination']) ? json_encode($variantData['combination']) : null;
                 $variant->price = $variantData['price'];
                 $variant->sale_price = !empty($variantData['sale_price']) ? $variantData['sale_price'] : null;
-                $variant->stock = (int) ($variantData['stock'] ?? 0);
+                if (Schema::hasColumn('product_variants', 'stock')) {
+                    $variant->stock = null;
+                }
                 $variant->sku = $variantData['sku'] ?? null;
 
                 $variantFiles = $request->file('variant_images');
@@ -923,7 +918,7 @@ class ProductManagementController extends Controller
         ];
 
         $callback = function () use ($products, $statusLabels) {
-            echo "S.No.\tProduct Name\tCategory\tSKU\tSegment\tMRP (INR)\tPrice (INR)\tStock\tApproval\n";
+            echo "S.No.\tProduct Name\tCategory\tSKU\tSegment\tMRP (INR)\tPrice (INR)\tApproval\n";
             foreach ($products as $index => $product) {
                 $cat = ($product->category_name ?? '-');
                 if (!empty($product->sub_cat_name)) {
@@ -936,7 +931,6 @@ class ProductManagementController extends Controller
                 echo ($product->target_user_type ?? '-') . "\t";
                 echo number_format((float)($product->mrp ?? 0), 2, '.', '') . "\t";
                 echo number_format((float)($product->price ?? 0), 2, '.', '') . "\t";
-                echo ((int)($product->stock ?? 0)) . "\t";
                 echo ($statusLabels[(int)($product->status ?? 0)] ?? 'Unknown') . "\n";
             }
         };
