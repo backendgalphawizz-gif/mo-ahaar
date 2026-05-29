@@ -104,22 +104,24 @@ class ProductBrowsingController extends Controller
     public function categories(Request $request)
     {
         $user = $request->user();
+        $restaurantId = $this->resolveRestaurantId($request);
+
+        if ($error = $this->restaurantNotFoundResponse($restaurantId)) {
+            return $error;
+        }
+
         $categories = ProductCategory::query()
             ->where('status', 1)
-
-            ->whereHas('subCategories', function ($q) use ($user) {
+            ->whereHas('subCategories', function ($q) use ($user, $restaurantId) {
                 $q->where('status', 1)
-                    ->whereHas('products', function ($p) use ($user) {
-                        $p->visibleToCustomerUser($user);
-                        $p->where('status', 1);
+                    ->whereHas('products', function ($p) use ($user, $restaurantId) {
+                        $this->applyCategoryProductScope($p, $user, $restaurantId);
                     });
             })
-
-            ->with(['subCategories' => function ($q) use ($user) {
+            ->with(['subCategories' => function ($q) use ($user, $restaurantId) {
                 $q->where('status', 1)
-                    ->whereHas('products', function ($p) use ($user) {
-                        $p->visibleToCustomerUser($user);
-                        $p->where('status', 1);
+                    ->whereHas('products', function ($p) use ($user, $restaurantId) {
+                        $this->applyCategoryProductScope($p, $user, $restaurantId);
                     });
             }])
             ->get();
@@ -254,6 +256,46 @@ class ProductBrowsingController extends Controller
             ->orderByDesc('created_at')
             ->paginate($perPage, ['*'], 'page', $page);
 
+        $restaurant = null;
+        $restaurantProducts = [];
+
+        if (
+            Schema::hasTable('vendors')
+            && Schema::hasColumn('products', 'vendor_id')
+            && !empty($product->vendor_id)
+        ) {
+            $vendor = Vendor::find($product->vendor_id);
+            if ($vendor) {
+                $restaurant = $this->mapRestaurant($vendor);
+
+                $restaurantProductRows = Product::query()
+                    ->visibleToCustomerUser($user)
+                    ->where('vendor_id', $product->vendor_id)
+                    ->where('status', 1)
+                    ->when(Schema::hasColumn('products', 'is_active_status'), fn ($q) => $q->where('is_active_status', 1))
+                    ->orderByDesc('featured')
+                    ->orderByDesc('product_id')
+                    ->get();
+
+                $restaurantReviewCounts = [];
+                if (Schema::hasTable('product_reviews') && $restaurantProductRows->isNotEmpty()) {
+                    $restaurantReviewCounts = ProductReview::query()
+                        ->where('status', 1)
+                        ->whereIn('product_id', $restaurantProductRows->pluck('product_id')->all())
+                        ->selectRaw('product_id, COUNT(*) as total_reviews')
+                        ->groupBy('product_id')
+                        ->pluck('total_reviews', 'product_id')
+                        ->map(fn ($count) => (int) $count)
+                        ->all();
+                }
+
+                $restaurantProducts = $restaurantProductRows
+                    ->map(fn (Product $row) => $this->mapFeaturedProduct($row, $restaurantReviewCounts, $vendor))
+                    ->values()
+                    ->all();
+            }
+        }
+
         return response()->json([
             'success' => true,
             'data'    => array_merge($product->toArray(), [
@@ -268,6 +310,8 @@ class ProductBrowsingController extends Controller
                     'last_page'     => $reviews->lastPage(),
                     'has_more'      => $reviews->hasMorePages(),
                 ],
+                'restaurant' => $restaurant,
+                'restaurant_products' => $restaurantProducts,
             ]),
         ]);
     }
@@ -278,6 +322,11 @@ class ProductBrowsingController extends Controller
     public function categoryDetails(Request $request, $categoryId)
     {
         $user = $request->user();
+        $restaurantId = $this->resolveRestaurantId($request);
+
+        if ($error = $this->restaurantNotFoundResponse($restaurantId)) {
+            return $error;
+        }
 
         $category = ProductCategory::where('category_id', $categoryId)->where('status', 1)->first();
         if (!$category) {
@@ -288,11 +337,17 @@ class ProductBrowsingController extends Controller
             ], 404);
         }
 
-        $products = Product::query()
+        $productsQuery = Product::query()
             ->visibleToCustomerUser($user)
             ->where('category_id', $categoryId)
             ->where('status', 1)
-            ->whereIn('is_active_status', [1, '1'])
+            ->whereIn('is_active_status', [1, '1']);
+
+        if ($restaurantId !== null && Schema::hasColumn('products', 'vendor_id')) {
+            $productsQuery->where('vendor_id', $restaurantId);
+        }
+
+        $products = $productsQuery
             ->orderByDesc('featured')
             ->orderBy('product_name')
             ->get()
@@ -335,6 +390,102 @@ class ProductBrowsingController extends Controller
                 : null,
             'is_vegetarian' => true,
         ];
+    }
+
+    /**
+     * Same shape as home/dashboard featured_products items.
+     *
+     * @param  array<int,int>  $reviewCounts
+     */
+    private function mapFeaturedProduct(Product $product, array $reviewCounts = [], ?Vendor $vendor = null): array
+    {
+        $restaurantName = $vendor?->business_name;
+        if ($restaurantName === null && Schema::hasColumn('products', 'store_name') && !empty($product->store_name)) {
+            $restaurantName = $product->store_name;
+        }
+
+        $row = [
+            'product_id' => $product->product_id,
+            'product_name' => $product->product_name,
+            'target_user_type' => $product->target_user_type,
+            'short_description' => $product->short_description,
+            'price' => $product->price,
+            'sale_price' => $product->sale_price,
+            'discount' => $product->discount,
+            'stock' => $product->stock,
+            'product_image' => $product->product_image,
+            'product_image_url' => !empty($product->product_image)
+                ? url('public/uploads/products/' . $product->product_image)
+                : null,
+            'review_count' => (int) ($reviewCounts[$product->product_id] ?? 0),
+            'restaurant_name' => $restaurantName,
+            'location' => $vendor?->address,
+        ];
+
+        if (Schema::hasColumn('products', 'sale_status')) {
+            $row['sale_status'] = $product->sale_status;
+        }
+
+        return $row;
+    }
+
+    private function mapRestaurant(Vendor $vendor): array
+    {
+        $image = $vendor->business_banner ?: ($vendor->shop_image ?: $vendor->business_logo);
+
+        return [
+            'vendor_id' => $vendor->vendor_id,
+            'restaurant_id' => $vendor->vendor_id,
+            'restaurant_name' => $vendor->business_name,
+            'name' => $vendor->business_name,
+            'location' => $vendor->address,
+            'description' => $vendor->business_description,
+            'image_url' => $image ? url('public/uploads/vendors/' . $image) : null,
+            'logo_url' => !empty($vendor->business_logo)
+                ? url('public/uploads/vendors/' . $vendor->business_logo)
+                : null,
+        ];
+    }
+
+    private function resolveRestaurantId(Request $request): ?int
+    {
+        $raw = $request->query('restaurant_id', $request->query('vendor_id'));
+        if ($raw === null || $raw === '') {
+            return null;
+        }
+
+        return (int) $raw;
+    }
+
+    private function restaurantNotFoundResponse(?int $restaurantId): ?\Illuminate\Http\JsonResponse
+    {
+        if ($restaurantId === null || !Schema::hasTable('vendors')) {
+            return null;
+        }
+
+        $exists = Vendor::where('vendor_id', $restaurantId)->exists();
+        if ($exists) {
+            return null;
+        }
+
+        return response()->json([
+            'status' => false,
+            'success' => false,
+            'message' => 'Restaurant not found.',
+        ], 404);
+    }
+
+    /**
+     * Product constraints used when building category/sub-category trees.
+     */
+    private function applyCategoryProductScope($query, $user, ?int $restaurantId = null): void
+    {
+        $query->visibleToCustomerUser($user)
+            ->where('status', 1);
+
+        if ($restaurantId !== null && Schema::hasColumn('products', 'vendor_id')) {
+            $query->where('vendor_id', $restaurantId);
+        }
     }
 
     /**

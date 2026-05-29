@@ -135,14 +135,22 @@
           "name": "Categories List",
           "request": {
             "method": "GET",
-            "url": "{{base_url}}/customer-app/products/categories"
+            "url": {
+              "raw": "{{base_url}}/customer-app/products/categories?restaurant_id={{vendor_id}}",
+              "query": [{ "key": "restaurant_id", "value": "{{vendor_id}}", "disabled": true }]
+            },
+            "description": "Optional query: restaurant_id — returns only categories that have products from that restaurant."
           }
         },
         {
           "name": "Category Products (e.g. Pizza)",
           "request": {
             "method": "GET",
-            "url": "{{base_url}}/customer-app/products/categories/{{category_id}}"
+            "url": {
+              "raw": "{{base_url}}/customer-app/products/categories/{{category_id}}?restaurant_id={{vendor_id}}",
+              "query": [{ "key": "restaurant_id", "value": "{{vendor_id}}", "disabled": true }]
+            },
+            "description": "Optional query: restaurant_id — returns only products of that restaurant in the category."
           }
         },
         {
