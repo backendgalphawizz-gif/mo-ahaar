@@ -179,36 +179,36 @@
                         <div class="figma-form-block">
                             <h6>Bank Details</h6>
                             <hr class="figma-section-rule">
+                            @php $adminAccountType = strtolower((string) $val('account_type', '')); @endphp
                             <div class="row g-3">
                                 <div class="col-md-4">
-                                    <label class="form-label">Bank Name</label>
+                                    <label class="form-label">Bank Name <span class="text-danger">*</span></label>
                                     <input type="text" name="bank_name" class="form-control @error('bank_name') is-invalid @enderror" value="{{ $val('bank_name') }}" maxlength="150">
                                     @include('admin.partials.field-error', ['field' => 'bank_name'])
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="form-label">Branch Name</label>
-                                    <input type="text" name="branch_name" class="form-control @error('branch_name') is-invalid @enderror" value="{{ $val('branch_name') }}" maxlength="150">
-                                    @include('admin.partials.field-error', ['field' => 'branch_name'])
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="form-label">Account Number</label>
-                                    <input type="text" name="bank_account" class="form-control @error('bank_account') is-invalid @enderror" value="{{ $val('bank_account') }}" maxlength="18" oninput="this.value=this.value.replace(/\D/g,'')">
-                                    @include('admin.partials.field-error', ['field' => 'bank_account'])
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">IFSC Code</label>
-                                    <input type="text" name="ifsc_code" class="form-control @error('ifsc_code') is-invalid @enderror" value="{{ $val('ifsc_code') }}" maxlength="11" oninput="this.value=this.value.toUpperCase()">
-                                    @include('admin.partials.field-error', ['field' => 'ifsc_code'])
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Account Type</label>
-                                    <input type="text" name="account_type" class="form-control @error('account_type') is-invalid @enderror" value="{{ $val('account_type') }}" maxlength="50" placeholder="Savings / Current">
-                                    @include('admin.partials.field-error', ['field' => 'account_type'])
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Account Holder Name</label>
+                                    <label class="form-label">Account Holder Name <span class="text-danger">*</span></label>
                                     <input type="text" name="account_holder_name" class="form-control @error('account_holder_name') is-invalid @enderror" value="{{ $val('account_holder_name') }}" maxlength="150">
                                     @include('admin.partials.field-error', ['field' => 'account_holder_name'])
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Account Number <span class="text-danger">*</span></label>
+                                    <input type="text" name="bank_account" class="form-control @error('bank_account') is-invalid @enderror" value="{{ $val('bank_account') }}" maxlength="18" oninput="this.value=this.value.replace(/\D/g,'').slice(0,18)">
+                                    @include('admin.partials.field-error', ['field' => 'bank_account'])
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Account Type <span class="text-danger">*</span></label>
+                                    <select name="account_type" class="form-select @error('account_type') is-invalid @enderror">
+                                        <option value="">Select account type</option>
+                                        <option value="savings" {{ in_array($adminAccountType, ['savings', 'saving'], true) ? 'selected' : '' }}>Savings</option>
+                                        <option value="current" {{ $adminAccountType === 'current' ? 'selected' : '' }}>Current</option>
+                                    </select>
+                                    @include('admin.partials.field-error', ['field' => 'account_type'])
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">IFSC Code <span class="text-danger">*</span></label>
+                                    <input type="text" name="ifsc_code" class="form-control @error('ifsc_code') is-invalid @enderror" value="{{ $val('ifsc_code') }}" maxlength="11" oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,11)">
+                                    @include('admin.partials.field-error', ['field' => 'ifsc_code'])
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label">Commission %</label>

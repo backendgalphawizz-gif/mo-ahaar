@@ -9,6 +9,7 @@ use App\Models\Customers;
 use App\Models\DiscountOffer;
 use App\Models\Product;
 use App\Models\Users;
+use App\Services\CustomerPromoResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 
@@ -329,8 +330,7 @@ class CartController extends Controller
             ], 422);
         }
 
-        $customer->cart_promo_code = $code;
-        $customer->cart_discount_offer_id = $offer->id;
+        CustomerPromoResolver::syncCustomerCartPromo($customer, $offer);
         $customer->save();
 
         $cart = $this->buildCartPayloadForCustomer((int) $customer->customer_id);
@@ -519,19 +519,14 @@ class CartController extends Controller
             }
         }
 
-        $promoDiscount = 0.0;
-        $promoCode = null;
-        if ($customer && $customer->cart_discount_offer_id && Schema::hasTable('discount_offers')) {
-            $promoOffer = DiscountOffer::active()->currentlyValid()->find($customer->cart_discount_offer_id);
-            if ($promoOffer && $promoOffer->cartAmountConditionMet($subtotal)) {
-                $promoCode = $customer->cart_promo_code;
-                $base = max(0, $subtotal - $totalOfferDiscount);
-                if ($promoOffer->discount_type === DiscountOffer::TYPE_PERCENTAGE) {
-                    $promoDiscount = round($base * ((float) $promoOffer->discount_value / 100), 2);
-                } else {
-                    $promoDiscount = round(min((float) $promoOffer->discount_value, $base), 2);
-                }
-            }
+        $eligiblePromoSubtotal = max(0, round($subtotal - $totalOfferDiscount, 2));
+        $promo = CustomerPromoResolver::resolve($customer, $eligiblePromoSubtotal);
+        $promoDiscount = (float) $promo['discount'];
+        $promoCode = $promo['code'];
+
+        if ($customer && $promo['offer']) {
+            CustomerPromoResolver::syncCustomerCartPromo($customer, $promo['offer']);
+            $customer->save();
         }
 
         $deliveryFee = $items->isEmpty() ? 0.0 : (float) config('customer-app.delivery_fee', 40);
@@ -554,6 +549,8 @@ class CartController extends Controller
             'other_vendor_groups' => [],
             'cooking_instructions' => $customer?->cart_cooking_instructions,
             'promo_code' => $promoCode,
+            'promo_applied' => $promoCode !== null,
+            'has_promo_applied' => $promoCode !== null,
             'promo_message' => $promoCode
                 ? "Code '{$promoCode}' applied! You saved ₹" . number_format($promoDiscount, 2, '.', '')
                 : null,

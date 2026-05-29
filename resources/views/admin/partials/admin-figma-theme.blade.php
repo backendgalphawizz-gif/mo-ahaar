@@ -440,6 +440,10 @@
 .admin-panel .figma-form-block .form-control::placeholder { color: #9ca3af; }
 .admin-panel .figma-form-extra { margin-top: 8px; padding-top: 20px; border-top: 1px dashed #e5e7eb; }
 
+.admin-panel .password-toggle-wrap .form-control { padding-right: 42px !important; }
+.admin-panel .password-toggle-btn { color: #9ca3af; }
+.admin-panel .password-toggle-btn:hover { color: var(--moa-red); }
+
 .admin-panel .vendor-detail-kpi .card-body { padding: 16px 18px; }
 .admin-panel .vendor-detail-kpi small { font-size: 12px; color: #6b7280; display: block; margin-bottom: 6px; }
 .admin-panel .vendor-detail-kpi h4 { font-size: 22px; font-weight: 700; color: #111827; margin: 0; }

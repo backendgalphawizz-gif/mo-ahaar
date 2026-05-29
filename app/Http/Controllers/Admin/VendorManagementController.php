@@ -25,6 +25,7 @@ class VendorManagementController extends Controller
 
     public function registerSubmit(Request $request)
     {
+        $this->normalizeVendorRequest($request);
         $validated = VendorFormValidator::validateComplete($request, null, true);
 
         DB::beginTransaction();
@@ -290,10 +291,30 @@ class VendorManagementController extends Controller
 
     private function normalizeVendorRequest(Request $request): void
     {
+        foreach (['mobile', 'business_phone'] as $phoneField) {
+            if ($request->has($phoneField)) {
+                $digits = preg_replace('/\D/', '', (string) $request->input($phoneField));
+                $request->merge([$phoneField => $digits !== '' ? substr($digits, 0, 10) : '']);
+            }
+        }
+
         foreach (['pan_number', 'gst_number', 'ifsc_code'] as $field) {
             if ($request->filled($field)) {
                 $request->merge([$field => strtoupper(trim((string) $request->input($field)))]);
             }
+        }
+
+        if ($request->has('bank_account')) {
+            $account = preg_replace('/\D/', '', (string) $request->input('bank_account'));
+            $request->merge(['bank_account' => $account !== '' ? substr($account, 0, 18) : '']);
+        }
+
+        if ($request->filled('account_type')) {
+            $type = strtolower(trim((string) $request->input('account_type')));
+            if ($type === 'saving') {
+                $type = 'savings';
+            }
+            $request->merge(['account_type' => $type]);
         }
     }
 
@@ -368,6 +389,8 @@ class VendorManagementController extends Controller
                 'business_banner' => 'vendors',
                 'shop_image' => 'vendors',
                 'aadhaar_card' => 'vendors/documents',
+                'aadhaar_card_front' => 'vendors/documents',
+                'aadhaar_card_back' => 'vendors/documents',
                 'pan_card' => 'vendors/documents',
                 'gst_file' => 'vendors/documents',
                 'food_license_file' => 'vendors/documents',
@@ -498,6 +521,8 @@ class VendorManagementController extends Controller
             'business_banner' => 'vendors',
             'shop_image' => 'vendors',
             'aadhaar_card' => 'vendors/documents',
+            'aadhaar_card_front' => 'vendors/documents',
+            'aadhaar_card_back' => 'vendors/documents',
             'pan_card' => 'vendors/documents',
             'gst_file' => 'vendors/documents',
             'food_license_file' => 'vendors/documents',
@@ -513,6 +538,10 @@ class VendorManagementController extends Controller
             } elseif (!empty($validated[$field]) && is_string($validated[$field])) {
                 $data[$field] = $validated[$field];
             }
+        }
+
+        if (!empty($data['aadhaar_card_front']) && empty($data['aadhaar_card'])) {
+            $data['aadhaar_card'] = $data['aadhaar_card_front'];
         }
 
         return $data;

@@ -57,19 +57,19 @@ class VendorFormValidator
             'business_description' => ['nullable', 'string', 'max:2000'],
             'tax_name' => ['nullable', 'string', 'max:100'],
             'tax_number' => ['nullable', 'string', 'max:50'],
-            'pan_number' => ['nullable', 'regex:/^[A-Z]{5}[0-9]{4}[A-Z]$/'],
-            'gst_number' => ['nullable', 'regex:/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/'],
+            'pan_number' => ['required', 'regex:/^[A-Z]{5}[0-9]{4}[A-Z]$/'],
+            'gst_number' => ['required', 'regex:/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/'],
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
         ];
 
         $bank = [
-            'bank_name' => ['nullable', 'string', 'max:150'],
+            'bank_name' => ['required', 'string', 'min:2', 'max:150'],
+            'account_holder_name' => ['required', 'string', 'min:2', 'max:150', 'regex:/^[a-zA-Z\s.\']+$/u'],
+            'bank_account' => ['required', 'regex:/^[0-9]{8,18}$/'],
+            'account_type' => ['required', Rule::in(['savings', 'current'])],
+            'ifsc_code' => ['required', 'regex:/^[A-Z]{4}0[A-Z0-9]{6}$/'],
             'branch_name' => ['nullable', 'string', 'max:150'],
-            'bank_account' => ['nullable', 'regex:/^[0-9]{9,18}$/'],
-            'account_holder_name' => ['nullable', 'string', 'max:150', 'regex:/^[a-zA-Z\s.\']+$/u'],
-            'ifsc_code' => ['nullable', 'regex:/^[A-Za-z]{4}0[A-Za-z0-9]{6}$/'],
-            'account_type' => ['nullable', 'string', 'max:50'],
             'commission_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'approval_status' => ['nullable', Rule::in(['pending', 'approved', 'suspended', 'rejected'])],
         ];
@@ -79,7 +79,9 @@ class VendorFormValidator
             'business_banner' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
             'shop_image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
             'aadhaar_card' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:4096'],
-            'pan_card' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:4096'],
+            'aadhaar_card_front' => self::documentFileRules('aadhaar_card_front', $vendor, $isCreate),
+            'aadhaar_card_back' => self::documentFileRules('aadhaar_card_back', $vendor, $isCreate),
+            'pan_card' => self::documentFileRules('pan_card', $vendor, $isCreate),
             'gst_file' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:4096'],
             'food_license_file' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:4096'],
             'bank_passbook_file' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:4096'],
@@ -128,13 +130,32 @@ class VendorFormValidator
             'business_name.required' => 'Restaurant name is required.',
             'business_name.min' => 'Restaurant name must be at least 2 characters.',
             'business_email.email' => 'Please enter a valid business email address.',
-            'business_phone.digits' => 'Business phone must be exactly 10 digits.',
-            'business_phone.regex' => 'Enter a valid 10-digit Indian mobile number.',
+            'business_phone.digits' => 'Business mobile must be exactly 10 digits.',
+            'business_phone.regex' => 'Enter a valid 10-digit Indian mobile number starting with 6–9.',
+            'pan_number.required' => 'PAN number is required.',
             'pan_number.regex' => 'PAN must be in format ABCDE1234F (5 letters, 4 digits, 1 letter).',
+            'gst_number.required' => 'GST number is required.',
             'gst_number.regex' => 'Please enter a valid 15-character GSTIN.',
-            'ifsc_code.regex' => 'Please enter a valid IFSC code (e.g. SBIN0001234).',
-            'bank_account.regex' => 'Account number must be 9 to 18 digits.',
+            'aadhaar_card_front.required' => 'Aadhaar card (front) upload is required.',
+            'aadhaar_card_back.required' => 'Aadhaar card (back) upload is required.',
+            'pan_card.required' => 'PAN card document upload is required.',
+            'aadhaar_card_front.mimes' => 'Aadhaar front must be JPG, PNG or PDF.',
+            'aadhaar_card_back.mimes' => 'Aadhaar back must be JPG, PNG or PDF.',
+            'pan_card.mimes' => 'PAN card must be JPG, PNG or PDF.',
+            'aadhaar_card_front.max' => 'Aadhaar front file may not be greater than 4MB.',
+            'aadhaar_card_back.max' => 'Aadhaar back file may not be greater than 4MB.',
+            'pan_card.max' => 'PAN card file may not be greater than 4MB.',
+            'bank_name.required' => 'Bank name is required.',
+            'bank_name.min' => 'Bank name must be at least 2 characters.',
+            'account_holder_name.required' => 'Account holder name is required.',
             'account_holder_name.regex' => 'Account holder name may only contain letters and spaces.',
+            'account_holder_name.min' => 'Account holder name must be at least 2 characters.',
+            'bank_account.required' => 'Account number is required.',
+            'bank_account.regex' => 'Account number must be 8 to 18 digits (numbers only).',
+            'account_type.required' => 'Please select account type.',
+            'account_type.in' => 'Account type must be Savings or Current.',
+            'ifsc_code.required' => 'IFSC code is required.',
+            'ifsc_code.regex' => 'Please enter a valid IFSC code (e.g. SBIN0001234).',
             'profile_image.image' => 'Profile image must be a valid image file.',
             'profile_image.max' => 'Profile image may not be greater than 2MB.',
         ];
@@ -153,6 +174,20 @@ class VendorFormValidator
         return $request->validate(
             self::allRules($vendor, $isCreate),
             self::messages()
+        );
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private static function documentFileRules(string $field, ?Vendor $vendor, bool $isCreate): array
+    {
+        $hasExisting = $vendor && !empty($vendor->{$field});
+        $required = $isCreate || !$hasExisting;
+
+        return array_merge(
+            [$required ? 'required' : 'nullable'],
+            ['file', 'mimes:jpg,jpeg,png,pdf', 'max:4096']
         );
     }
 }

@@ -170,6 +170,7 @@ class OrdersController extends Controller
                     'offer_discount'   => number_format((float) ($order->offer_discount ?? 0), 2, '.', ''),
                     'discount_offer_id' => $order->discount_offer_id ?? null,
                     'has_promo_applied' => $this->orderHasPromoApplied($order),
+                    'promo_applied' => $this->orderHasPromoApplied($order),
                     'shipping_address' => $order->shipping_address,
                     'notes'            => $order->notes,
                     'cooking_instructions' => $this->extractCookingInstructionsFromOrderNotes($order->notes),
@@ -450,6 +451,7 @@ class OrdersController extends Controller
             'promo_discount'          => number_format((float) ($order->promo_discount ?? 0), 2, '.', ''),
             'offer_discount'          => number_format((float) ($order->offer_discount ?? 0), 2, '.', ''),
             'has_promo_applied'       => $this->orderHasPromoApplied($order),
+            'promo_applied'           => $this->orderHasPromoApplied($order),
             'items_count'           => $itemCount,
             'items_preview'         => $previewItems,
             'more_items_count'      => $moreCount,
@@ -663,16 +665,21 @@ class OrdersController extends Controller
             'tax_amount' => number_format($tax, 2, '.', ''),
             'total_amount' => number_format($total, 2, '.', ''),
             'has_promo_applied' => $this->orderHasPromoApplied($order),
+            'promo_applied' => $this->orderHasPromoApplied($order),
         ];
     }
 
     private function orderHasPromoApplied(Orders $order): bool
     {
-        if (Schema::hasColumn('orders', 'promo_code') && !empty($order->promo_code)) {
+        if (Schema::hasColumn('orders', 'promo_code') && trim((string) ($order->promo_code ?? '')) !== '') {
             return true;
         }
 
         if (Schema::hasColumn('orders', 'promo_discount') && (float) ($order->promo_discount ?? 0) > 0) {
+            return true;
+        }
+
+        if (Schema::hasColumn('orders', 'discount_offer_id') && !empty($order->discount_offer_id)) {
             return true;
         }
 

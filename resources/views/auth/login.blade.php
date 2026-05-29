@@ -50,9 +50,9 @@
                         <div class="password-input-wrapper">
                             <input type="password" class="form-control" id="passwordField" name="password"
                                 placeholder="Enter your password" required>
-                            <span class="password-toggle-icon" id="passwordToggle">
-                                <i class="ri-eye-line"></i>
-                            </span>
+                            <button type="button" class="password-toggle-icon password-toggle-btn" id="passwordToggle" aria-label="Show password">
+                                <i class="ri-eye-line" aria-hidden="true"></i>
+                            </button>
                         </div>
                         @error('password')
                             <small class="text-danger">{{ $message }}</small>
@@ -206,17 +206,26 @@
 
         .password-toggle-icon {
             position: absolute;
-            right: 10px;
-            top: 50%;
-            transform: translate(0, -50%);
             right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
             color: #fff;
             font-size: 18px;
-
+            border: none;
+            background: transparent;
+            padding: 4px 8px;
+            cursor: pointer;
+            z-index: 2;
+            line-height: 1;
         }
 
         .password-toggle-icon:hover {
             color: #d99b2f;
+        }
+
+        .password-toggle-icon:focus {
+            outline: none;
+            box-shadow: none;
         }
 
         .form-check {
@@ -308,15 +317,15 @@
             const passwordField = document.getElementById('passwordField');
             const passwordToggle = document.getElementById('passwordToggle');
 
-            if (passwordToggle) {
+            if (passwordToggle && passwordField) {
+                passwordField.dataset.passwordToggleInit = '1';
                 passwordToggle.addEventListener('click', function () {
-                    if (passwordField.type === 'password') {
-                        passwordField.type = 'text';
-                        passwordToggle.innerHTML = '<i class="ri-eye-off-line"></i>';
-                    } else {
-                        passwordField.type = 'password';
-                        passwordToggle.innerHTML = '<i class="ri-eye-line"></i>';
-                    }
+                    var show = passwordField.type === 'password';
+                    passwordField.type = show ? 'text' : 'password';
+                    passwordToggle.innerHTML = show
+                        ? '<i class="ri-eye-off-line" aria-hidden="true"></i>'
+                        : '<i class="ri-eye-line" aria-hidden="true"></i>';
+                    passwordToggle.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
                 });
             }
         });

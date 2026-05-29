@@ -51,6 +51,8 @@ class Vendor extends Model
         'withdrawal_amount',
         'refund_balance',
         'aadhaar_card',
+        'aadhaar_card_front',
+        'aadhaar_card_back',
         'pan_card',
         'gst_file',
         'food_license_file',

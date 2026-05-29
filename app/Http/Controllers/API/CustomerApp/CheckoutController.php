@@ -12,6 +12,7 @@ use App\Models\Orders;
 use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\Users;
+use App\Services\CustomerPromoResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -66,6 +67,8 @@ class CheckoutController extends Controller
         }
 
         $totals = $this->calculateCheckoutTotals($items, $customer);
+        $promoApplied = CustomerPromoResolver::customerHasPromoInCart($customer)
+            && !empty($totals['promo_code']);
 
         $selectedAddress = $this->resolveSelectedCartAddress($customer);
 
@@ -84,7 +87,9 @@ class CheckoutController extends Controller
                 'offer_discount'   => number_format($totals['offer_discount'], 2, '.', ''),
                 'total_amount'     => number_format($totals['total_amount'], 2, '.', ''),
                 'cooking_instructions' => $customer->cart_cooking_instructions,
-                'promo_code' => $customer->cart_promo_code,
+                'promo_code' => $totals['promo_code'] ?? $customer->cart_promo_code,
+                'promo_applied' => $promoApplied,
+                'has_promo_applied' => $promoApplied,
                 'shipping_details' => [
                     'full_name'       => $selectedAddress?->contact_name ?: $user->name,
                     'mobile'          => $selectedAddress?->mobile ?: $user->mobile,
@@ -370,6 +375,7 @@ class CheckoutController extends Controller
         if (!empty($validated['notes']) && \Illuminate\Support\Facades\Schema::hasColumn('customers', 'cart_cooking_instructions')) {
             $customer->cart_cooking_instructions = trim($validated['notes']);
             $customer->save();
+            $customer->refresh();
         }
 
         $totals = $this->calculateCheckoutTotals($items, $customer);
@@ -391,9 +397,7 @@ class CheckoutController extends Controller
                 $paymentMethod,
                 $isCod ? 'pending' : $onlinePaymentStatus,
                 $isCod ? 'pending' : $onlineOrderStatus,
-                $notes,
-                $customer->cart_promo_code,
-                $customer->cart_discount_offer_id
+                $notes
             );
 
             if ($isOnline) {
@@ -446,6 +450,8 @@ class CheckoutController extends Controller
                     'total_amount' => number_format((float) $order->total_amount, 2, '.', ''),
                     'promo_code' => $order->promo_code ?? null,
                     'promo_discount' => number_format((float) ($order->promo_discount ?? 0), 2, '.', ''),
+                    'promo_applied' => !empty($order->promo_code) || (float) ($order->promo_discount ?? 0) > 0,
+                    'has_promo_applied' => !empty($order->promo_code) || (float) ($order->promo_discount ?? 0) > 0,
                     'items_ordered' => $items->count(),
                     'track_order_url' => url('/api/customer-app/orders/' . $order->order_id . '/tracking'),
                 ],
@@ -803,20 +809,13 @@ class CheckoutController extends Controller
         )) : 0.0;
 
         $offerDiscount = max(0, $lineSubtotal - $subtotal);
-        $promoDiscount = 0.0;
+        $eligiblePromoSubtotal = max(0, round($lineSubtotal - $offerDiscount, 2));
+        $promo = CustomerPromoResolver::resolve($customer, $eligiblePromoSubtotal);
+        $promoDiscount = (float) $promo['discount'];
 
-        if ($customer->cart_discount_offer_id && \Illuminate\Support\Facades\Schema::hasTable('discount_offers')) {
-            $promoOffer = \App\Models\DiscountOffer::active()
-                ->currentlyValid()
-                ->find($customer->cart_discount_offer_id);
-            if ($promoOffer && $promoOffer->cartAmountConditionMet($subtotal)) {
-                $base = max(0, $subtotal);
-                if ($promoOffer->discount_type === \App\Models\DiscountOffer::TYPE_PERCENTAGE) {
-                    $promoDiscount = round($base * ((float) $promoOffer->discount_value / 100), 2);
-                } else {
-                    $promoDiscount = round(min((float) $promoOffer->discount_value, $base), 2);
-                }
-            }
+        if ($promo['offer'] && ($promo['code'] || $promo['offer_id'])) {
+            CustomerPromoResolver::syncCustomerCartPromo($customer, $promo['offer']);
+            $customer->save();
         }
 
         $deliveryFee = $items->isEmpty() ? 0.0 : (float) config('customer-app.delivery_fee', 40);
@@ -826,7 +825,9 @@ class CheckoutController extends Controller
             'cart_payload' => $cartPayload,
             'subtotal' => round($subtotal, 2),
             'offer_discount' => round($offerDiscount, 2),
+            'promo_code' => $promo['code'],
             'promo_discount' => round($promoDiscount, 2),
+            'discount_offer_id' => $promo['offer_id'],
             'delivery_fee' => round($deliveryFee, 2),
             'tax_amount' => round($totalTax, 2),
             'total_amount' => round($totalAmount, 2),
@@ -841,9 +842,7 @@ class CheckoutController extends Controller
         string $paymentMethod,
         string $paymentStatus,
         string $orderStatus,
-        string $notes,
-        ?string $promoCode = null,
-        ?int $discountOfferId = null
+        string $notes
     ): Orders {
         $vendorId = $items->first()->product->vendor_id ?? null;
 
@@ -866,13 +865,15 @@ class CheckoutController extends Controller
             $orderData['gst_amount'] = $totals['tax_amount'];
         }
         if (\Illuminate\Support\Facades\Schema::hasColumn('orders', 'promo_code')) {
-            $orderData['promo_code'] = $promoCode ? strtoupper(trim($promoCode)) : null;
+            $orderData['promo_code'] = !empty($totals['promo_code'])
+                ? strtoupper(trim((string) $totals['promo_code']))
+                : null;
         }
         if (\Illuminate\Support\Facades\Schema::hasColumn('orders', 'promo_discount')) {
             $orderData['promo_discount'] = $totals['promo_discount'] ?? 0;
         }
         if (\Illuminate\Support\Facades\Schema::hasColumn('orders', 'discount_offer_id')) {
-            $orderData['discount_offer_id'] = $discountOfferId;
+            $orderData['discount_offer_id'] = $totals['discount_offer_id'] ?? null;
         }
         if (\Illuminate\Support\Facades\Schema::hasColumn('orders', 'offer_discount')) {
             $orderData['offer_discount'] = $totals['offer_discount'] ?? 0;

@@ -75,14 +75,26 @@
         .password-toggle-icon {
             position: absolute;
             right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
             cursor: pointer;
             font-size: 18px;
             color: #666;
             user-select: none;
+            border: none;
+            background: transparent;
+            padding: 4px 8px;
+            line-height: 1;
+            z-index: 2;
         }
 
         .password-toggle-icon:hover {
             color: #333;
+        }
+
+        .password-toggle-icon:focus {
+            outline: none;
+            box-shadow: none;
         }
 
         .btn-submit {
@@ -182,9 +194,9 @@
                 <div class="password-input-wrapper">
                     <input type="password" class="form-control" id="passwordField" name="password"
                         placeholder="Enter new password" required>
-                    <span class="password-toggle-icon" id="passwordToggle">
-                        <i class="ri-eye-line"></i>
-                    </span>
+                    <button type="button" class="password-toggle-icon password-toggle-btn" id="passwordToggle" aria-label="Show password">
+                        <i class="ri-eye-line" aria-hidden="true"></i>
+                    </button>
                 </div>
                 @error('password')
                     <small class="text-danger">{{ $message }}</small>
@@ -196,9 +208,9 @@
                 <div class="password-input-wrapper">
                     <input type="password" class="form-control" id="confirmPasswordField" name="password_confirmation"
                         placeholder="Confirm your password" required>
-                    <span class="password-toggle-icon" id="confirmPasswordToggle">
-                        <i class="ri-eye-line"></i>
-                    </span>
+                    <button type="button" class="password-toggle-icon password-toggle-btn" id="confirmPasswordToggle" aria-label="Show password">
+                        <i class="ri-eye-line" aria-hidden="true"></i>
+                    </button>
                 </div>
                 @error('password_confirmation')
                     <small class="text-danger">{{ $message }}</small>
@@ -227,29 +239,22 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Password toggle for new password
-        document.getElementById('passwordToggle').addEventListener('click', function () {
-            const field = document.getElementById('passwordField');
-            if (field.type === 'password') {
-                field.type = 'text';
-                this.innerHTML = '<i class="ri-eye-off-line"></i>';
-            } else {
-                field.type = 'password';
-                this.innerHTML = '<i class="ri-eye-line"></i>';
-            }
-        });
-
-        // Password toggle for confirm password
-        document.getElementById('confirmPasswordToggle').addEventListener('click', function () {
-            const field = document.getElementById('confirmPasswordField');
-            if (field.type === 'password') {
-                field.type = 'text';
-                this.innerHTML = '<i class="ri-eye-off-line"></i>';
-            } else {
-                field.type = 'password';
-                this.innerHTML = '<i class="ri-eye-line"></i>';
-            }
-        });
+        function bindPasswordToggle(toggleId, fieldId) {
+            var toggle = document.getElementById(toggleId);
+            var field = document.getElementById(fieldId);
+            if (!toggle || !field) return;
+            field.dataset.passwordToggleInit = '1';
+            toggle.addEventListener('click', function () {
+                var show = field.type === 'password';
+                field.type = show ? 'text' : 'password';
+                toggle.innerHTML = show
+                    ? '<i class="ri-eye-off-line" aria-hidden="true"></i>'
+                    : '<i class="ri-eye-line" aria-hidden="true"></i>';
+                toggle.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+            });
+        }
+        bindPasswordToggle('passwordToggle', 'passwordField');
+        bindPasswordToggle('confirmPasswordToggle', 'confirmPasswordField');
     </script>
 </body>
 

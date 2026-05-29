@@ -341,6 +341,10 @@ class UserAppDemoDataSeeder extends Seeder
             return 0;
         }
 
+        $trivagoOfferId = Schema::hasTable('discount_offers')
+            ? DB::table('discount_offers')->whereRaw('UPPER(title) = ?', ['TRIVAGO'])->value('id')
+            : null;
+
         $this->upsert('customers', ['user_id' => $userId], [
             'user_id' => $userId,
             'dob' => '1998-02-14',
@@ -352,6 +356,7 @@ class UserAppDemoDataSeeder extends Seeder
             'location_updated_at' => now(),
             'cart_cooking_instructions' => 'Less spicy, no onion',
             'cart_promo_code' => 'TRIVAGO',
+            'cart_discount_offer_id' => $trivagoOfferId,
         ]);
 
         return (int) DB::table('customers')->where('user_id', $userId)->value('customer_id');

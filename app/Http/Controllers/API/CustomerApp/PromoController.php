@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Customers;
 use App\Models\DiscountOffer;
 use App\Models\Users;
+use App\Services\CustomerPromoResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 
@@ -124,12 +125,7 @@ class PromoController extends Controller
         $discountAmount = $offer->calculateCartDiscount($orderAmount);
         $payableAmount = max(0, round($orderAmount - $discountAmount, 2));
 
-        if (Schema::hasColumn('customers', 'cart_promo_code')) {
-            $customer->cart_promo_code = $code;
-        }
-        if (Schema::hasColumn('customers', 'cart_discount_offer_id')) {
-            $customer->cart_discount_offer_id = $offer->id;
-        }
+        CustomerPromoResolver::syncCustomerCartPromo($customer, $offer);
         $customer->save();
 
         return response()->json([
