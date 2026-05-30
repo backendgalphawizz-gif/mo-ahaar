@@ -41,6 +41,34 @@ class ProductManagementController extends Controller
         return $this->isVendorPanel() ? route($vendorRoute, $params) : route($adminRoute, $params);
     }
 
+    private function activeSubCategoriesForCategory(?int $categoryId)
+    {
+        if (!$categoryId) {
+            return collect();
+        }
+
+        return ProductSubCategory::where('category_id', $categoryId)
+            ->where(function ($query) {
+                $query->whereNull('status')
+                    ->orWhereNotIn('status', [0, '0']);
+            })
+            ->orderBy('sub_cat_name')
+            ->get();
+    }
+
+    private function productCategoryRules(Request $request): array
+    {
+        return [
+            'category_id' => ['required', 'exists:product_categories,category_id'],
+            'sub_category_id' => [
+                'nullable',
+                Rule::exists('sub_categories', 'sub_category_id')->where(
+                    fn ($query) => $query->where('category_id', $request->input('category_id'))
+                ),
+            ],
+        ];
+    }
+
     public function products(Request $request)
     {
         $title = 'Products List';
@@ -96,9 +124,11 @@ class ProductManagementController extends Controller
     {
         $title = 'Add New Food Item';
         $categoryList = ProductCategory::where('status', '!=', 0)->get();
+        $selectedCategoryId = old('category_id');
+        $subCategoryList = $this->activeSubCategoriesForCategory($selectedCategoryId ? (int) $selectedCategoryId : null);
         $gstTaxes = GstTax::active()->orderBy('percentage')->get();
         $promoCodes = DiscountOffer::active()->currentlyValid()->orderBy('title')->get(['id', 'title']);
-        return view('admin.products.addProduct', compact('title', 'categoryList', 'gstTaxes', 'promoCodes'));
+        return view('admin.products.addProduct', compact('title', 'categoryList', 'subCategoryList', 'gstTaxes', 'promoCodes'));
     }
 
     public function storeProduct(Request $request)
@@ -120,17 +150,8 @@ class ProductManagementController extends Controller
             'mrp_price' => $singlePrice,
         ]);
 
-        if (!$request->filled('category_id')) {
-            $firstCategoryId = ProductCategory::where('status', '!=', 0)->value('category_id');
-            if ($firstCategoryId) {
-                $request->merge(['category_id' => $firstCategoryId]);
-            }
-        }
-
-        $rules = [
+        $rules = array_merge([
             'product_name' => ['required', 'string', 'max:100', 'regex:/^[a-zA-Z0-9 &()\-\/.,]+$/', 'not_regex:/(.)(\1{3,})/'],
-            'category_id' => ['nullable', 'exists:product_categories,category_id'],
-            'sub_category_id' => ['nullable', 'exists:sub_categories,sub_category_id'],
             'sku' => ['nullable', 'string', 'max:100', Rule::unique('products', 'sku')->whereNotNull('sku')],
             'mrp_price' => ['required', 'numeric', 'min:0', 'regex:/^\d{1,10}(\.\d{1,2})?$/'],
             'price' => ['required', 'numeric', 'min:0', 'regex:/^\d{1,10}(\.\d{1,2})?$/'],
@@ -146,7 +167,7 @@ class ProductManagementController extends Controller
             'discount' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'product_type' => ['required', Rule::in(['veg', 'non-veg'])],
             'tags' => ['nullable', 'string', 'max:100'],
-        ];
+        ], $this->productCategoryRules($request));
 
         $messages = [
             'product_name.max' => 'Product name may not be greater than 100 characters.',
@@ -168,7 +189,9 @@ class ProductManagementController extends Controller
             'product_type.in' => 'Food type must be veg or non-veg.',
             'min_quantity.integer' => 'Minimum order quantity must be a whole number.',
             'min_quantity.min' => 'Minimum order quantity must be at least 1.',
-            'sub_category_id.exists' => 'Selected sub-category is invalid.',
+            'category_id.required' => 'Please select a category.',
+            'category_id.exists' => 'Selected category is invalid.',
+            'sub_category_id.exists' => 'Selected sub-category is invalid for the chosen category.',
             'product_image.required' => 'Please upload a product thumbnail image.',
             'product_image.image' => 'The product thumbnail must be an image file (jpg, jpeg, png, webp).',
             'product_image.mimes' => 'The product thumbnail must be a file of type: jpg, jpeg, png, webp.',
@@ -297,9 +320,11 @@ class ProductManagementController extends Controller
         }
 
         $categoryList = ProductCategory::where('status', '!=', 0)->get();
+        $selectedCategoryId = old('category_id', $product->category_id);
+        $subCategoryList = $this->activeSubCategoriesForCategory($selectedCategoryId ? (int) $selectedCategoryId : null);
         $gstTaxes = GstTax::active()->orderBy('percentage')->get();
         $promoCodes = DiscountOffer::active()->currentlyValid()->orderBy('title')->get(['id', 'title']);
-        return view('admin.products.editProduct', compact('title', 'product', 'categoryList', 'gstTaxes', 'promoCodes'));
+        return view('admin.products.editProduct', compact('title', 'product', 'categoryList', 'subCategoryList', 'gstTaxes', 'promoCodes'));
     }
 
     public function updateProduct(Request $request)
@@ -322,17 +347,12 @@ class ProductManagementController extends Controller
             'price' => $singlePrice,
             'mrp_price' => $singlePrice,
         ]);
-        if (!$request->filled('category_id')) {
-            $request->merge(['category_id' => $product->category_id ?: ProductCategory::where('status', '!=', 0)->value('category_id')]);
-        }
-        $validated = $request->validate([
+        $validated = $request->validate(array_merge([
             'product_id' => ['required', 'integer', 'exists:products,product_id'],
             'product_name' => ['required', 'string', 'max:100', 'regex:/^[a-zA-Z0-9 &()\-\/.,]+$/', 'not_regex:/(.)(\1{3,})/'],
 
             'short_description' => ['required', 'string', 'max:300'],
             'product_description' => ['required', 'string'],
-            'category_id' => ['nullable', 'exists:product_categories,category_id'],
-            'sub_category_id' => ['nullable', 'exists:sub_categories,sub_category_id'],
             'mrp_price' => ['required', 'numeric', 'min:0', 'regex:/^\d{1,10}(\.\d{1,2})?$/'],
             'price' => ['required', 'numeric', 'min:0', 'regex:/^\d{1,10}(\.\d{1,2})?$/'],
             'min_quantity' => ['nullable', 'integer', 'min:1'],
@@ -348,13 +368,15 @@ class ProductManagementController extends Controller
             'gst_calculation_type' => ['required', Rule::in(Product::gstCalculationTypeOptions())],
             'product_type' => ['required', Rule::in(['veg', 'non-veg'])],
             'tags' => ['nullable', 'string', 'max:100'],
-        ], [
+        ], $this->productCategoryRules($request)), [
             'mrp_price.required' => 'MRP price is required.',
             'mrp_price.numeric' => 'MRP price must be a number.',
             'mrp_price.min' => 'MRP price must be at least 0.',
             'mrp_price.regex' => 'MRP price may not be greater than 10 digits.',
             'sku.unique' => 'This SKU is already in use.',
-            'sub_category_id.exists' => 'Selected sub-category is invalid.',
+            'category_id.required' => 'Please select a category.',
+            'category_id.exists' => 'Selected category is invalid.',
+            'sub_category_id.exists' => 'Selected sub-category is invalid for the chosen category.',
             'price.lte' => 'Discounted price cannot be greater than MRP price.',
             'price.regex' => 'Price may not be greater than 10 digits.',
         ]);

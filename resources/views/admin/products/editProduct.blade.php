@@ -24,7 +24,6 @@
                     <input type="hidden" name="status" value="{{ old('status', $product->status ?? 1) }}">
                     <input type="hidden" name="price" id="price_hidden" value="{{ $currentPrice }}">
                     <input type="hidden" name="mrp_price" id="mrp_hidden" value="{{ $currentPrice }}">
-                    <input type="hidden" name="category_id" value="{{ old('category_id', $product->category_id ?: optional($categoryList->first())->category_id) }}">
 
                     <div class="col-md-6">
                         <label class="form-label">Food Name <span class="text-danger">*</span></label>
@@ -37,6 +36,12 @@
                         @include('admin.partials.field-error', ['field' => 'price'])
                         @include('admin.partials.field-error', ['field' => 'mrp_price'])
                     </div>
+
+                    @include('admin.products.partials.category-fields', [
+                        'selectedCategoryId' => old('category_id', $product->category_id),
+                        'selectedSubCategoryId' => old('sub_category_id', $product->sub_category_id),
+                        'subCategoryList' => $subCategoryList ?? collect(),
+                    ])
 
                     @include('admin.products.partials.gst-fields', ['product' => $product])
 
@@ -116,4 +121,7 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 @include('admin.products.partials.gst-fields-script')
+@include('admin.products.partials.category-fields-script', [
+    'selectedSubCategoryId' => old('sub_category_id', $product->sub_category_id),
+])
 @endsection
